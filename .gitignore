@@ -10,3 +10,5 @@ playwright-report/
 .DS_Store
 .idea/
 .vscode/
+/preferences.json
+/preferences.json.bak

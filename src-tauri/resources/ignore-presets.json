@@ -1,0 +1,20 @@
+[
+  {"id":"os","name":"Operating system files","group":"General","patterns":[".DS_Store","._*","Thumbs.db","Thumbs.db:encryptable","Desktop.ini","$RECYCLE.BIN/"]},
+  {"id":"secrets","name":"Environment & local secrets","group":"General","patterns":[".env",".env.*","!.env.example","!.env.sample","!.env.template"]},
+  {"id":"editors","name":"Editors & IDEs","group":"General","patterns":[".idea/",".vs/","*.swp","*.swo","*~",".vscode/*.local.json"]},
+  {"id":"temporary","name":"Temporary files & logs","group":"General","patterns":["*.log","*.tmp","*.temp","*.bak"]},
+  {"id":"node","name":"Node.js","group":"JavaScript / Web","patterns":["node_modules/",".npm/",".pnpm-store/",".yarn/cache/",".yarn/unplugged/","npm-debug.log*","yarn-debug.log*","yarn-error.log*","pnpm-debug.log*"]},
+  {"id":"react","name":"React","group":"JavaScript / Web","patterns":["/build/","/coverage/",".eslintcache"]},
+  {"id":"vite","name":"Vite","group":"JavaScript / Web","patterns":["/dist/","/dist-ssr/","node_modules/.vite/","vite.config.*.timestamp-*"]},
+  {"id":"next","name":"Next.js","group":"JavaScript / Web","patterns":["/.next/","/out/","/build/","next-env.d.ts"]},
+  {"id":"typescript","name":"TypeScript","group":"JavaScript / Web","patterns":["*.tsbuildinfo"]},
+  {"id":"frontend","name":"Frontend builds","group":"JavaScript / Web","patterns":["/dist/","/build/","/coverage/","/.parcel-cache/","/.turbo/"]},
+  {"id":"python","name":"Python","group":"Languages","patterns":["__pycache__/","*.py[cod]",".venv/","venv/",".pytest_cache/",".mypy_cache/",".ruff_cache/",".coverage","htmlcov/","*.egg-info/","/dist/","/build/"]},
+  {"id":"rust","name":"Rust","group":"Languages","patterns":["/target/","**/*.rs.bk"]},
+  {"id":"csharp","name":"C#","group":"Languages","patterns":["[Bb]in/","[Oo]bj/","*.user","*.suo","TestResults/"]},
+  {"id":"cpp","name":"C++ / CMake","group":"Languages","patterns":["/build/","/out/","CMakeFiles/","CMakeCache.txt","cmake_install.cmake","*.obj","*.o","*.pdb","*.ilk"]},
+  {"id":"java","name":"Java","group":"Languages","patterns":["*.class","/.gradle/","/build/","/target/","hs_err_pid*","replay_pid*"]},
+  {"id":"tauri","name":"Tauri","group":"Applications & engines","patterns":["/src-tauri/target/","/src-tauri/gen/schemas/"]},
+  {"id":"unity","name":"Unity","group":"Applications & engines","patterns":["/[Ll]ibrary/","/[Tt]emp/","/[Oo]bj/","/[Ll]ogs/","/[Uu]ser[Ss]ettings/","/[Bb]uild/","/[Bb]uilds/","/MemoryCaptures/","/Recordings/"]},
+  {"id":"dotnet","name":".NET","group":"Applications & engines","patterns":["[Bb]in/","[Oo]bj/",".vs/","TestResults/","*.user","*.suo","/artifacts/"]}
+]

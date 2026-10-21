@@ -1,4 +1,6 @@
 use crate::{
+    config::{Appearance, Configuration, License, ProjectOptions},
+    generation::{generate_files, render_gitignore, render_readme},
     github,
     model::*,
     preferences::Preferences,
@@ -8,13 +10,16 @@ use crate::{
 use std::{fs, path::Path, sync::Mutex};
 
 fn request(readme: Readme) -> CreateRequest {
-    CreateRequest {
+    let mut request = CreateRequest {
         name: "test-project".into(),
         description: "A useful project.\nWith a second line.".into(),
         destination: Destination::Local,
         visibility: Visibility::Private,
         readme,
-    }
+        ..Default::default()
+    };
+    request.options.ignore_presets.clear();
+    request
 }
 
 struct IsolatedGit;
@@ -66,8 +71,8 @@ fn validates_names_at_the_native_boundary() {
 #[test]
 fn templates_have_expected_content_and_none_means_no_file() {
     let general = render_readme(&request(Readme::General)).unwrap();
-    assert!(general.starts_with("# test-project\n\nA useful project."));
-    assert!(general.contains("## Getting started"));
+    assert!(general.starts_with("# test-project\n\n## Overview\n\nA useful project."));
+    assert!(general.contains("## Usage"));
     let minimal = render_readme(&request(Readme::Minimal)).unwrap();
     assert_eq!(
         minimal,
@@ -147,43 +152,48 @@ struct FakeGithub {
     fail_push: bool,
     mismatch: bool,
     fail_create: bool,
+    fail_default_branch: bool,
+    branch: Option<String>,
 }
 impl Runner for FakeGithub {
     fn run(&self, program: Program, values: &[String], _: &Path) -> Result<Output, String> {
         self.calls.lock().unwrap().push((program, values.to_vec()));
-        let (success, stdout) =
-            if program == Program::Gh && values.starts_with(&args(&["api", "user"])) {
-                (true, r#"{"login":"octocat","id":123}"#.into())
-            } else if program == Program::Gh && values.starts_with(&args(&["repo", "create"])) {
-                (!self.fail_create, String::new())
-            } else if program == Program::Gh && values.starts_with(&args(&["repo", "view"])) {
-                (
-                    true,
-                    r#"{"url":"https://github.com/octocat/test-project"}"#.into(),
-                )
-            } else if values.starts_with(&args(&["rev-parse"])) {
-                (true, "a".repeat(40))
-            } else if values.starts_with(&args(&["branch"])) {
-                (true, "main".into())
-            } else if values.starts_with(&args(&["remote", "get-url"])) {
-                (true, "git@github.com:octocat/test-project.git".into())
-            } else if values.contains(&"push".into()) {
-                (!self.fail_push, String::new())
-            } else if values.contains(&"ls-remote".into()) {
-                (
-                    true,
-                    format!(
-                        "{}\trefs/heads/main",
-                        if self.mismatch {
-                            "b".repeat(40)
-                        } else {
-                            "a".repeat(40)
-                        }
-                    ),
-                )
-            } else {
-                (true, String::new())
-            };
+        let (success, stdout) = if program == Program::Gh
+            && values.starts_with(&args(&["api", "user"]))
+        {
+            (true, r#"{"login":"octocat","id":123}"#.into())
+        } else if program == Program::Gh && values.starts_with(&args(&["repo", "create"])) {
+            (!self.fail_create, String::new())
+        } else if program == Program::Gh && values.starts_with(&args(&["repo", "view"])) {
+            (
+                true,
+                serde_json::json!({"url": format!("https://github.com/{}", values[2])}).to_string(),
+            )
+        } else if program == Program::Gh && values.contains(&"--default-branch".into()) {
+            (!self.fail_default_branch, String::new())
+        } else if values.starts_with(&args(&["rev-parse"])) {
+            (true, "a".repeat(40))
+        } else if values.starts_with(&args(&["branch"])) {
+            (true, self.branch.clone().unwrap_or_else(|| "main".into()))
+        } else if values.starts_with(&args(&["remote", "get-url"])) {
+            (true, "git@github.com:octocat/test-project.git".into())
+        } else if values.contains(&"push".into()) {
+            (!self.fail_push, String::new())
+        } else if values.contains(&"ls-remote".into()) {
+            (
+                true,
+                format!(
+                    "{}\trefs/heads/main",
+                    if self.mismatch {
+                        "b".repeat(40)
+                    } else {
+                        "a".repeat(40)
+                    }
+                ),
+            )
+        } else {
+            (true, String::new())
+        };
         Ok(Output { success, stdout })
     }
 }
@@ -195,6 +205,7 @@ fn pending(temp: &tempfile::TempDir) -> repository::PendingRepo {
         request: value,
         path: temp.path().canonicalize().unwrap(),
         owner: Some("octocat".into()),
+        authenticated_user: Some("octocat".into()),
         author_email: Some("123+octocat@users.noreply.github.com".into()),
         commit: Some("a".repeat(40)),
         remote_created: false,
@@ -333,6 +344,7 @@ fn preferences_round_trip_and_corrupt_data_falls_back() {
     let prefs = Preferences {
         parent_path: temp.path().canonicalize().unwrap(),
         destination: Destination::Github,
+        ..Preferences::new(temp.path().into())
     };
     prefs.save(&file).unwrap();
     let loaded = Preferences::load(&file, temp.path().into());
@@ -356,7 +368,8 @@ fn missing_git_or_identity_is_reported_before_creating_a_folder() {
                 return Err("unavailable".into());
             }
             Ok(Output {
-                success: values == args(&["--version"]),
+                success: values == args(&["--version"])
+                    || values.starts_with(&args(&["check-ref-format"])),
                 stdout: "git version".into(),
             })
         }
@@ -386,6 +399,7 @@ fn native_operation_guard_rejects_duplicates_and_releases_on_drop() {
             preferences: Preferences {
                 parent_path: temp.path().into(),
                 destination: Destination::Local,
+                ..Preferences::new(temp.path().into())
             },
             preference_file: temp.path().join("preferences.json"),
             pending: None,
@@ -441,4 +455,383 @@ fn github_initial_commit_uses_verified_noreply_address_without_global_changes() 
     let config = fs::read_to_string(pending.path.join(".git").join("config")).unwrap();
     assert!(config.contains("123+octocat@users.noreply.github.com"));
     assert!(!config.contains("private@example.invalid"));
+}
+
+#[test]
+fn generated_files_match_preview_with_custom_readme_license_branch_and_commit() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut value = request(Readme::Custom);
+    value.options = ProjectOptions {
+        initial_branch: "feature/start".into(),
+        commit_message: "Start the configured project".into(),
+        license: License::Mit,
+        copyright_name: "Test Author".into(),
+        copyright_year: "2026".into(),
+        editorconfig: true,
+        gitattributes: true,
+        ..Default::default()
+    };
+    value.options.section_content.insert(
+        "usage".into(),
+        "Actual usage goes here.\n\n```text\nexample\n```".into(),
+    );
+    let expected = generate_files(&value).unwrap();
+    let mut pending = repository::begin(&IsolatedGit, temp.path(), value).unwrap();
+    repository::create_local(&IsolatedGit, &mut pending, &|_| {}).unwrap();
+    for file in expected {
+        assert_eq!(
+            fs::read_to_string(pending.path.join(file.path)).unwrap(),
+            file.content
+        );
+    }
+    for (values, expected) in [
+        (args(&["branch", "--show-current"]), "feature/start"),
+        (
+            args(&["log", "-1", "--format=%s"]),
+            "Start the configured project",
+        ),
+        (args(&["status", "--porcelain"]), ""),
+    ] {
+        let output = IsolatedGit
+            .run(Program::Git, &values, &pending.path)
+            .unwrap();
+        assert!(output.success);
+        assert_eq!(output.stdout, expected);
+    }
+    let readme = fs::read_to_string(pending.path.join("README.md")).unwrap();
+    assert!(readme.contains("Actual usage goes here."));
+    assert!(readme.contains("See [LICENSE](LICENSE)"));
+    assert!(pending.result().files.contains(&".editorconfig".into()));
+}
+
+#[test]
+fn every_license_has_canonical_text_and_correct_project_copyright() {
+    for license in [
+        License::Mit,
+        License::Apache,
+        License::Gpl,
+        License::Bsd,
+        License::Unlicense,
+    ] {
+        let mut value = request(Readme::General);
+        value.options.license = license;
+        value.options.copyright_name = "Alex Example".into();
+        value.options.copyright_year = "2025".into();
+        let files = generate_files(&value).unwrap();
+        let text = &files
+            .iter()
+            .find(|file| file.path == "LICENSE")
+            .unwrap()
+            .content;
+        assert!(text.len() > 500);
+        if license.requires_author() {
+            assert!(text.contains("2025 Alex Example"));
+        }
+        match license {
+            License::Mit => {
+                assert!(text.contains("Permission is hereby granted"));
+                assert!(!text.contains("<year>"));
+            }
+            License::Bsd => {
+                assert!(text.contains("Redistribution and use"));
+                assert!(!text.contains("<owner>"));
+            }
+            License::Apache => {
+                assert!(text.contains(include_str!("../resources/licenses/Apache-2.0.txt").trim()))
+            }
+            License::Gpl => {
+                assert!(text.contains(include_str!("../resources/licenses/GPL-3.0-only.txt").trim()))
+            }
+            License::Unlicense => assert_eq!(
+                text.trim(),
+                include_str!("../resources/licenses/Unlicense.txt").trim()
+            ),
+            _ => unreachable!(),
+        }
+    }
+    assert!(!generate_files(&request(Readme::None))
+        .unwrap()
+        .iter()
+        .any(|f| f.path == "LICENSE"));
+}
+
+#[test]
+fn ignore_rules_preserve_negation_and_keep_secrets_and_generated_files_out_of_git() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut value = request(Readme::None);
+    value.options.ignore_presets = args(&[
+        "os", "secrets", "node", "vite", "frontend", "python", "rust", "unity",
+    ]);
+    value.options.custom_patterns = args(&[
+        "scratch/*",
+        "!scratch/keep.txt",
+        "scratch/*.tmp",
+        "scratch/*",
+        "!scratch/keep.txt",
+    ]);
+    let text = render_gitignore(&value.options).unwrap();
+    assert_eq!(text.lines().filter(|line| *line == "/dist/").count(), 1);
+    assert_eq!(
+        text.lines().filter(|line| *line == "scratch/*").count(),
+        2,
+        "A re-ignore after a negation must not be deduplicated"
+    );
+    let mut pending = repository::begin(&IsolatedGit, temp.path(), value).unwrap();
+    repository::create_local(&IsolatedGit, &mut pending, &|_| {}).unwrap();
+    let ignored = [
+        ".env",
+        ".env.local",
+        "node_modules/pkg/index.js",
+        "dist/app.js",
+        ".venv/config",
+        "__pycache__/app.pyc",
+        "target/debug/app",
+        "Library/cache",
+        "scratch/temp.tmp",
+    ];
+    let tracked = [
+        ".env.example",
+        "src/index.ts",
+        "Assets/player.cs",
+        "Assets/player.cs.meta",
+        "Packages/manifest.json",
+        "ProjectSettings/settings.asset",
+        "Cargo.lock",
+        "scratch/keep.txt",
+    ];
+    for file in ignored.iter().chain(tracked.iter()) {
+        let path = pending.path.join(file);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, "test").unwrap();
+    }
+    let stage = IsolatedGit
+        .run(Program::Git, &args(&["add", "--all"]), &pending.path)
+        .unwrap();
+    assert!(stage.success);
+    let output = IsolatedGit
+        .run(
+            Program::Git,
+            &args(&["diff", "--cached", "--name-only"]),
+            &pending.path,
+        )
+        .unwrap();
+    assert!(output.success);
+    let paths = output.stdout.lines().collect::<Vec<_>>();
+    for file in ignored {
+        assert!(!paths.contains(&file), "{file} must stay ignored");
+    }
+    for file in tracked {
+        assert!(paths.contains(&file), "{file} must remain available to Git");
+    }
+}
+
+#[test]
+fn configuration_validation_rejects_unsafe_values_before_creating_files() {
+    let base = request(Readme::General);
+    let mut invalid = Vec::new();
+    for branch in [
+        "-flag",
+        "../escape",
+        "HEAD",
+        "a..b",
+        "with space",
+        "hidden/.branch",
+        "branch.lock",
+        "x@{y",
+    ] {
+        let mut value = base.clone();
+        value.options.initial_branch = branch.into();
+        invalid.push(value);
+    }
+    let mut empty_commit = base.clone();
+    empty_commit.options.commit_message.clear();
+    invalid.push(empty_commit);
+    let mut pattern = base.clone();
+    pattern.options.custom_patterns.push("a\nb".into());
+    invalid.push(pattern);
+    let mut license = base.clone();
+    license.options.license = License::Mit;
+    invalid.push(license);
+    let mut unknown = base.clone();
+    unknown.options.ignore_presets.push("nonexistent".into());
+    invalid.push(unknown);
+    let mut homepage = base.clone();
+    homepage.destination = Destination::Github;
+    homepage.homepage = "https://user:secret@example.com".into();
+    invalid.push(homepage);
+    for request in invalid {
+        assert!(generate_files(&request).is_err());
+    }
+    let mut local = base;
+    local.homepage = "not a URL".into();
+    local.topics = args(&["Not a topic"]);
+    assert!(
+        generate_files(&local).is_ok(),
+        "Hidden GitHub fields must not block local creation"
+    );
+}
+
+#[test]
+fn presets_can_be_saved_loaded_renamed_and_deleted_with_atomic_persistence() {
+    let temp = tempfile::tempdir().unwrap();
+    let file = temp.path().join("preferences.json");
+    let mut preferences = Preferences::new(temp.path().canonicalize().unwrap());
+    preferences.appearance = Appearance::Dark;
+    let configuration = Configuration {
+        readme: Readme::Custom,
+        options: ProjectOptions {
+            initial_branch: "develop".into(),
+            ignore_presets: args(&["python", "secrets"]),
+            ..Default::default()
+        },
+    };
+    let id = preferences
+        .save_preset("Python tools".into(), configuration)
+        .unwrap();
+    preferences.save(&file).unwrap();
+    let mut loaded = Preferences::load(&file, temp.path().into());
+    assert_eq!(loaded.appearance, Appearance::Dark);
+    assert_eq!(
+        loaded.custom_presets[0]
+            .configuration
+            .options
+            .initial_branch,
+        "develop"
+    );
+    loaded.rename_preset(&id, "Python utilities").unwrap();
+    assert_eq!(loaded.custom_presets[0].name, "Python utilities");
+    assert!(loaded
+        .save_preset("Python utilities".into(), Configuration::default())
+        .is_err());
+    loaded.delete_preset(&id).unwrap();
+    loaded.save(&file).unwrap();
+    assert!(Preferences::load(&file, temp.path().into())
+        .custom_presets
+        .is_empty());
+    assert!(
+        loaded.delete_preset("default").is_err(),
+        "Built-ins must not be deleted"
+    );
+}
+
+#[test]
+fn settings_migrate_v1_and_survive_malformed_fields_and_future_versions() {
+    let temp = tempfile::tempdir().unwrap();
+    let file = temp.path().join("preferences.json");
+    fs::write(
+        &file,
+        serde_json::json!({ "parentPath": temp.path(), "destination": "github" }).to_string(),
+    )
+    .unwrap();
+    let legacy = Preferences::load(&file, temp.path().into());
+    assert_eq!(legacy.destination, Destination::Github);
+    assert_eq!(legacy.parent_path, temp.path().canonicalize().unwrap());
+    assert_eq!(legacy.schema_version, 2);
+    assert_eq!(legacy.defaults.options.initial_branch, "main");
+    fs::write(&file, serde_json::json!({ "schemaVersion": 2, "parentPath": temp.path(), "destination": "github", "appearance": 50, "customPresets": [ {"id":"bad"} ], "defaults": { "options": {"initialBranch":"-unsafe"} } }).to_string()).unwrap();
+    let partial = Preferences::load(&file, temp.path().into());
+    assert_eq!(partial.destination, Destination::Github);
+    assert_eq!(partial.appearance, Appearance::System);
+    assert!(partial.custom_presets.is_empty());
+    assert_eq!(partial.defaults.options.initial_branch, "main");
+    fs::write(&file, "broken json").unwrap();
+    let broken = Preferences::load(&file, temp.path().into());
+    broken.save(&file).unwrap();
+    assert_eq!(
+        fs::read_to_string(file.with_extension("json.bak")).unwrap(),
+        "broken json"
+    );
+    fs::write(&file, "{\"schemaVersion\":999}").unwrap();
+    let future = Preferences::load(&file, temp.path().into());
+    assert!(future.save(&file).is_err());
+    assert_eq!(
+        fs::read_to_string(&file).unwrap(),
+        "{\"schemaVersion\":999}"
+    );
+}
+
+#[test]
+fn built_in_presets_and_github_metadata_are_conservative_and_argument_safe() {
+    let presets = crate::config::built_in_presets();
+    let tauri = presets.iter().find(|p| p.id == "tauri").unwrap();
+    assert!(tauri
+        .configuration
+        .options
+        .ignore_presets
+        .contains(&"node".into()));
+    assert!(tauri
+        .configuration
+        .options
+        .ignore_presets
+        .contains(&"rust".into()));
+    let blank = presets.iter().find(|p| p.id == "blank").unwrap();
+    assert_eq!(blank.configuration.readme, Readme::None);
+    assert!(blank.configuration.options.ignore_presets.is_empty());
+    let mut request = request(Readme::None);
+    request.homepage = "https://example.com/path?q=1&b=2".into();
+    request.topics = args(&["desktop", "developer-tools"]);
+    assert_eq!(
+        github::metadata_args(&request, "example-org"),
+        args(&[
+            "repo",
+            "edit",
+            "example-org/test-project",
+            "--homepage",
+            "https://example.com/path?q=1&b=2",
+            "--add-topic",
+            "desktop",
+            "--add-topic",
+            "developer-tools"
+        ])
+    );
+    assert_eq!(
+        github::push_args("feature/start")
+            .last()
+            .map(String::as_str),
+        Some("feature/start")
+    );
+}
+
+#[test]
+fn organisation_publication_sets_custom_remote_default_branch_and_preserves_account() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut pending = pending(&temp);
+    pending.owner = Some("example-org".into());
+    pending.request.options.initial_branch = "work/start".into();
+    let runner = FakeGithub {
+        branch: Some("work/start".into()),
+        ..Default::default()
+    };
+    repository::publish(&runner, &mut pending, &|_| {}).unwrap();
+    let calls = runner.calls.lock().unwrap();
+    assert!(calls
+        .iter()
+        .any(|(_, a)| a == &github::default_branch_args(&pending.request, "example-org")));
+    assert!(calls
+        .iter()
+        .any(|(_, a)| a.contains(&"refs/heads/work/start".into())));
+    assert_eq!(
+        pending.result().github_url.as_deref(),
+        Some("https://github.com/example-org/test-project")
+    );
+    assert_eq!(pending.authenticated_user.as_deref(), Some("octocat"));
+}
+
+#[test]
+fn default_branch_configuration_failure_remains_recoverable_after_a_verified_push() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut pending = pending(&temp);
+    let error = repository::publish(
+        &FakeGithub {
+            fail_default_branch: true,
+            ..Default::default()
+        },
+        &mut pending,
+        &|_| {},
+    )
+    .unwrap_err();
+    let failure = pending.failure(error);
+    assert!(failure.message.contains("default branch"));
+    assert!(failure.can_retry && failure.local_ready && failure.github_url.is_some());
+    repository::publish(&FakeGithub::default(), &mut pending, &|_| {}).unwrap();
 }

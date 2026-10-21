@@ -1,107 +1,148 @@
-# Repo Creator
+# Repo Creator 1.1
 
-A compact Windows utility for starting a real Git repository, with an initial commit on `main` and optional publishing to GitHub.
+A Windows desktop utility for creating and configuring local Git repositories, with optional GitHub publishing. Built with Tauri 2, React, TypeScript and Rust.
 
-Built with **Tauri 2, React, TypeScript and Rust**. The interface follows the Windows light or dark appearance, uses a native folder picker, and remembers your last project location and destination.
+## Create a repository
 
-## Use the application
+Open Repo Creator, enter a project name, choose **Local only** or **GitHub**, select the parent location, and click **Create Repository**. The app creates a new child folder, generates the selected files, initialises Git and verifies the initial commit. Existing files and folders are never overwritten.
 
-Double-click `repo-creator.exe`, or install Repo Creator using the setup executable or MSI. Enter a project name, choose **Local only** or **GitHub**, select a README template and location, then click **Create Repository**.
+The neutral light/dark interface follows Windows appearance or your **System / Light / Dark** selection. A scrolling content area holds expanded settings while the creation action remains available in the footer. Native title-bar controls and window resizing are retained.
 
-Both destinations create a new child folder and an initial commit on `main`. Choosing **None** for the README creates an empty initial commit. GitHub defaults to **Private**. After success, open the local folder or the verified GitHub URL, or choose **Create Another**.
+### Runtime requirements
 
-### Runtime prerequisites
-
-- Windows 11 x64 and [Microsoft Edge WebView2](https://developer.microsoft.com/microsoft-edge/webview2/). The installers can bootstrap WebView2 when needed.
-- [Git for Windows](https://git-scm.com/downloads/win), available on `PATH`.
-- A Git commit identity. If missing, the app shows the exact setup commands:
+- Windows 11 x64 and [Microsoft Edge WebView2](https://developer.microsoft.com/microsoft-edge/webview2/). Installers can bootstrap WebView2 if needed.
+- [Git for Windows](https://git-scm.com/downloads/win) on `PATH`, with a commit identity. If missing, the app shows these setup commands:
 
   ```powershell
   git config --global user.name "Your Name"
   git config --global user.email "you@example.com"
   ```
 
-- For GitHub publishing: the official [GitHub CLI](https://cli.github.com/), available on `PATH`, and a GitHub account with permission to create repositories. **Connect to GitHub** opens the official `gh auth login --web` flow in an interactive terminal and browser. Select **Check connection** when finished.
+- For publishing: [GitHub CLI](https://cli.github.com/) on `PATH`, authenticated to an account with permission to create the selected repository.
+- VS Code is optional. The app detects its native Windows executable and explains when it is unavailable.
 
-Reopen Repo Creator after installing Git or GitHub CLI so it inherits the updated `PATH`. Local creation needs no network connection.
+Reopen Repo Creator after installing a command-line tool so it inherits the updated `PATH`. Local mode works offline. **Connect to GitHub** opens the official `gh auth login --web` device flow in an interactive terminal and browser; select **Check connection** afterward. Credentials remain with GitHub CLI.
 
-## Build from source
+## Configuration
 
-Install Node.js 22.18 or newer, stable Rust with the MSVC toolchain, and the **Desktop development with C++** workload from Microsoft C++ Build Tools. See the official [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/#windows). MSI packaging also needs the Windows VBScript optional feature.
+### Project presets
+
+Choose **Default**, **Blank repository**, **Web application**, **React / Vite**, **Python project**, **Rust project**, **Tauri application**, or **Unity project**. Presets select README sections, ignore rules and appropriate optional files. They configure the repository; they do not install dependencies or scaffold frameworks.
+
+All options remain editable after selection. **Manage…** lets you save the current configuration as a named preset, load it, rename it, or delete it after confirmation. **Reset configuration** restores the default configuration while retaining the project identity and location. Names, descriptions, GitHub owner details and credentials are not included in custom presets.
+
+### .gitignore
+
+Expand **.gitignore** to search and combine 18 curated presets:
+
+- General: operating-system files, environment/local secrets, editors/IDEs, temporary files/logs.
+- JavaScript/web: Node.js, React, Vite, Next.js, TypeScript, frontend builds.
+- Languages: Python, Rust, C#, C++, Java.
+- Applications/engines: Tauri, Unity, .NET.
+
+The default selection covers operating-system files and `.env` secrets while retaining `.env.example`, `.env.sample` and `.env.template`. Project presets recommend suitable combinations, and **Use project preset recommendations** can restore them after changes. You can override every selection.
+
+Add individual custom patterns and remove them independently. Their order is preserved, and they are applied after preset rules. Duplicate positive rules are omitted only when no intervening negation could change their meaning. Negations and subsequent re-ignore rules retain their order. Patterns are not trimmed or rewritten. Selecting no presets and no custom rules generates no `.gitignore`.
+
+The live preview is produced by the same Rust generator used to write the actual file, before staging. The templates avoid excluding Rust `Cargo.lock`, Unity `Assets`, `Packages`, `ProjectSettings`, or `.meta` files. Git's directory traversal rule still applies: to retain `scratch/keep.txt`, use `scratch/*` followed by `!scratch/keep.txt`, rather than ignoring `scratch/` itself. See [Git's ignore documentation](https://git-scm.com/docs/gitignore).
+
+### README and licenses
+
+README modes are **None**, **Minimal**, **General**, and **Custom**. General and Custom expose independent overview, features, installation, usage, development, contributing and license sections. Custom supports Markdown content for each selected section. Unknown details are marked with editable HTML comments, never invented commands or functionality. A license section is generated only when a license file is selected.
+
+License choices are **None** (default), **MIT**, **Apache-2.0**, **GPL-3.0**, **BSD-3-Clause**, and **Unlicense**. Texts are bundled from the official [SPDX License List Data v3.29.0](https://github.com/spdx/license-list-data/tree/v3.29.0/text) for offline generation. GPL-3.0 uses GPL-3.0-only. Applicable licenses require an editable copyright holder and year; the holder is initially suggested from Git identity. MIT/BSD fields are substituted; Apache/GPL retain the complete canonical text and instructional appendices, with a separate project copyright notice. Unlicense remains unchanged.
+
+Expand **File preview** to inspect the exact files that will be written, including the README, license and optional configuration files. Invalid configuration must be corrected before creation.
+
+### Advanced Git settings and actions
+
+Choose a valid **Initial branch** and **Initial commit message**. Defaults remain `main` and `Initial commit`. With no generated files, the app creates an empty initial commit. The Blank preset is a shortcut to that configuration.
+
+Optional `.editorconfig` uses UTF-8, LF endings and final newlines, retaining significant trailing whitespace in Markdown. Optional `.gitattributes` enables automatic text detection and identifies common binary formats. Neither assumes an indentation style or framework.
+
+Independent post-creation actions can open the folder, VS Code, and the GitHub page. A launcher failure is reported on the success screen without falsely marking repository creation as failed. These actions never run after incomplete creation. The success screen also has manual open actions and copy controls for the path and GitHub URL.
+
+## GitHub publishing and recovery
+
+GitHub mode defaults to **Private**, supports Public, shows the current account, and allows that account or one of its visible organisations as owner. Organisation membership does not guarantee repository-creation permission; GitHub enforces the organisation's policies. Account switching remains managed by GitHub CLI. Advanced GitHub details support up to 20 topics and an HTTP(S) homepage.
+
+The app uses `gh repo create --source --remote`, configures the requested topics/homepage, and pushes through GitHub CLI's HTTPS credential helper. It retrieves the actual repository URL, compares the remote branch's commit with the local commit, and sets the requested initial branch as GitHub's default before reporting full success. It never creates a second README remotely and never force-pushes.
+
+GitHub mode sets the authenticated account's `id+username@users.noreply.github.com` address **only in the new repository** before committing, preventing protected-email push rejection. Local mode uses your configured identity. Global Git settings are not changed. Initial commits skip inherited signing and hooks to prevent hidden prompts.
+
+If remote creation, metadata configuration, pushing, verification or default-branch configuration fails, local files and commits remain on disk. **Retry publishing** reuses a remote whose creation was confirmed. It checks that the original account, local commit, branch and location still match. A remote repository is never automatically deleted.
+
+If a network interruption leaves remote creation ambiguous, the app refuses to adopt an already-existing repository on a later attempt. Inspect the preserved folder and GitHub before completing publication manually. Retry state lasts for the current app session; after restarting, finish through the preserved repository using Git/GitHub CLI.
+
+## Settings and safety
+
+Only harmless preferences and custom configurations are stored in:
+
+```text
+%APPDATA%/com.definitivedcode.repocreator/preferences.json
+```
+
+The versioned v2 settings format migrates the old location/destination format. It remembers appearance, file/Git/action preferences, custom presets and up to five native-picked recent locations. Invalid fields fall back individually. Syntactically damaged settings are backed up as `preferences.json.bak` on the next save. Settings from an unsupported future version are not overwritten. Writes use a temporary file and replacement.
+
+The frontend cannot supply arbitrary output paths or executable commands. All inputs are revalidated in Rust. Git and GitHub CLI receive structured arguments with bounded output and per-command timeouts. Raw command diagnostics are not displayed or logged because they can contain credentials. A backend operation guard prevents duplicate creation, and the window refuses normal closure during an operation. Files already created are preserved after a failure or forced termination.
+
+There is no database, server, telemetry, custom token store, or broad filesystem/shell webview permission. The only core capability is progress-event subscription. VS Code launches through `Code.exe` directly, without interpolating project paths into a shell wrapper.
+
+## Development and build
+
+Install Node.js 22.18+, stable Rust (1.90+, tested with 1.98.1) with the MSVC toolchain, and Microsoft C++ Build Tools with **Desktop development with C++**. See the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/#windows). MSI packaging requires the Windows VBScript optional feature.
 
 ```powershell
 npm ci
 npm run desktop:dev
 ```
 
-Create the production executable and both Windows installers:
+Build the production application and both installers:
 
 ```powershell
 npm run desktop:build
 ```
 
-The build downloads official NSIS/WiX tooling on first use. Outputs:
-
-| Artifact | Path from repository root |
+| Artifact | Path relative to repository root |
 | --- | --- |
 | Standalone executable | `src-tauri/target/release/repo-creator.exe` |
-| Per-user setup executable | `src-tauri/target/release/bundle/nsis/Repo Creator_1.0.0_x64-setup.exe` |
-| MSI installer | `src-tauri/target/release/bundle/msi/Repo Creator_1.0.0_x64_en-US.msi` |
+| Per-user NSIS installer | `src-tauri/target/release/bundle/nsis/Repo Creator_1.1.0_x64-setup.exe` |
+| MSI installer | `src-tauri/target/release/bundle/msi/Repo Creator_1.1.0_x64_en-US.msi` |
 
-`npm run build` builds the frontend only. Use `desktop:build` to produce a working desktop application. Generated binaries are excluded from Git; the Windows CI workflow also uploads build artifacts for download.
+The first build downloads official NSIS/WiX tools. `npm run build` checks and builds the frontend only. Generated binaries, settings and test output are excluded from source control. Windows CI runs checks and uploads the executable and installer artifacts. Builds are unsigned; code signing requires a signing certificate.
 
-## Verification
+### Verification
 
 ```powershell
 npm run check
+npm run format:check
 npm test
 npm run test:ui
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml --locked
 ```
 
-UI tests use installed Microsoft Edge and Tauri's official IPC mock. Native tests create real Git repositories in temporary directories, verify all README modes, the branch, commit and working tree, and test safe GitHub command arguments, remote verification and partial failure recovery. GitHub requests in tests are simulated; **tests never create real GitHub repositories**.
+Native tests create actual temporary Git repositories and verify generation, custom branches and commits, real ignore behaviour, canonical license content, migration/persistence, preset lifecycle, existing-directory protection, safe GitHub command construction and simulated partial failures. Browser tests use Tauri's official IPC mock and installed Edge to check light/dark layout, resizing, accessible controls, advanced settings, presets and recovery. Automated tests never create real GitHub repositories.
 
-An additional opt-in test exercises the compiled Windows executable through its real WebView2 and Rust IPC:
+After building, an opt-in smoke test exercises the production executable through its real WebView2 and Rust commands:
 
 ```powershell
 node tests/native-smoke.mjs
 ```
 
-Run it with other instances of Repo Creator closed. It briefly backs up and replaces the harmless folder preference, restores it afterward, and leaves inspectable local test repositories and a report in ignored `artifacts/`. Its debugging port exists only for the launched test process. Release builds do not enable debugging themselves.
+Close other Repo Creator instances first. The test backs up/restores the actual harmless settings file, uses temporary local project directories, checks preview/output equality, licenses, custom Git settings, native preset persistence, empty commits and both themes, then removes its temporary directories. A compact report and a few inspection screenshots remain in ignored `artifacts/`. The debugging port is enabled only in the launched test process; normal release launches do not enable it.
 
-## Reliability and recovery
-
-- Existing project folders and files are refused, never overwritten or removed.
-- Repository names are validated in TypeScript and again in Rust, including Windows device names and path traversal.
-- The selected parent folder is controlled by native state. The frontend cannot submit arbitrary filesystem paths or shell commands.
-- Git and `gh` run with separate argument arrays, hidden console windows, bounded output and a two-minute timeout per command. Creation remains responsive and repeated submissions are blocked in both layers.
-- A GitHub repository is created with `gh repo create --source --remote`, followed by an authenticated HTTPS push. The app retrieves its actual URL and compares the remote `main` commit with the local commit before showing success. It never creates a second README on GitHub.
-- If publishing fails, the local project and commit are preserved. **Retry publishing** reuses a confirmed remote and does not create another one. Retries are available while the app remains open. After closing it, use the preserved folder and official Git/GitHub tools to finish publication.
-- If a network interruption makes remote creation ambiguous, the app refuses to adopt an existing repository on the next attempt. Inspect GitHub and the preserved folder before finishing manually. No remote is deleted automatically, and pushes never use `--force`.
-- Initial commits explicitly skip inherited hooks and signing, avoiding hidden prompts; your global Git configuration is left unchanged.
-- GitHub mode sets the authenticated account's `id+username@users.noreply.github.com` email **only in the new repository** before committing. This preserves email privacy and prevents protected-email push rejections. Local mode uses your configured identity.
-- Credentials remain managed by GitHub CLI. Only the parent location and destination are saved in `%APPDATA%/com.definitivedcode.repocreator/preferences.json`. Raw CLI error output is not displayed or logged because it can contain credentials.
-- The app prevents closing its window during creation. If a process is forcibly terminated, any files already written remain on disk.
-
-## Project layout
+### Code layout
 
 ```text
-src/                       React interface, appearance, types and validation
-src-tauri/src/lib.rs        Narrow native commands and operation state
-src-tauri/src/repository.rs Local creation and publication orchestration
-src-tauri/src/github.rs     GitHub CLI arguments and URL validation
-src-tauri/src/process.rs    Safe, bounded native process execution
-src-tauri/src/preferences.rs Harmless local preferences
-src-tauri/src/tests.rs      Native tests and fake GitHub runner
-tests/                     Browser tests and opt-in production smoke test
+src/                         React interface, state, styles and inline validation
+src-tauri/src/config.rs       Configuration types, built-in presets and validation
+src-tauri/src/generation.rs   Shared preview/output generation
+src-tauri/src/repository.rs   Exclusive local creation and verified publication
+src-tauri/src/github.rs       GitHub CLI arguments and account/URL validation
+src-tauri/src/preferences.rs  Versioned settings and custom preset persistence
+src-tauri/src/desktop.rs      Narrow native launchers and post-creation actions
+src-tauri/resources/          Curated ignore patterns and canonical license texts
+tests/                       Interface tests and production smoke test
 ```
-
-No server, database or custom credential store is used. The webview has no filesystem, general shell or unrestricted opener plugin permissions; the only core permission is progress-event subscription. External links and project folders open through narrow Rust commands.
-
-## Delivery notes
-
-Version 1.0.0 builds successfully on Windows x64. The executable and both installers are **unsigned**; Windows may display its normal reputation warning. Signing requires a Windows code-signing certificate. GitHub publishing is covered by simulated command and recovery tests; no test repository has been published to your account.
-
-Implementation references: [Tauri commands](https://v2.tauri.app/develop/calling-rust/), [Tauri capabilities](https://v2.tauri.app/security/capabilities/), [Windows packaging](https://v2.tauri.app/distribute/windows-installer/), [GitHub repository creation](https://cli.github.com/manual/gh_repo_create), and [GitHub authentication](https://cli.github.com/manual/gh_auth_login).

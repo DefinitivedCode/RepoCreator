@@ -1,6 +1,7 @@
 use crate::{
+    generation::generate_files,
     github,
-    model::{render_readme, validate_request, AppError, CreateRequest, CreatedRepo, Destination},
+    model::{validate_request, AppError, CreateRequest, CreatedRepo, Destination},
     process::{args, Program, Runner},
 };
 use std::{
@@ -15,6 +16,7 @@ pub struct PendingRepo {
     pub path: PathBuf,
     pub owner: Option<String>,
     pub author_email: Option<String>,
+    pub authenticated_user: Option<String>,
     pub commit: Option<String>,
     pub remote_created: bool,
     pub github_url: Option<String>,
@@ -34,6 +36,14 @@ impl PendingRepo {
             path: self.path.to_string_lossy().into_owned(),
             github_url: self.github_url.clone(),
             commit: self.commit.clone().unwrap_or_default(),
+            branch: self.request.options.initial_branch.clone(),
+            commit_message: self.request.options.commit_message.clone(),
+            files: generate_files(&self.request)
+                .unwrap_or_default()
+                .iter()
+                .map(|f| f.path.clone())
+                .collect(),
+            warnings: Vec::new(),
         }
     }
 }
@@ -71,6 +81,16 @@ pub fn begin(
         ));
     }
     git(runner, &parent, &["--version"], "Git is unavailable.")?;
+    git(
+        runner,
+        &parent,
+        &[
+            "check-ref-format",
+            "--branch",
+            &request.options.initial_branch,
+        ],
+        "Git rejected the initial branch name.",
+    )?;
     for key in ["user.name", "user.email"] {
         let value = runner
             .run(Program::Git, &args(&["config", "--get", key]), &parent)
@@ -81,6 +101,26 @@ pub fn begin(
     }
     let account = if request.destination == Destination::Github {
         Some(github::authenticated_account(runner, &parent)?)
+    } else {
+        None
+    };
+    let owner = if let Some(account) = &account {
+        let owner = if request.github_owner.is_empty() {
+            account.login.clone()
+        } else {
+            request.github_owner.clone()
+        };
+        if !owner.eq_ignore_ascii_case(&account.login)
+            && !github::organisations(runner, &parent)
+                .iter()
+                .any(|org| org.eq_ignore_ascii_case(&owner))
+        {
+            return Err(AppError::new(
+                "The selected GitHub owner is unavailable.",
+                "Refresh your connection and choose your account or one of its organisations.",
+            ));
+        }
+        Some(owner)
     } else {
         None
     };
@@ -119,7 +159,8 @@ pub fn begin(
     Ok(PendingRepo {
         request,
         path: canonical,
-        owner: account.as_ref().map(|account| account.login.clone()),
+        owner,
+        authenticated_user: account.as_ref().map(|account| account.login.clone()),
         author_email: account.map(|account| account.noreply_email()),
         commit: None,
         remote_created: false,
@@ -133,20 +174,20 @@ pub fn create_local(
     progress: &dyn Fn(&str),
 ) -> Result<(), AppError> {
     progress("readme");
-    if let Some(content) = render_readme(&pending.request) {
+    for generated in generate_files(&pending.request)? {
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true)
-            .open(pending.path.join("README.md"))
+            .open(pending.path.join(&generated.path))
             .map_err(|_| {
                 AppError::new(
-                    "Could not write the README.",
+                    format!("Could not write {}.", generated.path),
                     "Check folder permissions and disk space. The new project folder is preserved.",
                 )
             })?;
-        file.write_all(content.as_bytes()).map_err(|_| {
+        file.write_all(generated.content.as_bytes()).map_err(|_| {
             AppError::new(
-                "Could not finish the README.",
+                format!("Could not finish {}.", generated.path),
                 "Check available disk space. The project folder is preserved.",
             )
         })?;
@@ -159,7 +200,10 @@ pub fn create_local(
             "-c",
             "init.templateDir=",
             "init",
-            "--initial-branch=main",
+            &format!(
+                "--initial-branch={}",
+                pending.request.options.initial_branch
+            ),
             ".",
         ],
         "Could not initialise Git.",
@@ -193,7 +237,7 @@ pub fn create_local(
             "commit",
             "--allow-empty",
             "-m",
-            "Initial commit",
+            &pending.request.options.commit_message,
         ],
         "Could not create the initial commit.",
     )?;
@@ -222,7 +266,7 @@ pub fn publish(
         .owner
         .clone()
         .ok_or_else(|| github::publish_error("GitHub account is unavailable."))?;
-    if github::authenticated_owner(runner, &pending.path)? != owner {
+    if Some(github::authenticated_owner(runner, &pending.path)?) != pending.authenticated_user {
         return Err(github::publish_error(
             "The active GitHub account changed. Reconnect the original account before retrying.",
         ));
@@ -242,7 +286,8 @@ pub fn publish(
         &["branch", "--show-current"],
         "Could not read the local branch.",
     )?;
-    if pending.commit.as_deref() != Some(&head) || branch != "main" {
+    if pending.commit.as_deref() != Some(&head) || branch != pending.request.options.initial_branch
+    {
         return Err(github::publish_error(
             "The local commit or branch changed. Open the folder to finish publishing with Git.",
         ));
@@ -263,6 +308,25 @@ pub fn publish(
     }
     let url = github::repository_url(runner, &pending.path, &owner, &pending.request.name)?;
     pending.github_url = Some(url.clone());
+    if !pending.request.topics.is_empty() || !pending.request.homepage.is_empty() {
+        progress("metadata");
+        let output = runner
+            .run(
+                Program::Gh,
+                &github::metadata_args(&pending.request, &owner),
+                &pending.path,
+            )
+            .map_err(|_| {
+                github::publish_error(
+                    "The repository exists, but its topics or homepage could not be configured.",
+                )
+            })?;
+        if !output.success {
+            return Err(github::publish_error(
+                "The repository exists, but its topics or homepage could not be configured.",
+            ));
+        }
+    }
     // gh respects the user's SSH preference; use HTTPS here so its authenticated helper
     // works even when an SSH key has not been configured.
     let origin = runner
@@ -290,7 +354,11 @@ pub fn publish(
     }
     progress("push");
     let output = runner
-        .run(Program::Git, &github::push_args(), &pending.path)
+        .run(
+            Program::Git,
+            &github::push_args(&pending.request.options.initial_branch),
+            &pending.path,
+        )
         .map_err(|_| {
             github::publish_error("The GitHub repository exists, but pushing did not finish.")
         })?;
@@ -300,13 +368,13 @@ pub fn publish(
         ));
     }
     progress("verify");
-    let mut verification = github::push_args();
+    let mut verification = github::push_args(&pending.request.options.initial_branch);
     verification.truncate(4);
     verification.extend(args(&[
         "ls-remote",
         "--exit-code",
         "origin",
-        "refs/heads/main",
+        &format!("refs/heads/{}", pending.request.options.initial_branch),
     ]));
     let output = runner
         .run(Program::Git, &verification, &pending.path)
@@ -316,6 +384,22 @@ pub fn publish(
     if !output.success || output.stdout.split_whitespace().next() != pending.commit.as_deref() {
         return Err(github::publish_error(
             "Could not confirm that the initial commit is on GitHub.",
+        ));
+    }
+    let output = runner
+        .run(
+            Program::Gh,
+            &github::default_branch_args(&pending.request, &owner),
+            &pending.path,
+        )
+        .map_err(|_| {
+            github::publish_error(
+                "The initial commit was pushed, but GitHub's default branch could not be set.",
+            )
+        })?;
+    if !output.success {
+        return Err(github::publish_error(
+            "The initial commit was pushed, but GitHub's default branch could not be set.",
         ));
     }
     Ok(())

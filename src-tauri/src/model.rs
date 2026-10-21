@@ -23,9 +23,10 @@ pub enum Readme {
     General,
     Minimal,
     None,
+    Custom,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CreateRequest {
     pub name: String,
@@ -33,6 +34,14 @@ pub struct CreateRequest {
     pub destination: Destination,
     pub visibility: Visibility,
     pub readme: Readme,
+    #[serde(default)]
+    pub options: crate::config::ProjectOptions,
+    #[serde(default)]
+    pub github_owner: String,
+    #[serde(default)]
+    pub topics: Vec<String>,
+    #[serde(default)]
+    pub homepage: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -42,6 +51,10 @@ pub struct CreatedRepo {
     pub path: String,
     pub github_url: Option<String>,
     pub commit: String,
+    pub branch: String,
+    pub commit_message: String,
+    pub files: Vec<String>,
+    pub warnings: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -109,19 +122,52 @@ pub fn validate_request(request: &CreateRequest) -> Result<(), AppError> {
             "Remove any null characters and shorten the description.",
         ));
     }
+    crate::config::validate_options(&request.options)?;
+    if request.destination == Destination::Local {
+        return Ok(());
+    }
+    let owner = &request.github_owner;
+    if owner.len() > 39
+        || (!owner.is_empty()
+            && (owner.starts_with('-')
+                || owner.ends_with('-')
+                || !owner
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || c == b'-')))
+    {
+        return Err(AppError::new(
+            "Choose a valid GitHub owner.",
+            "Select your account or an organisation from the owner list.",
+        ));
+    }
+    if request.topics.len() > 20
+        || request.topics.iter().any(|t| {
+            t.is_empty()
+                || t.len() > 50
+                || !t
+                    .bytes()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
+                || t.starts_with('-')
+        })
+    {
+        return Err(AppError::new(
+            "GitHub topics are invalid.",
+            "Use up to 20 topics, each with 1–50 lowercase letters, numbers or hyphens.",
+        ));
+    }
+    if !request.homepage.is_empty() {
+        let valid = tauri::Url::parse(&request.homepage).is_ok_and(|url| {
+            matches!(url.scheme(), "https" | "http")
+                && url.host_str().is_some()
+                && url.username().is_empty()
+                && url.password().is_none()
+        });
+        if !valid || request.homepage.len() > 2000 {
+            return Err(AppError::new(
+                "Enter a valid homepage URL.",
+                "Use an http:// or https:// address without embedded credentials.",
+            ));
+        }
+    }
     Ok(())
-}
-
-pub fn render_readme(request: &CreateRequest) -> Option<String> {
-    if request.readme == Readme::None {
-        return None;
-    }
-    let mut result = format!("# {}\n", request.name);
-    if !request.description.trim().is_empty() {
-        result.push_str(&format!("\n{}\n", request.description.trim()));
-    }
-    if request.readme == Readme::General {
-        result.push_str("\n## Getting started\n\nAdd installation instructions and the steps needed to run this project.\n\n## Usage\n\nDescribe how to use the project, with a short example.\n\n## Development\n\nDocument the local setup and how to run checks and tests.\n\n## Contributing\n\nIssues and pull requests are welcome. Open an issue to discuss substantial changes first.\n");
-    }
-    Some(result)
 }

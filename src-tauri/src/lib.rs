@@ -1,8 +1,12 @@
+mod config;
+mod desktop;
+mod generation;
 mod github;
 mod model;
 mod preferences;
 mod process;
 mod repository;
+mod settings_commands;
 #[cfg(test)]
 mod tests;
 
@@ -55,7 +59,7 @@ fn lock_error() -> AppError {
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_preferences(state: State<'_, Arc<Runtime>>) -> Result<Preferences, AppError> {
     Ok(state
         .session
@@ -72,10 +76,16 @@ struct Environment {
     identity_ready: bool,
     gh_installed: bool,
     github_user: Option<String>,
+    identity_name: Option<String>,
+    github_owners: Vec<String>,
+    vscode_available: bool,
 }
 
 #[tauri::command]
-async fn check_environment(state: State<'_, Arc<Runtime>>) -> Result<Environment, AppError> {
+async fn check_environment(
+    include_github: Option<bool>,
+    state: State<'_, Arc<Runtime>>,
+) -> Result<Environment, AppError> {
     let parent = state
         .session
         .lock()
@@ -98,16 +108,32 @@ async fn check_environment(state: State<'_, Arc<Runtime>>) -> Result<Environment
                     .is_ok_and(|r| r.success && !r.stdout.is_empty())
             });
         let gh_installed = success(Program::Gh, &["--version"]);
-        let github_user = if gh_installed {
+        let github_user = if gh_installed && include_github.unwrap_or(true) {
             github::authenticated_owner(&runner, &parent).ok()
         } else {
             None
         };
+        let identity_name = runner
+            .run(
+                Program::Git,
+                &args(&["config", "--get", "user.name"]),
+                &parent,
+            )
+            .ok()
+            .filter(|o| o.success && !o.stdout.is_empty())
+            .map(|o| o.stdout);
+        let mut github_owners = github_user.iter().cloned().collect::<Vec<_>>();
+        if github_user.is_some() {
+            github_owners.extend(github::organisations(&runner, &parent));
+        }
         Environment {
             git_installed,
             identity_ready,
             gh_installed,
             github_user,
+            identity_name,
+            github_owners,
+            vscode_available: desktop::vscode_path().is_some(),
         }
     })
     .await
@@ -146,13 +172,13 @@ async fn choose_parent(state: State<'_, Arc<Runtime>>) -> Result<Option<String>,
         ));
     }
     let mut session = runtime.session.lock().map_err(|_| lock_error())?;
-    session.preferences.parent_path = path.clone();
+    session.preferences.remember_location(path.clone());
     // Preference failures do not prevent creating a repository in the selected location.
     let _ = session.preferences.save(&session.preference_file);
     Ok(Some(path.to_string_lossy().into_owned()))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn set_destination(
     destination: Destination,
     state: State<'_, Arc<Runtime>>,
@@ -182,6 +208,11 @@ async fn create_repository(
         progress("folder");
         let mut pending =
             repository::begin(&SystemRunner, &session.preferences.parent_path, request)?;
+        session.preferences.defaults = config::Configuration {
+            readme: pending.request.readme,
+            options: pending.request.options.clone(),
+        };
+        let preference_warning = session.preferences.save(&session.preference_file).err();
         let outcome =
             repository::create_local(&SystemRunner, &mut pending, &progress).and_then(|_| {
                 if pending.request.destination == Destination::Github {
@@ -192,7 +223,11 @@ async fn create_repository(
             });
         match outcome {
             Ok(()) => {
-                let result = pending.result();
+                let mut result = pending.result();
+                if let Some(warning) = preference_warning {
+                    result.warnings.push(warning);
+                }
+                desktop::post_creation(&mut result, &pending.request.options.post_actions);
                 session.result = Some(result.clone());
                 progress("complete");
                 Ok(result)
@@ -235,7 +270,8 @@ async fn retry_publish(
         };
         repository::publish(&SystemRunner, pending, &progress)
             .map_err(|error| pending.failure(error))?;
-        let result = pending.result();
+        let mut result = pending.result();
+        desktop::post_creation(&mut result, &pending.request.options.post_actions);
         session.result = Some(result.clone());
         session.pending = None;
         progress("complete");
@@ -352,6 +388,9 @@ pub fn run() {
             let fallback = app.path().home_dir()?.canonicalize()?;
             let preference_file = app.path().app_config_dir()?.join("preferences.json");
             let preferences = Preferences::load(&preference_file, fallback);
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_theme(settings_commands::theme(preferences.appearance));
+            }
             app.manage(Arc::new(Runtime {
                 session: Mutex::new(Session {
                     preferences,
@@ -380,7 +419,16 @@ pub fn run() {
             open_project,
             open_github,
             open_setup_resource,
-            connect_github
+            connect_github,
+            settings_commands::get_catalog,
+            settings_commands::preview_files,
+            settings_commands::save_configuration,
+            settings_commands::set_appearance,
+            settings_commands::select_recent_location,
+            settings_commands::save_custom_preset,
+            settings_commands::rename_custom_preset,
+            settings_commands::delete_custom_preset,
+            settings_commands::open_vscode
         ])
         .run(tauri::generate_context!())
         .expect("Could not start Repo Creator");

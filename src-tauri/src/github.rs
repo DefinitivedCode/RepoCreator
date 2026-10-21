@@ -92,7 +92,42 @@ pub fn repository_url(
     Ok(url.to_string())
 }
 
-pub fn push_args() -> Vec<String> {
+pub fn organisations(runner: &dyn Runner, cwd: &Path) -> Vec<String> {
+    runner
+        .run(
+            Program::Gh,
+            &args(&["api", "user/orgs", "--paginate", "--jq", ".[].login"]),
+            cwd,
+        )
+        .ok()
+        .filter(|o| o.success)
+        .map(|o| {
+            o.stdout
+                .lines()
+                .filter(|name| {
+                    !name.is_empty()
+                        && name.len() <= 39
+                        && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
+                })
+                .take(200)
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+pub fn metadata_args(request: &CreateRequest, owner: &str) -> Vec<String> {
+    let mut result = args(&["repo", "edit", &format!("{owner}/{}", request.name)]);
+    if !request.homepage.is_empty() {
+        result.extend(args(&["--homepage", &request.homepage]));
+    }
+    for topic in &request.topics {
+        result.extend(args(&["--add-topic", topic]));
+    }
+    result
+}
+
+pub fn push_args(branch: &str) -> Vec<String> {
     // A fixed credential helper uses gh's official credential store without changing global Git config.
     args(&[
         "-c",
@@ -102,7 +137,17 @@ pub fn push_args() -> Vec<String> {
         "push",
         "--set-upstream",
         "origin",
-        "main",
+        branch,
+    ])
+}
+
+pub fn default_branch_args(request: &CreateRequest, owner: &str) -> Vec<String> {
+    args(&[
+        "repo",
+        "edit",
+        &format!("{owner}/{}", request.name),
+        "--default-branch",
+        &request.options.initial_branch,
     ])
 }
 

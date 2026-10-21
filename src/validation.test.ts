@@ -1,17 +1,47 @@
 import { describe, expect, it } from 'vitest';
-import { blankForm, displayPath, nameError } from './validation';
+import { branchError, displayPath, nameError } from './validation';
 
 describe('repository names', () => {
-  it.each(['my-project', 'Repo_2.0', 'a', 'contribution', 'com10', 'a'.repeat(100)])('accepts %s', name => {
-    expect(nameError(name)).toBeNull();
-  });
-  it.each(['', '../escape', 'a/b', 'a\\b', '-flag', '.hidden', 'trailing.', 'repo.GIT', 'CON', 'nul.txt', 'LPT9.data', 'name with spaces', 'x;echo', 'é', 'a'.repeat(101)])('rejects unsafe or incompatible name %s', name => {
+  it.each(['my-project', 'Repo_2.0', 'a', 'contribution', 'com10', 'a'.repeat(100)])(
+    'accepts %s',
+    (name) => {
+      expect(nameError(name)).toBeNull();
+    },
+  );
+  it.each([
+    '',
+    '../escape',
+    'a/b',
+    'a\\b',
+    '-flag',
+    '.hidden',
+    'trailing.',
+    'repo.GIT',
+    'CON',
+    'nul.txt',
+    'LPT9.data',
+    'name with spaces',
+    'x;echo',
+    'é',
+    'a'.repeat(101),
+  ])('rejects unsafe or incompatible name %s', (name) => {
     expect(nameError(name)).toBeTruthy();
   });
 });
 
-it('keeps the destination but resets project-specific fields', () => {
-  expect(blankForm('github')).toEqual({ name: '', description: '', destination: 'github', visibility: 'private', readme: 'general' });
+it('accepts custom branches and rejects unsafe Git references', () => {
+  expect(branchError('feature/start')).toBeNull();
+  for (const name of [
+    '-flag',
+    'HEAD',
+    '../escape',
+    'a..b',
+    'a b',
+    'refs/.hidden',
+    'main.lock',
+    'a@{b',
+  ])
+    expect(branchError(name)).toBeTruthy();
 });
 
 it('renders canonical Windows and UNC paths without internal prefixes', () => {
