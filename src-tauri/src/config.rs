@@ -25,6 +25,14 @@ pub enum Appearance {
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ExperienceMode {
+    #[default]
+    Simple,
+    Advanced,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub enum License {
     #[default]
     #[serde(rename = "none")]
@@ -76,6 +84,8 @@ pub struct ProjectOptions {
     pub copyright_year: String,
     pub initial_branch: String,
     pub commit_message: String,
+    pub commit_author_name: String,
+    pub commit_author_email: String,
     pub editorconfig: bool,
     pub gitattributes: bool,
     pub post_actions: PostActions,
@@ -98,6 +108,8 @@ impl Default for ProjectOptions {
             copyright_year: current_year(),
             initial_branch: "main".into(),
             commit_message: "Initial commit".into(),
+            commit_author_name: String::new(),
+            commit_author_email: String::new(),
             editorconfig: false,
             gitattributes: false,
             post_actions: PostActions::default(),
@@ -105,7 +117,7 @@ impl Default for ProjectOptions {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct Configuration {
     pub readme: Readme,
@@ -114,6 +126,22 @@ pub struct Configuration {
     pub destination: Option<crate::model::Destination>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub visibility: Option<crate::model::Visibility>,
+    pub brief: crate::model::ProjectBrief,
+    #[serde(default = "crate::model::discovery_template")]
+    pub handoff_template: String,
+}
+
+impl Default for Configuration {
+    fn default() -> Self {
+        Self {
+            readme: Readme::default(),
+            options: ProjectOptions::default(),
+            destination: None,
+            visibility: None,
+            brief: crate::model::ProjectBrief::default(),
+            handoff_template: crate::model::discovery_template(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -121,6 +149,8 @@ pub struct Configuration {
 pub struct ProjectPreset {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub description: String,
     pub configuration: Configuration,
 }
 
@@ -179,7 +209,7 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
             true,
         ),
     ];
-    definitions
+    let mut presets: Vec<ProjectPreset> = definitions
         .iter()
         .map(|(id, name, ignores, editorconfig, attributes)| {
             let mut options = ProjectOptions {
@@ -208,6 +238,13 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
             ProjectPreset {
                 id: (*id).into(),
                 name: (*name).into(),
+                description: match *id {
+                    "blank" => "An almost empty repository, ready for your own files.",
+                    "default" => "A balanced project with documentation and safe ignore rules.",
+                    "web" => "Web development conventions without installing a framework.",
+                    _ => "Technology guidance, documentation and matching ignore rules.",
+                }
+                .into(),
                 configuration: Configuration {
                     readme: if *id == "blank" {
                         Readme::None
@@ -219,7 +256,78 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
                 },
             }
         })
-        .collect()
+        .collect();
+    // Keep the original IDs so existing saved selections remain compatible.
+    for (id, name, description, ignores) in [
+        (
+            "standard",
+            "Standard",
+            "A maintainable software project with balanced documentation and safe defaults.",
+            vec!["os", "secrets"],
+        ),
+        (
+            "experiment",
+            "Experiment",
+            "A small private experiment with lightweight notes and a Discovery handoff.",
+            vec!["os", "secrets"],
+        ),
+        (
+            "website",
+            "Website",
+            "Frontend guidance and web ignore rules; choose your framework later.",
+            vec!["os", "secrets", "node", "frontend"],
+        ),
+        (
+            "desktop",
+            "Desktop Application",
+            "A platform-neutral desktop starting point with no assumed language or framework.",
+            vec!["os", "secrets"],
+        ),
+        (
+            "claude-experiment",
+            "Claude Experiment",
+            "A beginner-friendly experiment with Claude instructions and a Discovery handoff.",
+            vec!["os", "secrets"],
+        ),
+    ] {
+        let experiment = id == "experiment" || id == "claude-experiment";
+        let mut configuration = Configuration {
+            readme: if experiment {
+                Readme::Custom
+            } else {
+                Readme::General
+            },
+            visibility: Some(crate::model::Visibility::Private),
+            ..Default::default()
+        };
+        configuration.options.ignore_presets = ignores.into_iter().map(str::to_string).collect();
+        if experiment {
+            configuration.options.readme_sections = vec!["overview".into()];
+            configuration.options.section_content.insert("overview".into(), "{{description}}\n\nThis is an experimental project for exploring ideas, testing concepts and evaluating possible approaches. Its design and implementation may change during development.".into());
+            configuration.options.ai.instructions.custom_text = "Explore the idea with the user. Explain choices in plain language, keep the first version small, and verify meaningful changes. Ask focused questions when requirements are unclear.".into();
+        }
+        if id == "website" {
+            configuration.options.editorconfig = true;
+            configuration.options.ai.instructions.technologies = crate::ai::catalog()
+                .technologies
+                .iter()
+                .filter(|t| t.project_presets.iter().any(|p| p == "web"))
+                .map(|t| t.id.clone())
+                .collect();
+            configuration.handoff_template = "architecture".into();
+        }
+        if id == "claude-experiment" {
+            configuration.options.ai.enabled = true;
+            configuration.options.ai.agents = vec![crate::ai::Agent::Claude];
+        }
+        presets.push(ProjectPreset {
+            id: id.into(),
+            name: name.into(),
+            description: description.into(),
+            configuration,
+        });
+    }
+    presets
 }
 
 pub fn validate_branch(branch: &str) -> Result<(), AppError> {
@@ -253,6 +361,22 @@ pub fn validate_options(options: &ProjectOptions) -> Result<(), AppError> {
         )
     };
     validate_branch(&options.initial_branch)?;
+    if options.commit_author_name.is_empty() != options.commit_author_email.is_empty()
+        || options.commit_author_name.len() > 100
+        || options.commit_author_email.len() > 254
+        || options
+            .commit_author_name
+            .chars()
+            .chain(options.commit_author_email.chars())
+            .any(|c| c.is_control())
+        || (!options.commit_author_email.is_empty()
+            && (!options.commit_author_email.contains('@')
+                || options.commit_author_email.starts_with('@')
+                || options.commit_author_email.ends_with('@')
+                || options.commit_author_email.contains(char::is_whitespace)))
+    {
+        return Err(fail("Enter both a project Git author name and a valid email address, or leave both empty to use your existing Git identity."));
+    }
     if options.commit_message.trim().is_empty()
         || options.commit_message.len() > 2000
         || options.commit_message.contains('\0')
@@ -305,4 +429,9 @@ pub fn validate_options(options: &ProjectOptions) -> Result<(), AppError> {
         ));
     }
     Ok(())
+}
+
+pub fn validate_configuration(configuration: &Configuration) -> Result<(), AppError> {
+    validate_options(&configuration.options)?;
+    crate::model::validate_brief(&configuration.brief, &configuration.handoff_template)
 }

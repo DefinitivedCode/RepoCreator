@@ -3,8 +3,10 @@ mod config;
 mod desktop;
 mod generation;
 mod github;
+mod handoff;
 mod model;
 mod preferences;
+mod preset_commands;
 mod process;
 mod repository;
 mod settings_commands;
@@ -60,6 +62,22 @@ fn lock_error() -> AppError {
     )
 }
 
+// A process-level override supports portable use and isolated production smoke tests.
+// Webview commands cannot change it or supply arbitrary preference locations.
+pub(crate) fn data_dir(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
+    if let Some(directory) = std::env::var_os("REPO_CREATOR_DATA_DIR") {
+        let path = PathBuf::from(directory);
+        if !path.is_absolute() {
+            return Err(AppError::new(
+                "The application data directory must be absolute.",
+                "Use an absolute REPO_CREATOR_DATA_DIR path or remove that environment override.",
+            ));
+        }
+        return Ok(path);
+    }
+    app.path().app_config_dir().map_err(|_| lock_error())
+}
+
 #[tauri::command(async)]
 fn get_preferences(state: State<'_, Arc<Runtime>>) -> Result<Preferences, AppError> {
     Ok(state
@@ -73,6 +91,7 @@ fn get_preferences(state: State<'_, Arc<Runtime>>) -> Result<Preferences, AppErr
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Environment {
+    optional_tools: Vec<process::ToolStatus>,
     git_installed: bool,
     identity_ready: bool,
     gh_installed: bool,
@@ -128,6 +147,7 @@ async fn check_environment(
             github_owners.extend(github::organisations(&runner, &parent));
         }
         Environment {
+            optional_tools: process::optional_tools(),
             git_installed,
             identity_ready,
             gh_installed,
@@ -210,6 +230,8 @@ async fn create_repository(
         let mut pending =
             repository::begin(&SystemRunner, &session.preferences.parent_path, request)?;
         session.preferences.defaults = config::Configuration {
+            brief: pending.request.brief.clone(),
+            handoff_template: pending.request.handoff_template.clone(),
             readme: pending.request.readme,
             options: pending.request.options.clone(),
             destination: Some(pending.request.destination),
@@ -231,6 +253,14 @@ async fn create_repository(
                     result.warnings.push(warning);
                 }
                 desktop::post_creation(&mut result, &pending.request.options.post_actions);
+                if let Err(warning) = handoff::record_recent(
+                    &app,
+                    &result,
+                    &pending.request,
+                    &pending.request.preset_name,
+                ) {
+                    result.warnings.push(warning);
+                }
                 session.result = Some(result.clone());
                 progress("complete");
                 Ok(result)
@@ -275,6 +305,14 @@ async fn retry_publish(
             .map_err(|error| pending.failure(error))?;
         let mut result = pending.result();
         desktop::post_creation(&mut result, &pending.request.options.post_actions);
+        if let Err(warning) = handoff::record_recent(
+            &app,
+            &result,
+            &pending.request,
+            &pending.request.preset_name,
+        ) {
+            result.warnings.push(warning);
+        }
         session.result = Some(result.clone());
         session.pending = None;
         progress("complete");
@@ -342,16 +380,7 @@ async fn open_github(state: State<'_, Arc<Runtime>>) -> Result<(), AppError> {
 
 #[tauri::command]
 async fn open_setup_resource(resource: String) -> Result<(), AppError> {
-    let url = match resource.as_str() {
-        "git" => "https://git-scm.com/downloads/win",
-        "gh" => "https://cli.github.com/",
-        _ => {
-            return Err(AppError::new(
-                "Unknown setup resource.",
-                "Choose a setup action in Repo Creator.",
-            ))
-        }
-    };
+    let url = desktop::setup_url(&resource)?;
     tauri::async_runtime::spawn_blocking(move || {
         open::that(url).map_err(|_| {
             AppError::new(
@@ -366,34 +395,21 @@ async fn open_setup_resource(resource: String) -> Result<(), AppError> {
 
 #[tauri::command]
 fn connect_github() -> Result<(), AppError> {
-    // This action intentionally opens an interactive terminal for gh's official device flow.
-    // The command is constant, contains no user input, and gh handles all credentials.
-    #[cfg(windows)]
-    {
-        use std::{os::windows::process::CommandExt, process::Command};
-        Command::new("powershell.exe").args(["-NoProfile", "-NoExit", "-Command",
-            "& gh auth login --hostname github.com --git-protocol https --web; if ($LASTEXITCODE -eq 0) { exit }"])
-            .creation_flags(0x00000010).spawn().map_err(|_| AppError::new("Could not open GitHub sign-in.", "Open a terminal and run: gh auth login --hostname github.com --web"))?;
-        Ok(())
-    }
-    #[cfg(not(windows))]
-    {
-        Err(AppError::new(
-            "Use GitHub CLI to connect.",
-            "In a terminal, run: gh auth login --hostname github.com --web",
-        ))
-    }
+    desktop::connect_github()
 }
 
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let fallback = app.path().home_dir()?.canonicalize()?;
-            let preference_file = app.path().app_config_dir()?.join("preferences.json");
+            let preference_file = data_dir(app.handle())
+                .map_err(|e| std::io::Error::other(e.message))?
+                .join("preferences.json");
             let preferences = Preferences::load(&preference_file, fallback);
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_theme(settings_commands::theme(preferences.appearance));
             }
+            desktop::restore_window(app.handle());
             app.manage(Arc::new(Runtime {
                 session: Mutex::new(Session {
                     preferences,
@@ -409,6 +425,8 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if window.state::<Arc<Runtime>>().busy.load(Ordering::Acquire) {
                     api.prevent_close();
+                } else {
+                    desktop::remember_window(window.app_handle());
                 }
             }
         })
@@ -423,6 +441,16 @@ pub fn run() {
             open_github,
             open_setup_resource,
             connect_github,
+            preset_commands::set_experience_mode,
+            preset_commands::update_custom_preset,
+            preset_commands::confirm_project_preset_import,
+            preset_commands::preview_project_preset_import,
+            preset_commands::export_project_preset,
+            handoff::list_recent_projects,
+            handoff::remove_recent_project,
+            handoff::open_recent_project,
+            handoff::import_handoff_template,
+            handoff::export_handoff_text,
             settings_commands::get_catalog,
             settings_commands::preview_files,
             settings_commands::save_configuration,

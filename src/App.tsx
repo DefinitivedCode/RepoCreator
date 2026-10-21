@@ -1,331 +1,313 @@
 import { useRef, useState } from 'react';
 import { Icon } from './icons';
-import { AdvancedPanel, FilePreview, IgnorePanel } from './ConfigurationPanels';
+import { AdvancedPanel, FilePreview, IgnorePanel, type FileSection } from './ConfigurationPanels';
 import { PresetDialog } from './PresetDialog';
-import { AgentStudio } from './AgentStudio';
-import { useCreator, type Creator } from './useCreator';
-import { displayPath, formError, nameError, optionsError } from './validation';
-import { stages, type Appearance, type Readme } from './types';
+import { AgentStudio, type AgentSection } from './AgentStudio';
+import { HandoffPanel, RecentProjects } from './HandoffPanel';
+import { RepositoryState } from './RepositoryState';
+import { Overview, ProjectSummary, SetupPanel, Context } from './WorkspaceFields';
+import { useCreator } from './useCreator';
+import { configurationOf, formError } from './validation';
+import type { Appearance, Configuration, Readme } from './types';
+
+export type Section = 'overview' | 'files' | 'agents' | 'review' | 'handoff' | 'recent' | 'setup';
+const labels: Record<Section, string> = {
+  overview: 'Overview',
+  files: 'Project Files',
+  agents: 'AI Agents',
+  review: 'Review',
+  handoff: 'AI Handoff',
+  recent: 'Recent Projects',
+  setup: 'Setup & status',
+};
 
 export default function App() {
   const creator = useCreator();
+  const { form, catalog, preferences, state } = creator;
+  const [section, setSection] = useState<Section>('overview');
+  const [fileSection, setFileSection] = useState<FileSection | 'ignore'>('readme');
+  const [agentSection, setAgentSection] = useState<AgentSection>('assistants');
   const [presetId, setPresetId] = useState('');
   const [presetsOpen, setPresetsOpen] = useState(false);
-  const nameInput = useRef<HTMLInputElement>(null);
-  const { form, catalog, preferences, environment, state } = creator;
-  const github = form?.destination === 'github';
+  const [contextOpen, setContextOpen] = useState(true);
+  const [undo, setUndo] = useState<{ configuration: Configuration; id: string } | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const simple = preferences?.experienceMode !== 'advanced';
   const allPresets = [...(catalog?.builtInPresets ?? []), ...(preferences?.customPresets ?? [])];
-  const selectedPreset = allPresets.find((p) => p.id === presetId);
-  const nameValidation = form?.name ? nameError(form.name) : null;
-  const configurationError = form ? optionsError(form.options) : null;
-
-  function createAnother() {
-    creator.reset();
-    requestAnimationFrame(() => nameInput.current?.focus());
+  const preset = allPresets.find((p) => p.id === presetId);
+  const presetName = preset?.name ?? 'Last used settings';
+  const blocking =
+    (form && formError(form)) ||
+    creator.previewError ||
+    (!preferences?.parentPath
+      ? 'Choose a save location.'
+      : !creator.setupReady
+        ? 'Complete the required setup.'
+        : creator.previewing
+          ? 'Updating generated files…'
+          : creator.picking
+            ? 'Finish the open dialog.'
+            : '');
+  function navigate(next: Section) {
+    setSection(next);
+    requestAnimationFrame(() => {
+      heading.current?.focus();
+      document.querySelector('.workspace-main')?.scrollTo(0, 0);
+    });
+  }
+  function apply(configuration: Configuration, id: string) {
+    if (form) setUndo({ configuration: structuredClone(configurationOf(form)), id: presetId });
+    creator.configure(configuration);
+    setPresetId(id);
   }
   return (
-    <div className="app">
+    <div className="app desktop-app">
       <header className="app-header">
         <div className="app-title">
-          <Icon name="repo" size={18} />
+          <Icon name="repo" size={19} />
           <h1>Repo Creator</h1>
+          <span className="version">1.3</span>
         </div>
-        <label className="appearance-control">
-          <span className="sr-only">Appearance</span>
-          <select
-            value={preferences?.appearance ?? 'system'}
-            disabled={!preferences || creator.busy}
-            onChange={(event) => void creator.appearance(event.target.value as Appearance)}
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </label>
+        <div className="header-actions">
+          <div className="segmented mode-switch" role="group" aria-label="Experience mode">
+            <button
+              type="button"
+              aria-pressed={simple}
+              disabled={creator.busy}
+              onClick={() => {
+                void creator.experienceMode('simple');
+                if (section === 'files' || section === 'agents') navigate('overview');
+              }}
+            >
+              Simple
+            </button>
+            <button
+              type="button"
+              aria-pressed={!simple}
+              disabled={creator.busy}
+              onClick={() => void creator.experienceMode('advanced')}
+            >
+              Advanced
+            </button>
+          </div>
+          <label className="appearance-control">
+            <span className="sr-only">Appearance</span>
+            <select
+              value={preferences?.appearance ?? 'system'}
+              disabled={!preferences || creator.busy}
+              onChange={(e) => void creator.appearance(e.target.value as Appearance)}
+            >
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+        </div>
       </header>
-
       {!form || !catalog || !preferences ? (
         <main className="content">
-          <p className="help" role="status">
-            {creator.notice || creator.error?.message || 'Loading settings…'}
-          </p>
+          <p role="status">{creator.notice || creator.error?.message || 'Loading settings…'}</p>
         </main>
-      ) : state.kind === 'form' ? (
+      ) : state.kind !== 'form' ? (
+        <RepositoryState
+          creator={creator}
+          presetName={presetName}
+          onAnother={() => {
+            creator.reset();
+            navigate('overview');
+          }}
+        />
+      ) : (
         <form
-          className="creation-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void creator.execute();
+          className="workspace-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (section !== 'review') navigate('review');
+            else void creator.execute(false, presetName);
           }}
         >
-          <main className="content" tabIndex={0} aria-label="Repository configuration">
-            <div className="content-inner">
-              <div className="section-title">
-                <h2>New repository</h2>
+          <div className={`workspace ${contextOpen ? 'with-context' : ''}`}>
+            <nav className="navigation-rail" aria-label="Project setup">
+              <span className="nav-caption">NEW PROJECT</span>
+              {(Object.keys(labels) as Section[])
+                .filter((s) => !simple || !['files', 'agents'].includes(s))
+                .map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`nav-item ${section === s ? 'active' : ''}`}
+                    aria-current={section === s ? 'page' : undefined}
+                    onClick={() => navigate(s)}
+                  >
+                    <Icon
+                      name={
+                        s === 'files' || s === 'review'
+                          ? 'file'
+                          : s === 'agents' || s === 'handoff'
+                            ? 'code'
+                            : s === 'setup'
+                              ? 'settings'
+                              : 'folder'
+                      }
+                      size={15}
+                    />
+                    {labels[s]}
+                  </button>
+                ))}
+              <div className="nav-status">
+                <span className="status-dot" />
+                <span>
+                  {creator.checking
+                    ? 'Checking setup…'
+                    : creator.setupReady
+                      ? 'Git ready'
+                      : 'Setup required'}
+                </span>
+              </div>
+              <p className="help nav-note">
+                {simple
+                  ? 'Start with the essentials. Advanced keeps all your settings.'
+                  : 'Files and instructions are generated locally.'}
+              </p>
+            </nav>
+            <main className="workspace-main" aria-label="Repository configuration" tabIndex={0}>
+              <div className="workspace-heading">
+                <div>
+                  <p className="eyebrow">{simple ? 'SIMPLE SETUP' : 'PROJECT WORKSPACE'}</p>
+                  <h2 ref={heading} tabIndex={-1}>
+                    {labels[section]}
+                  </h2>
+                </div>
                 <button
                   type="button"
-                  className="text-button"
-                  onClick={() => {
-                    creator.configure(catalog.defaultConfiguration);
-                    setPresetId('default');
-                  }}
+                  className="text-button context-toggle"
+                  aria-pressed={contextOpen}
+                  onClick={() => setContextOpen(!contextOpen)}
                 >
-                  Reset configuration
+                  {contextOpen ? 'Hide details' : 'Show details'}
                 </button>
               </div>
-              <fieldset disabled={creator.picking} className="main-fields">
-                <div className="field">
-                  <label htmlFor="project-name">Project name</label>
-                  <input
-                    ref={nameInput}
-                    autoFocus
-                    id="project-name"
-                    value={form.name}
-                    placeholder="my-project"
-                    maxLength={101}
-                    autoComplete="off"
-                    spellCheck={false}
-                    aria-invalid={!!nameValidation}
-                    aria-describedby={nameValidation ? 'name-error' : undefined}
-                    onChange={(event) => creator.update('name', event.target.value)}
-                  />
-                  {nameValidation && (
-                    <p id="name-error" className="inline-error">
-                      {nameValidation}
-                    </p>
-                  )}
-                </div>
-
-                <div className="field">
-                  <label id="destination-label">Destination</label>
-                  <div className="destination-row">
-                    <div className="segmented" role="group" aria-labelledby="destination-label">
-                      <button
-                        type="button"
-                        aria-pressed={!github}
-                        onClick={() => void creator.destination('local')}
-                      >
-                        <Icon name="folder" size={14} />
-                        Local only
-                      </button>
-                      <button
-                        type="button"
-                        aria-pressed={!!github}
-                        onClick={() => void creator.destination('github')}
-                      >
-                        <Icon name="github" size={14} />
-                        GitHub
-                      </button>
-                    </div>
-                    {github && (
-                      <div
-                        className="visibility"
-                        role="radiogroup"
-                        aria-label="Repository visibility"
-                      >
-                        <label>
-                          <input
-                            type="radio"
-                            name="visibility"
-                            checked={form.visibility === 'private'}
-                            onChange={() => creator.update('visibility', 'private')}
-                          />
-                          Private
-                        </label>
-                        <label>
-                          <input
-                            type="radio"
-                            name="visibility"
-                            checked={form.visibility === 'public'}
-                            onChange={() => creator.update('visibility', 'public')}
-                          />
-                          Public
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {github && (
-                  <div className="field owner-field">
-                    <label htmlFor="github-owner">Owner</label>
-                    <select
-                      id="github-owner"
-                      value={form.githubOwner || environment?.githubUser || ''}
-                      disabled={!environment?.githubUser}
-                      onChange={(event) => creator.update('githubOwner', event.target.value)}
-                    >
-                      {!environment?.githubUser && (
-                        <option value="">Connect to GitHub first</option>
-                      )}
-                      {(environment?.githubOwners ?? []).map((owner) => (
-                        <option key={owner} value={owner}>
-                          {owner}
-                          {owner === environment?.githubUser ? ' (personal)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="connection-line">
-                      <span className="help">
-                        {environment?.githubUser
-                          ? `Signed in as ${environment.githubUser}`
-                          : 'Not connected'}
-                      </span>
-                      <button
-                        type="button"
-                        className="text-button"
-                        onClick={() => void creator.refresh(true)}
-                        disabled={creator.checking}
-                      >
-                        {creator.checking ? 'Checking…' : 'Check connection'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="field">
-                  <label htmlFor="description">
-                    Description{' '}
-                    <span aria-hidden="true" className="optional">
-                      optional
-                    </span>
-                  </label>
-                  <textarea
-                    id="description"
-                    rows={2}
-                    value={form.description}
-                    placeholder="What is this project for?"
-                    maxLength={700}
-                    aria-invalid={Array.from(form.description).length > 350}
-                    onChange={(event) => creator.update('description', event.target.value)}
-                  />
-                  {Array.from(form.description).length > 350 && (
-                    <p className="inline-error">Use 350 characters or fewer.</p>
-                  )}
-                </div>
-
-                <div className="field">
-                  <label id="location-label">Project location</label>
-                  <div className="location-control">
-                    <span
-                      aria-labelledby="location-label"
-                      title={displayPath(preferences.parentPath)}
-                    >
-                      {displayPath(preferences.parentPath)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void creator.chooseFolder()}
-                      disabled={creator.picking}
-                    >
-                      {creator.picking ? 'Choosing…' : 'Browse…'}
-                    </button>
-                  </div>
-                  <div className="location-meta">
-                    <p
-                      className="help path-preview"
-                      title={`${displayPath(preferences.parentPath)}\\${form.name || 'my-project'}`}
-                    >
-                      New folder: <code>{form.name || 'my-project'}</code>
-                    </p>
-                    {preferences.recentLocations.length > 0 && (
-                      <label className="recent-select">
-                        <span className="sr-only">Recent locations</span>
-                        <select
-                          value=""
-                          onChange={(event) => {
-                            if (event.target.value !== '')
-                              void creator.recentLocation(Number(event.target.value));
+              <fieldset disabled={creator.picking || creator.busy} className="workspace-fields">
+                {section === 'overview' && (
+                  <>
+                    <Overview
+                      creator={creator}
+                      simple={simple}
+                      presetId={presetId}
+                      onApply={apply}
+                      onManage={() => setPresetsOpen(true)}
+                      onAgents={() => navigate('agents')}
+                    />
+                    {undo && (
+                      <p className="notice">
+                        Starting point applied.{' '}
+                        <button
+                          type="button"
+                          className="text-button"
+                          onClick={() => {
+                            creator.configure(undo.configuration);
+                            setPresetId(undo.id);
+                            setUndo(null);
                           }}
                         >
-                          <option value="">Recent locations</option>
-                          {preferences.recentLocations.map((path, index) => (
-                            <option key={path} value={index}>
-                              {displayPath(path)}
+                          Undo preset change
+                        </button>
+                      </p>
+                    )}
+                  </>
+                )}
+                {section === 'files' && (
+                  <>
+                    <Subnav
+                      label="Project file settings"
+                      value={fileSection}
+                      items={[
+                        ['readme', 'README'],
+                        ['ignore', 'Gitignore'],
+                        ['license', 'License'],
+                        ['additional', 'Additional Files'],
+                        ['git', 'Git Settings'],
+                      ]}
+                      onChange={(v) => setFileSection(v as typeof fileSection)}
+                    />
+                    {fileSection === 'readme' && (
+                      <label className="field">
+                        <span className="control-label">README</span>
+                        <select
+                          value={form.readme}
+                          onChange={(e) => creator.update('readme', e.target.value as Readme)}
+                        >
+                          {['none', 'minimal', 'general', 'custom'].map((r) => (
+                            <option key={r} value={r}>
+                              {r[0].toUpperCase() + r.slice(1)}
                             </option>
                           ))}
                         </select>
                       </label>
                     )}
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label htmlFor="project-preset">Project preset</label>
-                  <div className="inline-actions">
-                    <select
-                      id="project-preset"
-                      value={allPresets.some((p) => p.id === presetId) ? presetId : ''}
-                      onChange={(event) => {
-                        const preset = allPresets.find((p) => p.id === event.target.value);
-                        if (preset) {
-                          creator.configure(preset.configuration);
-                          setPresetId(preset.id);
-                        }
-                      }}
-                    >
-                      <option value="">Last used settings</option>
-                      <optgroup label="Built-in">
-                        {catalog.builtInPresets.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                      {preferences.customPresets.length > 0 && (
-                        <optgroup label="Custom">
-                          {preferences.customPresets.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                    <button type="button" onClick={() => setPresetsOpen(true)}>
-                      Manage…
-                    </button>
-                  </div>
-                </div>
-
-                <div className="field readme-row">
-                  <label htmlFor="readme">README</label>
-                  <select
-                    id="readme"
-                    value={form.readme}
-                    onChange={(event) => creator.update('readme', event.target.value as Readme)}
-                  >
-                    <option value="none">None</option>
-                    <option value="minimal">Minimal</option>
-                    <option value="general">General</option>
-                    <option value="custom">Custom</option>
-                  </select>
-                </div>
-
-                <div className="configuration-panels">
-                  <IgnorePanel
-                    creator={creator}
-                    recommendation={selectedPreset?.configuration.options.ignorePresets}
-                  />
-                  <AgentStudio creator={creator} />
-                  <AdvancedPanel creator={creator} />
-                  <FilePreview
-                    name={form.name || 'project-name'}
+                    {fileSection === 'ignore' ? (
+                      <IgnorePanel
+                        creator={creator}
+                        recommendation={preset?.configuration.options.ignorePresets}
+                      />
+                    ) : (
+                      <AdvancedPanel creator={creator} section={fileSection} />
+                    )}
+                  </>
+                )}
+                {section === 'agents' && (
+                  <>
+                    <Subnav
+                      label="AI agent settings"
+                      value={agentSection}
+                      items={[
+                        ['assistants', 'Assistants'],
+                        ['instructions', 'Instructions'],
+                        ['specialists', 'Specialists & Skills'],
+                        ['advanced', 'Advanced'],
+                      ]}
+                      onChange={(v) => setAgentSection(v as AgentSection)}
+                    />
+                    <AgentStudio creator={creator} section={agentSection} />
+                  </>
+                )}
+                {section === 'review' && (
+                  <>
+                    <p className="section-intro">
+                      Check the destination and generated files. Creating a project makes a new
+                      folder and its first Git commit.
+                    </p>
+                    <ProjectSummary creator={creator} presetName={presetName} />
+                    <FilePreview
+                      name={form.name || 'project-name'}
+                      files={creator.files}
+                      loading={creator.previewing}
+                      error={creator.previewError}
+                      expanded
+                    />
+                    {!creator.setupReady && (
+                      <button type="button" onClick={() => navigate('setup')}>
+                        Complete required setup
+                      </button>
+                    )}
+                  </>
+                )}
+                {section === 'handoff' && (
+                  <HandoffPanel
+                    form={form}
                     files={creator.files}
-                    loading={creator.previewing}
-                    error={creator.previewError}
+                    parentPath={preferences.parentPath}
+                    presetName={presetName}
+                    simple={simple}
+                    onTemplateChange={(id) => creator.update('handoffTemplate', id)}
+                    copy={creator.copy}
                   />
-                </div>
+                )}
+                {section === 'recent' && <RecentProjects copy={creator.copy} />}
+                {section === 'setup' && (
+                  <SetupPanel creator={creator} onReturn={() => navigate('overview')} />
+                )}
               </fieldset>
-
-              {environment && !creator.setupReady && <SetupPanel creator={creator} />}
-              {configurationError && (
-                <p className="inline-error config-error" role="status">
-                  {configurationError}
-                </p>
-              )}
-              {formError(form) && !nameError(form.name) && !configurationError && (
-                <p className="inline-error config-error">{formError(form)}</p>
-              )}
               {creator.error && (
                 <div className="error-banner" role="alert">
                   <strong>{creator.error.message}</strong>
@@ -337,267 +319,65 @@ export default function App() {
                   {creator.notice}
                 </p>
               )}
-            </div>
-          </main>
+            </main>
+            {contextOpen && (
+              <aside className="context-panel" aria-label="Project context">
+                <Context creator={creator} section={section} presetName={presetName} />
+              </aside>
+            )}
+          </div>
           <footer className="action-bar">
-            <div className="status-text">
-              <Icon name={creator.setupReady ? 'check' : 'alert'} size={13} />
-              <span>
-                {creator.checking
-                  ? 'Checking setup…'
-                  : creator.setupReady
-                    ? github
-                      ? 'Ready to publish'
-                      : 'Git ready'
-                    : 'Setup required'}
+            <div className="footer-summary">
+              <strong>
+                {creator.previewing
+                  ? 'Updating files…'
+                  : `${creator.files.length} ${creator.files.length === 1 ? 'file' : 'files'}`}
+              </strong>{' '}
+              ·{' '}
+              {form.destination === 'github'
+                ? `${form.visibility === 'private' ? 'Private' : 'Public'} GitHub repository`
+                : 'On this computer'}
+              <span className={blocking ? 'help' : 'ready-text'} role="status">
+                {blocking || 'Ready to create'}
               </span>
             </div>
             <button type="submit" className="primary create-button" disabled={!creator.ready}>
-              Create Repository <Icon name="arrow" size={14} />
+              {section === 'review' ? 'Create Project' : 'Review project'}
+              <Icon name="arrow" size={14} />
             </button>
           </footer>
         </form>
-      ) : (
-        <RepositoryState creator={creator} onAnother={createAnother} />
       )}
       {presetsOpen && (
         <PresetDialog
           creator={creator}
           onClose={() => setPresetsOpen(false)}
           onSaved={setPresetId}
+          onApply={apply}
         />
       )}
     </div>
   );
 }
 
-function SetupPanel({ creator }: { creator: Creator }) {
-  const { environment } = creator;
-  if (!environment) return null;
+function Subnav({
+  label,
+  value,
+  items,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  items: string[][];
+  onChange: (value: string) => void;
+}) {
   return (
-    <section className="setup-panel" aria-label="Required setup">
-      <Icon name="alert" size={16} />
-      <div>
-        {!environment.gitInstalled ? (
-          <>
-            <strong>Git is not installed.</strong>
-            <button
-              className="text-button"
-              type="button"
-              onClick={() => void creator.action('open_setup_resource', { resource: 'git' })}
-            >
-              Download Git <Icon name="external" size={12} />
-            </button>
-          </>
-        ) : !environment.identityReady ? (
-          <>
-            <strong>Set your Git commit identity.</strong>
-            <code className="setup-commands">
-              git config --global user.name "Your Name"
-              <br />
-              git config --global user.email "you@example.com"
-            </code>
-          </>
-        ) : !environment.ghInstalled ? (
-          <>
-            <strong>GitHub CLI is not installed.</strong>
-            <button
-              className="text-button"
-              type="button"
-              onClick={() => void creator.action('open_setup_resource', { resource: 'gh' })}
-            >
-              Download GitHub CLI <Icon name="external" size={12} />
-            </button>
-          </>
-        ) : (
-          <>
-            <strong>Connect your GitHub account.</strong>
-            <button type="button" onClick={() => void creator.connect()}>
-              Connect to GitHub <Icon name="external" size={12} />
-            </button>
-          </>
-        )}
-        <button
-          className="text-button"
-          type="button"
-          disabled={creator.checking}
-          onClick={() => void creator.refresh(creator.form?.destination === 'github')}
-        >
-          {creator.checking ? 'Checking…' : 'Check connection'}
+    <div className="subnavigation" role="group" aria-label={label}>
+      {items.map(([id, name]) => (
+        <button key={id} type="button" aria-pressed={value === id} onClick={() => onChange(id)}>
+          {name}
         </button>
-      </div>
-    </section>
-  );
-}
-
-function RepositoryState({ creator, onAnother }: { creator: Creator; onAnother: () => void }) {
-  const { state, form } = creator;
-  if (!form || state.kind === 'form') return null;
-  if (state.kind === 'creating') {
-    const applicable = stages
-      .filter(
-        ([key]) =>
-          !['github', 'metadata', 'push', 'verify'].includes(key) || form.destination === 'github',
-      )
-      .filter(([key]) => key !== 'metadata' || !!form.topics.length || !!form.homepage);
-    const current = applicable.findIndex(([key]) => key === state.stage);
-    return (
-      <main className="content">
-        <div className="state-content" aria-live="polite" aria-busy="true">
-          <h2>Creating repository</h2>
-          <p className="state-project">{form.name}</p>
-          <ol className="progress-list">
-            {applicable.map(([key, label], index) => (
-              <li
-                key={key}
-                className={
-                  state.stage === 'complete' || index < current
-                    ? 'done'
-                    : key === state.stage
-                      ? 'active'
-                      : ''
-                }
-              >
-                <span className={`step-symbol ${key === state.stage ? 'spinner' : ''}`}>
-                  {(state.stage === 'complete' || index < current) && (
-                    <Icon name="check" size={12} />
-                  )}
-                </span>
-                {label}
-              </li>
-            ))}
-          </ol>
-          <p className="help">Keep this window open until creation finishes.</p>
-        </div>
-      </main>
-    );
-  }
-  const success = state.kind === 'success';
-  const result = success ? state.result : null;
-  const error = state.kind === 'failure' ? state.error : null;
-  const path = result?.path ?? error?.localPath ?? '';
-  const url = result?.githubUrl ?? error?.githubUrl;
-  return (
-    <>
-      <main className="content">
-        <div className="state-content" aria-live="polite">
-          <div className="state-heading">
-            <Icon name={success ? 'check' : 'alert'} size={21} />
-            <h2>
-              {success
-                ? 'Repository created'
-                : error?.localReady
-                  ? 'Publishing incomplete'
-                  : 'Creation incomplete'}
-            </h2>
-          </div>
-          <p className="state-project">{result?.name ?? form.name}</p>
-          {error && (
-            <div className="error-banner">
-              <strong>{error.message}</strong>
-              <p>{error.guidance}</p>
-            </div>
-          )}
-          <dl className="result-details">
-            <dt>Location</dt>
-            <dd>
-              <span className="copy-value">{displayPath(path)}</span>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Copy project path"
-                onClick={() => void creator.copy(displayPath(path))}
-              >
-                <Icon name="copy" size={14} />
-              </button>
-            </dd>
-            {(result || error?.localReady) && (
-              <>
-                <dt>Branch</dt>
-                <dd>
-                  <code>{result?.branch ?? form.options.initialBranch}</code>
-                </dd>
-                <dt>Initial commit</dt>
-                <dd>
-                  <span>{result?.commitMessage ?? form.options.commitMessage}</span>
-                  {result && <code className="commit-hash">{result.commit.slice(0, 7)}</code>}
-                </dd>
-              </>
-            )}
-            {url && (
-              <>
-                <dt>GitHub</dt>
-                <dd>
-                  <button
-                    type="button"
-                    className="result-link"
-                    onClick={() => void creator.action('open_github')}
-                  >
-                    {url.replace('https://', '')}
-                  </button>
-                  <button
-                    className="icon-button"
-                    type="button"
-                    aria-label="Copy GitHub URL"
-                    onClick={() => void creator.copy(url)}
-                  >
-                    <Icon name="copy" size={14} />
-                  </button>
-                </dd>
-              </>
-            )}
-            {result && (
-              <>
-                <dt>Generated files</dt>
-                <dd className="generated-files">
-                  {result.files.length
-                    ? result.files.map((file) => <code key={file}>{file}</code>)
-                    : 'None — empty initial commit'}
-                </dd>
-              </>
-            )}
-          </dl>
-          {result?.warnings.map((warning) => (
-            <p key={warning} className="notice" role="status">
-              {warning}
-            </p>
-          ))}
-          <div className="result-actions">
-            {error?.canRetry && (
-              <button className="primary" type="button" onClick={() => void creator.execute(true)}>
-                Retry publishing <Icon name="arrow" size={14} />
-              </button>
-            )}
-            <button type="button" onClick={() => void creator.action('open_project')}>
-              <Icon name="folder" size={14} />
-              Open Folder
-            </button>
-            {creator.environment?.vscodeAvailable && (
-              <button type="button" onClick={() => void creator.action('open_vscode')}>
-                <Icon name="code" size={14} />
-                Open in VS Code
-              </button>
-            )}
-            {url && (
-              <button type="button" onClick={() => void creator.action('open_github')}>
-                <Icon name="external" size={13} />
-                {success ? 'Open on GitHub' : 'Inspect on GitHub'}
-              </button>
-            )}
-          </div>
-          {creator.notice && (
-            <p className="notice" role="status">
-              {creator.notice}
-            </p>
-          )}
-        </div>
-      </main>
-      <footer className="action-bar">
-        <span className="help">{success ? '' : 'Created files are preserved.'}</span>
-        <button type="button" className={success ? 'primary' : ''} onClick={onAnother}>
-          Create Another <Icon name="arrow" size={14} />
-        </button>
-      </footer>
-    </>
+      ))}
+    </div>
   );
 }

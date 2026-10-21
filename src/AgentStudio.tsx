@@ -6,7 +6,14 @@ import type { AIStudio, InstructionProfile, SavedInstructions, Workflow } from '
 import { SpecialistEditor } from './SpecialistEditor';
 import { StudioAdvanced } from './StudioAdvanced';
 
-export function AgentStudio({ creator }: { creator: Creator }) {
+export type AgentSection = 'assistants' | 'instructions' | 'specialists' | 'advanced';
+export function AgentStudio({
+  creator,
+  section = 'assistants',
+}: {
+  creator: Creator;
+  section?: AgentSection;
+}) {
   const [search, setSearch] = useState('');
   const [presetName, setPresetName] = useState('');
   const [error, setError] = useState('');
@@ -121,7 +128,7 @@ export function AgentStudio({ creator }: { creator: Creator }) {
     }
   }
   return (
-    <details className="disclosure agent-panel">
+    <details className="disclosure agent-panel workspace-panel" data-ai-section={section} open>
       <summary>
         <Icon name="code" size={15} />
         <span>AI Agents</span>
@@ -149,7 +156,7 @@ export function AgentStudio({ creator }: { creator: Creator }) {
           <p className="help">No AI instructions or configuration files will be generated.</p>
         ) : (
           <>
-            <section className="settings-section">
+            <section className="settings-section" hidden={section !== 'assistants'}>
               <h3>Coding agents</h3>
               <div className="checkbox-grid">
                 {source.agents.map((agent) => (
@@ -176,7 +183,10 @@ export function AgentStudio({ creator }: { creator: Creator }) {
                 </p>
               )}
             </section>
-            <section className="settings-section">
+            <section
+              className="settings-section instruction-settings"
+              hidden={!['instructions', 'advanced'].includes(section)}
+            >
               <div className="field">
                 <label htmlFor="instruction-preset">Instruction preset</label>
                 <select
@@ -238,7 +248,7 @@ export function AgentStudio({ creator }: { creator: Creator }) {
                   </div>
                 </div>
               )}
-              <details className="studio-subsection">
+              <details className="studio-subsection development-rules" open>
                 <summary>
                   Development rules <span className="help">{profile.rules.length} enabled</span>
                 </summary>
@@ -302,7 +312,7 @@ export function AgentStudio({ creator }: { creator: Creator }) {
                   </label>
                 </div>
               </details>
-              <details className="studio-subsection">
+              <details className="studio-subsection technology-guidance" open>
                 <summary>
                   Technology guidance{' '}
                   <span className="help">{profile.technologies.length} selected</span>
@@ -338,7 +348,7 @@ export function AgentStudio({ creator }: { creator: Creator }) {
                 </div>
               </details>
             </section>
-            <section className="settings-section">
+            <section className="settings-section" hidden={section !== 'instructions'}>
               <div className="field">
                 <label htmlFor="custom-instructions">
                   Additional project instructions <span className="optional">user-authored</span>
@@ -414,8 +424,10 @@ export function AgentStudio({ creator }: { creator: Creator }) {
                 </div>
               </details>
             </section>
-            <SpecialistEditor studio={studio} update={update} creator={creator} />
-            <details className="studio-subsection">
+            <div hidden={section !== 'specialists'}>
+              <SpecialistEditor studio={studio} update={update} creator={creator} />
+            </div>
+            <details className="studio-subsection" hidden={section !== 'specialists'} open>
               <summary>
                 Agent skills <span className="help">optional</span>
               </summary>
@@ -449,10 +461,12 @@ export function AgentStudio({ creator }: { creator: Creator }) {
                   )}
               </div>
             </details>
-            <StudioAdvanced studio={studio} update={update} source={source} />
+            <div hidden={section !== 'advanced'}>
+              <StudioAdvanced studio={studio} update={update} source={source} />
+            </div>
             <p className="help">
-              All generated AI files appear in File preview below. Instructions are saved as data
-              and are never executed by Repo Creator.
+              All generated AI files appear in Review. Instructions are saved as data and are never
+              executed by Repo Creator.
             </p>
             {creator.previewError && (
               <p className="inline-error" role="status">

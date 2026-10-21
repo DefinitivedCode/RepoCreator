@@ -48,7 +48,7 @@ pub fn save_configuration(
     configuration: Configuration,
     state: State<'_, Arc<Runtime>>,
 ) -> Result<(), AppError> {
-    config::validate_options(&configuration.options)?;
+    config::validate_configuration(&configuration)?;
     let mut session = state.session.lock().map_err(|_| lock_error())?;
     let mut preferences = session.preferences.clone();
     preferences.defaults = configuration;
@@ -106,11 +106,15 @@ pub fn select_recent_location(
 pub fn save_custom_preset(
     name: String,
     configuration: Configuration,
+    description: Option<String>,
     state: State<'_, Arc<Runtime>>,
 ) -> Result<Vec<ProjectPreset>, AppError> {
     let mut session = state.session.lock().map_err(|_| lock_error())?;
     let mut preferences = session.preferences.clone();
-    preferences.save_preset(name, configuration)?;
+    let id = preferences.save_preset(name.clone(), configuration.clone())?;
+    if let Some(description) = description {
+        preferences.update_preset(&id, &name, &description, configuration)?;
+    }
     persist(&preferences, &session.preference_file)?;
     session.preferences = preferences;
     Ok(session.preferences.custom_presets.clone())

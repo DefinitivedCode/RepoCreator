@@ -27,6 +27,41 @@ pub enum Readme {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(default, rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectBrief {
+    pub idea: String,
+    pub audience: String,
+    pub first_version: String,
+    pub technologies: String,
+    pub context: String,
+}
+
+pub fn discovery_template() -> String {
+    "discovery".into()
+}
+
+pub fn validate_brief(brief: &ProjectBrief, template: &str) -> Result<(), AppError> {
+    if [
+        &brief.idea,
+        &brief.audience,
+        &brief.first_version,
+        &brief.technologies,
+        &brief.context,
+    ]
+    .iter()
+    .any(|v| v.len() > 4096 || v.contains('\0'))
+        || template.is_empty()
+        || template.len() > 80
+        || !template
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
+    {
+        return Err(AppError::new("Project brief or handoff template is invalid.", "Keep each brief field within 4,096 UTF-8 bytes and choose a supported handoff template."));
+    }
+    Ok(())
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CreateRequest {
     pub name: String,
@@ -42,6 +77,31 @@ pub struct CreateRequest {
     pub topics: Vec<String>,
     #[serde(default)]
     pub homepage: String,
+    #[serde(default)]
+    pub brief: ProjectBrief,
+    #[serde(default = "discovery_template")]
+    pub handoff_template: String,
+    #[serde(default)]
+    pub preset_name: String,
+}
+
+impl Default for CreateRequest {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            description: String::new(),
+            destination: Destination::default(),
+            visibility: Visibility::default(),
+            readme: Readme::default(),
+            options: crate::config::ProjectOptions::default(),
+            github_owner: String::new(),
+            topics: Vec::new(),
+            homepage: String::new(),
+            brief: ProjectBrief::default(),
+            handoff_template: discovery_template(),
+            preset_name: String::new(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -115,6 +175,12 @@ pub fn validate_name(name: &str) -> Result<(), AppError> {
 }
 
 pub fn validate_request(request: &CreateRequest) -> Result<(), AppError> {
+    if request.preset_name.len() > 240 || request.preset_name.chars().any(|c| c.is_control()) {
+        return Err(AppError::new(
+            "Invalid project preset label.",
+            "Choose a supported project preset.",
+        ));
+    }
     validate_name(&request.name)?;
     if request.description.chars().count() > 350 || request.description.contains('\0') {
         return Err(AppError::new(
@@ -123,6 +189,7 @@ pub fn validate_request(request: &CreateRequest) -> Result<(), AppError> {
         ));
     }
     crate::config::validate_options(&request.options)?;
+    validate_brief(&request.brief, &request.handoff_template)?;
     if request.destination == Destination::Local {
         return Ok(());
     }

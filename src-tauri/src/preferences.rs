@@ -1,5 +1,5 @@
 use crate::{
-    config::{validate_options, Appearance, Configuration, ProjectPreset},
+    config::{validate_configuration, Appearance, Configuration, ExperienceMode, ProjectPreset},
     model::{AppError, Destination},
 };
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub const SETTINGS_VERSION: u32 = 3;
+pub const SETTINGS_VERSION: u32 = 4;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preferences {
@@ -17,6 +17,8 @@ pub struct Preferences {
     pub parent_path: PathBuf,
     pub destination: Destination,
     pub appearance: Appearance,
+    #[serde(default)]
+    pub experience_mode: ExperienceMode,
     pub recent_locations: Vec<PathBuf>,
     pub defaults: Configuration,
     pub custom_presets: Vec<ProjectPreset>,
@@ -40,6 +42,7 @@ impl Preferences {
             parent_path,
             destination: Destination::Local,
             appearance: Appearance::System,
+            experience_mode: ExperienceMode::Simple,
             recent_locations: Vec::new(),
             defaults: Configuration::default(),
             custom_presets: Vec::new(),
@@ -85,6 +88,8 @@ impl Preferences {
         result.future_version = value["schemaVersion"]
             .as_u64()
             .is_some_and(|version| version > SETTINGS_VERSION as u64);
+        result.experience_mode = serde_json::from_value(value["experienceMode"].clone())
+            .unwrap_or(ExperienceMode::Advanced);
         if let Some(path) = value["parentPath"]
             .as_str()
             .and_then(|p| Path::new(p).canonicalize().ok())
@@ -125,6 +130,11 @@ impl Preferences {
                             result.custom_presets.push(ProjectPreset {
                                 id: id.into(),
                                 name: name.into(),
+                                description: preset["description"]
+                                    .as_str()
+                                    .filter(|s| valid_description(s))
+                                    .unwrap_or_default()
+                                    .into(),
                                 configuration,
                             });
                         }
@@ -175,7 +185,7 @@ impl Preferences {
     }
     fn read_configuration(&mut self, value: &serde_json::Value) -> Option<Configuration> {
         if let Ok(configuration) = serde_json::from_value::<Configuration>(value.clone()) {
-            if validate_options(&configuration.options).is_ok() {
+            if validate_configuration(&configuration).is_ok() {
                 return Some(configuration);
             }
         }
@@ -183,7 +193,7 @@ impl Preferences {
         if legacy["options"].get("ai").is_some() {
             legacy["options"].as_object_mut()?.remove("ai");
             if let Ok(configuration) = serde_json::from_value::<Configuration>(legacy) {
-                if validate_options(&configuration.options).is_ok() {
+                if validate_configuration(&configuration).is_ok() {
                     self.recover_notice();
                     return Some(configuration);
                 }
@@ -245,7 +255,7 @@ impl Preferences {
         name: String,
         configuration: Configuration,
     ) -> Result<String, AppError> {
-        validate_options(&configuration.options)?;
+        validate_configuration(&configuration)?;
         if !valid_preset_name(&name) || self.custom_presets.len() >= 50 {
             return Err(preset_error(
                 "Use a name of 1–60 characters. Up to 50 custom presets can be saved.",
@@ -268,6 +278,7 @@ impl Preferences {
         self.custom_presets.push(ProjectPreset {
             id: id.clone(),
             name: name.trim().into(),
+            description: String::new(),
             configuration,
         });
         Ok(id)
@@ -289,6 +300,29 @@ impl Preferences {
             .find(|p| p.id == id)
             .ok_or_else(|| preset_error("This custom preset is unavailable."))?;
         preset.name = name.trim().into();
+        Ok(())
+    }
+    pub fn update_preset(
+        &mut self,
+        id: &str,
+        name: &str,
+        description: &str,
+        configuration: Configuration,
+    ) -> Result<(), AppError> {
+        validate_configuration(&configuration)?;
+        if !valid_description(description) {
+            return Err(preset_error(
+                "Use a description of at most 500 characters without control characters.",
+            ));
+        }
+        self.rename_preset(id, name)?;
+        let preset = self
+            .custom_presets
+            .iter_mut()
+            .find(|p| p.id == id)
+            .ok_or_else(|| preset_error("This custom preset is unavailable."))?;
+        preset.description = description.trim().into();
+        preset.configuration = configuration;
         Ok(())
     }
     pub fn save_instructions(
@@ -332,6 +366,9 @@ impl Preferences {
 }
 fn valid_preset_name(name: &str) -> bool {
     !name.trim().is_empty() && name.chars().count() <= 60 && !name.chars().any(|c| c.is_control())
+}
+pub fn valid_description(description: &str) -> bool {
+    description.chars().count() <= 500 && !description.chars().any(|c| c.is_control())
 }
 fn preset_error(message: &str) -> AppError {
     AppError::new(message, "Update the preset and try again.")

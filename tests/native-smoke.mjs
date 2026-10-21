@@ -1,59 +1,247 @@
-// Opt-in Windows test of the production executable. No remote repositories are created.
-// The existing settings file is backed up byte-for-byte and restored after the run.
+// Opt-in Windows production WebView2 smoke test. No remote repositories are created.
+// Uses an isolated app-data directory; user preferences/history/window are untouched.
 import { chromium, expect } from '@playwright/test';
 import { spawn, execFileSync } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdir, mkdtemp, readFile, writeFile, unlink, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { verifyExpandedScrolling, scrollSizes } from './scrolling.mjs';
-import { verifyNativeStudio } from './native-studio.mjs';
+import { configureNativeStudio } from './native-studio.mjs';
 
+assert.equal(process.platform, 'win32', 'This smoke test requires Windows WebView2');
 const root = path.resolve(import.meta.dirname, '..');
 const temporaryRoot = path.resolve(os.tmpdir());
-const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.2-'));
-const parent = path.join(temporary, 'projects');
-const config = path.join(
-  process.env.APPDATA,
-  'com.definitivedcode.repocreator',
-  'preferences.json',
-);
-const backup = await readFile(config).catch((error) => {
-  if (error.code === 'ENOENT') return null;
-  throw error;
-});
-let child;
-let browser;
+const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.3-'));
+const parent = path.join(temporary, 'Projects with spaces 日本語');
+const settingsDirectory = path.join(temporary, 'isolated-app-data');
+const executable =
+  process.env.REPO_CREATOR_SMOKE_EXE ||
+  path.join(root, 'src-tauri', 'target', 'release', 'repo-creator.exe');
+const screenshots = path.join(root, 'artifacts', 'native-v1.3');
+const names = ['preferences.json', 'preferences.json.bak', 'history.json', 'window.json'];
+const backups = new Map();
+let child,
+  browser,
+  page,
+  launchError,
+  settingsChanged = false;
+const errors = [],
+  created = [];
+const check = (condition, message) => assert.ok(condition, message);
+const optionalRead = (file) =>
+  readFile(file).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+const invoke = (command, args = {}) =>
+  page.evaluate(({ command, args }) => window.__TAURI_INTERNALS__.invoke(command, args), {
+    command,
+    args,
+  });
+function git(values, project) {
+  check(
+    path.resolve(project).startsWith(path.resolve(parent) + path.sep),
+    'Git checks must stay inside the owned test root',
+  );
+  return execFileSync('git', ['-C', project, ...values], {
+    encoding: 'utf8',
+    windowsHide: true,
+  }).trim();
+}
+async function resize(size) {
+  execFileSync(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-File',
+      path.join(root, 'tests', 'resize-window.ps1'),
+      '-ProcessId',
+      String(child.pid),
+      '-Width',
+      String(size.width),
+      '-Height',
+      String(size.height),
+    ],
+    { windowsHide: true },
+  );
+  await expect
+    .poll(() => page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
+    .toEqual(size);
+}
+const screenshot = (name) => page.screenshot({ path: path.join(screenshots, `${name}.png`) });
+async function identityIfNeeded() {
+  const environment = await invoke('check_environment', { includeGithub: false });
+  check(environment.gitInstalled, 'Git is required for the production smoke test');
+  if (!environment.identityReady) {
+    await page
+      .getByRole('navigation', { name: 'Project setup' })
+      .getByRole('button', { name: 'Setup & status', exact: true })
+      .click();
+    await page
+      .getByLabel('Your name for this project', { exact: true })
+      .fill('Native Smoke Author');
+    await page
+      .getByLabel('Email for this project', { exact: true })
+      .fill('native-smoke@example.invalid');
+    await page.getByRole('button', { name: 'Return to project setup', exact: true }).click();
+  }
+}
+async function createAndVerify(details) {
+  await identityIfNeeded();
+  await page
+    .getByRole('navigation', { name: 'Project setup' })
+    .getByRole('button', { name: 'Review', exact: true })
+    .click();
+  const button = page.getByRole('button', { name: 'Create Project', exact: true });
+  await expect(button).toBeEnabled();
+  // Native configuration persistence intentionally waits for a 600ms debounce.
+  await page.waitForTimeout(850);
+  const preferences = await invoke('get_preferences');
+  const request = {
+    ...preferences.defaults,
+    name: details.name,
+    description: details.description,
+    destination: 'local',
+    visibility: 'private',
+    githubOwner: '',
+    topics: [],
+    homepage: '',
+    presetName: details.presetName,
+  };
+  assert.equal(preferences.destination, 'local');
+  assert.deepEqual(request.options.postActions, { folder: false, vscode: false, github: false });
+  const preview = await invoke('preview_files', { request });
+  for (const file of preview) {
+    await page
+      .getByRole('group', { name: 'Preview file' })
+      .getByRole('button', { name: file.path, exact: true })
+      .click();
+    assert.equal(
+      await page.getByLabel(`${file.path} preview`, { exact: true }).textContent(),
+      file.content,
+      `UI preview: ${file.path}`,
+    );
+  }
+  if (!preview.length)
+    await expect(
+      page.getByText('No files will be generated. Git will create an empty initial commit.', {
+        exact: true,
+      }),
+    ).toBeVisible();
+  assert.equal(await page.evaluate(() => window.injected), undefined);
+  await screenshot(`${details.name}-review`);
+  await button.click();
+  await page
+    .getByRole('heading', { name: 'Repository created', exact: true })
+    .waitFor({ timeout: 30_000 });
+  const project = path.join(parent, details.name);
+  assert.equal(git(['branch', '--show-current'], project), request.options.initialBranch);
+  assert.equal(git(['log', '-1', '--format=%s'], project), request.options.commitMessage);
+  assert.equal(git(['rev-list', '--count', 'HEAD'], project), '1');
+  assert.equal(git(['status', '--porcelain'], project), '');
+  assert.equal(git(['remote'], project), '', 'No remote repository may be created');
+  const tracked = git(['ls-tree', '-r', '--name-only', 'HEAD'], project)
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(tracked, preview.map((file) => file.path).sort());
+  for (const file of preview) {
+    assert.equal(
+      await readFile(path.join(project, file.path), 'utf8'),
+      file.content,
+      `Created file: ${file.path}`,
+    );
+    assert.equal(
+      execFileSync('git', ['-C', project, 'show', `HEAD:${file.path}`], {
+        encoding: 'utf8',
+        windowsHide: true,
+      }),
+      file.content,
+      `Committed file: ${file.path}`,
+    );
+  }
+  await page.getByLabel('Prompt template', { exact: true }).selectOption('development');
+  const prompt = await page.getByLabel('AI prompt', { exact: true }).inputValue();
+  check(prompt.includes(details.name), 'Handoff includes confirmed project name');
+  const commit = git(['rev-parse', 'HEAD'], project);
+  check(prompt.includes(commit), 'Handoff includes confirmed commit');
+  check(!prompt.includes('https://github.com/'), 'Local projects must not invent a repository URL');
+  await screenshot(`${details.name}-success`);
+  const result = {
+    name: details.name,
+    files: preview.map((file) => file.path),
+    branch: request.options.initialBranch,
+    commit,
+  };
+  created.push(result);
+  return { result, request, preview, project };
+}
 
 try {
+  assert.equal(
+    await fetch('http://127.0.0.1:9224/json/version', { signal: AbortSignal.timeout(1000) })
+      .then(() => true)
+      .catch(() => false),
+    false,
+    'Owned debugging port must be unused',
+  );
+  await readFile(executable);
+  for (const name of names)
+    backups.set(name, await optionalRead(path.join(settingsDirectory, name)));
   await mkdir(parent, { recursive: true });
-  await mkdir(path.dirname(config), { recursive: true });
-  await mkdir(path.join(root, 'artifacts'), { recursive: true });
-  // Start from the v1 settings shape to verify migration in the real app.
-  await writeFile(config, JSON.stringify({ parentPath: parent, destination: 'local' }));
-  child = spawn(path.join(root, 'src-tauri', 'target', 'release', 'repo-creator.exe'), [], {
+  await mkdir(settingsDirectory, { recursive: true });
+  await mkdir(screenshots, { recursive: true });
+  settingsChanged = true;
+  await writeFile(
+    path.join(settingsDirectory, 'preferences.json'),
+    JSON.stringify({
+      schemaVersion: 4,
+      experienceMode: 'simple',
+      parentPath: parent,
+      destination: 'local',
+      appearance: 'dark',
+    }),
+  );
+  await writeFile(
+    path.join(settingsDirectory, 'history.json'),
+    JSON.stringify({ schemaVersion: 1, projects: [] }),
+  );
+  await writeFile(
+    path.join(settingsDirectory, 'window.json'),
+    JSON.stringify({ width: 1100, height: 740, maximized: false }),
+  );
+  child = spawn(executable, [], {
     cwd: root,
     windowsHide: true,
     stdio: 'ignore',
     env: {
       ...process.env,
-      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=9223',
+      REPO_CREATOR_DATA_DIR: settingsDirectory,
+      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=9224',
       WEBVIEW2_USER_DATA_FOLDER: path.join(temporary, 'webview'),
     },
   });
+  child.once('error', (error) => {
+    launchError = error;
+  });
   let endpoint;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    endpoint = await fetch('http://127.0.0.1:9223/json/version')
+  for (let attempt = 0; attempt < 150; attempt++) {
+    if (launchError) throw launchError;
+    endpoint = await fetch('http://127.0.0.1:9224/json/version', {
+      signal: AbortSignal.timeout(1000),
+    })
       .then((response) => response.json())
       .catch(() => null);
     if (endpoint?.webSocketDebuggerUrl) break;
-    if (child.exitCode !== null) throw new Error(`Application exited with ${child.exitCode}`);
+    if (child.exitCode !== null)
+      throw new Error(`Production application exited with ${child.exitCode}`);
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  assert.ok(endpoint?.webSocketDebuggerUrl, 'The production WebView2 should start');
+  check(endpoint?.webSocketDebuggerUrl, 'Production WebView2 must start');
   browser = await chromium.connectOverCDP(endpoint.webSocketDebuggerUrl);
-  let page;
-  for (let attempt = 0; attempt < 50; attempt++) {
+  for (let attempt = 0; attempt < 80; attempt++) {
     page = browser
       .contexts()
       .flatMap((context) => context.pages())
@@ -61,214 +249,162 @@ try {
     if (page) break;
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  assert.ok(page, 'The production application should load');
-  const errors = [];
+  check(page, 'Production application page must load');
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.getByText('Git ready', { exact: true }).waitFor({ timeout: 30_000 });
-  const invoke = (command, args) =>
-    page.evaluate(({ command, args }) => window.__TAURI_INTERNALS__.invoke(command, args), {
-      command,
-      args,
-    });
-  let preferences = await invoke('get_preferences');
-  assert.equal(preferences.schemaVersion, 3);
-  assert.equal(preferences.defaults.options.ai.enabled, false);
-  assert.equal(preferences.parentPath.replace(/^\\\\\?\\/, ''), parent);
-
-  assert.deepEqual(preferences.defaults.options.ignorePresets, ['os', 'secrets']);
-  await page.getByLabel('Project name').fill('scroll-check');
-  await page.getByLabel('Project preset').selectOption('tauri');
-  await page.getByLabel('README', { exact: true }).selectOption('custom');
-  await page.locator('.advanced-panel > summary').click();
-  for (const name of ['Features', 'Installation', 'Contributing']) {
-    await page.getByRole('checkbox', { name, exact: true }).check();
-  }
-  await page.getByLabel('License type').selectOption('Apache-2.0');
-  const resize = async ({ width, height }) => {
-    execFileSync(
-      'powershell.exe',
-      [
-        '-NoProfile',
-        '-File',
-        path.join(root, 'tests', 'resize-window.ps1'),
-        '-ProcessId',
-        String(child.pid),
-        '-Width',
-        String(width),
-        '-Height',
-        String(height),
-      ],
-      { windowsHide: true },
-    );
-  };
+  page.setDefaultTimeout(15_000);
+  await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30_000 });
+  assert.equal((await invoke('get_preferences')).schemaVersion, 4);
+  await expect(page.getByRole('button', { name: 'Simple', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByLabel('Starting point', { exact: true }).selectOption('blank');
+  await page.getByLabel('Project name', { exact: true }).fill('native-blank');
+  await identityIfNeeded();
   await verifyExpandedScrolling(page, resize);
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-scroll-bottom.png') });
-  for (const selector of ['.ignore-panel', '.agent-panel', '.advanced-panel', '.file-preview']) {
-    await page.locator(`${selector} > summary`).click();
+  for (const size of scrollSizes) {
+    await resize(size);
+    await page.locator('.workspace-main').focus();
+    await page.keyboard.press('Control+Home');
+    await screenshot(`simple-dark-${size.width}x${size.height}`);
   }
   await resize(scrollSizes[0]);
-
-  await page.getByLabel('Project name').fill('native-smoke');
-  await page
-    .getByRole('textbox', { name: 'Description', exact: true })
-    .fill('Verified through the production Windows application.');
-  await page.getByLabel('Appearance').selectOption('dark');
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-dark.png') });
-  await page.getByLabel('Appearance').selectOption('light');
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-light.png') });
-
-  await page.getByLabel('Project preset').selectOption('tauri');
-  await page.getByLabel('README', { exact: true }).selectOption('custom');
-  await page.locator('.advanced-panel > summary').click();
-  await page.getByLabel('Overview content').fill('A deliberately configured test project.');
-  await page.getByLabel('Usage content').fill('Use the project according to its documentation.');
-  await page.getByLabel('License type').selectOption('MIT');
-  await page.getByLabel('Copyright holder').fill('Native Smoke Author');
-  await page.getByLabel('Year', { exact: true }).fill('2026');
-  await page.getByLabel('Initial branch').fill('work/start');
-  await page.getByLabel('Initial commit message').fill('Start configured repository');
-  await page.getByLabel('Initial branch').scrollIntoViewIfNeeded();
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-advanced.png') });
-  await page.locator('.advanced-panel > summary').click();
-  await page.locator('.ignore-panel > summary').click();
-  for (const rule of ['scratch/*', '!scratch/keep.txt']) {
-    await page.getByLabel('Custom patterns').fill(rule);
-    await page.getByRole('button', { name: 'Add', exact: true }).click();
-  }
-  await expect(page.getByLabel('.gitignore live preview')).toContainText('!scratch/keep.txt');
-  await page.getByLabel('.gitignore live preview').scrollIntoViewIfNeeded();
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-gitignore.png') });
-
-  await page.getByRole('button', { name: 'Manage…' }).click();
-  await page.getByLabel('Save current configuration as').fill('Smoke test preset');
-  await page.getByRole('button', { name: 'Save preset', exact: true }).click();
-  await expect(page.getByRole('dialog')).not.toBeVisible();
-  preferences = await invoke('get_preferences');
-  const preset = preferences.customPresets.find((p) => p.name === 'Smoke test preset');
-  assert.ok(preset);
-  assert.equal(preset.configuration.options.initialBranch, 'work/start');
-  const request = {
-    name: 'native-smoke',
-    description: 'Verified through the production Windows application.',
-    destination: 'local',
-    visibility: 'private',
-    ...preset.configuration,
-    githubOwner: '',
-    topics: [],
-    homepage: '',
-  };
-  const preview = await invoke('preview_files', { request });
+  await page.getByRole('combobox', { name: /Appearance/ }).selectOption('light');
+  await screenshot('simple-light-1100x740');
   assert.equal(
-    await page.getByLabel('.gitignore live preview').textContent(),
-    preview.find((f) => f.path === '.gitignore').content,
+    (
+      await createAndVerify({
+        name: 'native-blank',
+        description: '',
+        presetName: 'Blank repository',
+      })
+    ).preview.length,
+    0,
   );
-
-  // Exercise native rename/delete persistence and the dialog's Escape handling.
-  await page.getByRole('button', { name: 'Manage…' }).click();
-  await page.getByRole('button', { name: 'Rename', exact: true }).click();
-  await page.getByLabel('Rename preset').fill('Renamed smoke preset');
-  await page.getByRole('button', { name: 'Rename', exact: true }).first().click();
-  await expect(
-    page.getByRole('dialog').getByText('Renamed smoke preset', { exact: true }),
-  ).toBeVisible();
-  await page.keyboard.press('Escape');
-  assert.equal((await invoke('get_preferences')).customPresets[0].name, 'Renamed smoke preset');
-
-  await page.getByRole('button', { name: 'Create Repository' }).click();
-  await page.getByRole('heading', { name: 'Repository created' }).waitFor();
-  const project = path.join(parent, 'native-smoke');
-  const git = (values, cwd = project) =>
-    execFileSync('git', ['-C', cwd, ...values], { encoding: 'utf8', windowsHide: true }).trim();
-  assert.equal(git(['branch', '--show-current']), 'work/start');
-  assert.equal(git(['log', '-1', '--format=%s']), 'Start configured repository');
-  assert.equal(git(['status', '--porcelain']), '');
-  assert.equal(git(['remote']), '');
-  const commit = git(['rev-parse', 'HEAD']);
-  for (const file of preview)
-    assert.equal(
-      await readFile(path.join(project, file.path), 'utf8'),
-      file.content,
-      `${file.path} must match its preview`,
-    );
-  assert.ok(preview.some((f) => f.path === '.editorconfig'));
-  assert.ok(preview.some((f) => f.path === '.gitattributes'));
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-success.png') });
-
-  await page.getByRole('button', { name: 'Create Another' }).click();
-  assert.equal(await page.getByLabel('Project name').inputValue(), '');
-  await page.getByLabel('Project name').fill('native-smoke');
-  await page.getByRole('button', { name: 'Create Repository' }).click();
-  await page.getByText('A project with this name already exists here.').waitFor();
-  assert.equal(git(['rev-parse', 'HEAD']), commit);
-  await page.getByRole('button', { name: 'Manage…' }).click();
-  await page.getByRole('button', { name: 'Delete', exact: true }).click();
-  await page.getByRole('button', { name: 'Delete preset', exact: true }).click();
-  await expect(page.getByText('No custom presets saved.')).toBeVisible();
-  await page.keyboard.press('Escape');
-  assert.equal((await invoke('get_preferences')).customPresets.length, 0);
-
-  await page.getByLabel('Project preset').selectOption('blank');
-  await page.getByLabel('Project name').fill('native-empty');
-  await page.getByRole('button', { name: 'Create Repository' }).click();
-  await page.getByRole('heading', { name: 'Repository created' }).waitFor();
-  const emptyProject = path.join(parent, 'native-empty');
-  assert.equal(git(['ls-tree', '--name-only', 'HEAD'], emptyProject), '');
-  assert.equal(git(['rev-list', '--count', 'HEAD'], emptyProject), '1');
-  assert.equal(git(['branch', '--show-current'], emptyProject), 'main');
-  const persisted = JSON.parse(await readFile(config, 'utf8'));
-  assert.equal(persisted.schemaVersion, 3);
-  assert.equal(persisted.defaults.readme, 'none');
-  assert.equal(persisted.appearance, 'light');
-  assert.ok(
-    !JSON.stringify(persisted).includes('Verified through the production Windows application.'),
+  await page.getByRole('button', { name: 'Create Another', exact: true }).click();
+  await page.getByLabel('Starting point', { exact: true }).selectOption('experiment');
+  await page.getByLabel('Project name', { exact: true }).fill('native-experiment');
+  const description = 'Explore a small local idea with a realistic first version.';
+  await page.getByRole('textbox', { name: 'What are you making?', exact: false }).fill(description);
+  await page.getByLabel('AI coding assistant', { exact: true }).selectOption('claude');
+  const experiment = await createAndVerify({
+    name: 'native-experiment',
+    description,
+    presetName: 'Experiment',
+  });
+  const readme = experiment.preview.find((file) => file.path === 'README.md')?.content;
+  check(
+    readme?.includes(description) && readme.includes('experimental project'),
+    'Experiment README renders description and guidance',
   );
-  const studio = await verifyNativeStudio({ page, invoke, git, parent, root, resize });
+  check(
+    experiment.preview.some((file) => file.path === 'CLAUDE.md'),
+    'Simple assistant generates instruction files',
+  );
+  await page.getByRole('button', { name: 'Create Another', exact: true }).click();
+  const details = await configureNativeStudio({ page, invoke });
+  await page.getByRole('combobox', { name: /Appearance/ }).selectOption('dark');
+  await verifyExpandedScrolling(page, resize);
+  await resize(scrollSizes[0]);
+  await screenshot('advanced-assistants-dark');
+  const advanced = await createAndVerify(details);
+  const byPath = Object.fromEntries(advanced.preview.map((file) => [file.path, file.content]));
+  assert.equal(byPath['CLAUDE.md'], '@AGENTS.md\n');
+  assert.equal(byPath['AGENTS.md'], byPath['.github/copilot-instructions.md']);
+  check(
+    byPath['AGENTS.md'].includes(details.custom),
+    'Advanced instructions remain exact and inert',
+  );
+  for (const required of [
+    'LICENSE',
+    '.editorconfig',
+    '.gitattributes',
+    '.codex/config.toml',
+    '.claude/settings.json',
+    '.gemini/settings.json',
+    'opencode.json',
+    '.codex/agents/code-reviewer.toml',
+    '.claude/rules/ui-guidance.md',
+    '.github/instructions/ui-guidance.instructions.md',
+    '.cursor/rules/ui-guidance.mdc',
+    '.agents/skills/focused-code-review/SKILL.md',
+  ])
+    check(byPath[required], required);
+  await page.getByRole('button', { name: 'Create Another', exact: true }).click();
+  await page.getByLabel('Project name', { exact: true }).fill('native-advanced');
+  await page
+    .getByRole('navigation', { name: 'Project setup' })
+    .getByRole('button', { name: 'Review', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByText('A project with this name already exists here.', { exact: true }).waitFor();
+  assert.equal(git(['rev-parse', 'HEAD'], advanced.project), advanced.result.commit);
+  const history = await invoke('list_recent_projects');
+  assert.equal(history.length, 3);
+  assert.deepEqual(
+    history.map((project) => project.context.projectName).sort(),
+    created.map((project) => project.name).sort(),
+  );
   assert.deepEqual(errors, []);
+  await unlink(path.join(screenshots, 'failure.png')).catch((error) => {
+    if (error.code !== 'ENOENT') throw error;
+  });
   const report = {
-    version: '1.2.0',
+    version: '1.3.0',
     checks: [
-      'Production WebView and native IPC',
-      'Legacy settings migration',
-      'Safe fresh ignore defaults',
-      'Expanded scrolling at default, minimum, wide and tall native window sizes',
-      'Wheel, fractional touchpad deltas, keyboard, scrollbar drag and preview scroll chaining',
-      'Native light/dark appearance',
-      'Custom preset save/rename/delete',
-      'Custom README, MIT license and optional files',
-      'Exact preview/output match',
-      'Custom branch and commit message',
+      'Production WebView2 and native IPC',
+      'Simple Blank empty initial commit',
+      'Simple Experiment and Claude instructions',
+      'Advanced six assistants, specialist, skill, scoped rules and permission configs',
+      'Modes and navigation preserve settings',
+      'Exact UI previews, files and initial commit contents',
+      'Unicode/spaces filesystem path',
+      'Clean Git repositories without remotes',
+      'Default/minimum/wide/laptop dimensions',
+      'Dark/light appearance and fixed actions',
+      'Confirmed development handoff',
+      'Recent-project persistence',
       'Existing-directory protection',
-      'Create Another',
-      'Blank preset and empty initial commit',
-      'Versioned settings persistence',
       'No JavaScript errors',
-      'Six-agent Studio, shared imports, scoped rules, specialists and skills',
-      'Instruction library and complete project-preset persistence',
-      'Expanded Studio scrolling and frame stability in the production WebView',
-      'Syntax previews equal actual generated files and all files in the initial commit',
     ],
-    commit,
-    studio,
-    scrollSizes,
+    created,
+    dimensions: scrollSizes,
+    screenshots,
   };
   await writeFile(
     path.join(root, 'artifacts', 'native-smoke.json'),
     JSON.stringify(report, null, 2),
   );
   console.log(JSON.stringify(report, null, 2));
+} catch (error) {
+  await page?.screenshot({ path: path.join(screenshots, 'failure.png') }).catch(() => {});
+  throw error;
 } finally {
   await browser?.close().catch(() => {});
-  child?.kill();
-  if (backup !== null) await writeFile(config, backup);
-  else
-    await unlink(config).catch((error) => {
-      if (error.code !== 'ENOENT') throw error;
-    });
+  if (child?.pid && child.exitCode === null) {
+    const stopped = once(child, 'exit');
+    child.kill();
+    await stopped;
+  }
+  if (settingsChanged)
+    for (const [name, bytes] of backups) {
+      const file = path.join(settingsDirectory, name);
+      if (bytes === null)
+        await unlink(file).catch((error) => {
+          if (error.code !== 'ENOENT') throw error;
+        });
+      else await writeFile(file, bytes);
+      assert.deepEqual(
+        await optionalRead(file),
+        bytes,
+        `Restored ${name} matches its original bytes`,
+      );
+    }
   const resolved = path.resolve(temporary);
-  if (
-    !resolved.startsWith(temporaryRoot + path.sep) ||
-    !path.basename(resolved).startsWith('repo-creator-v1.2-')
-  )
-    throw new Error('Refusing unexpected cleanup path');
-  await rm(resolved, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 });
+  check(
+    path.dirname(resolved) === temporaryRoot &&
+      path.basename(resolved).startsWith('repo-creator-v1.3-'),
+    'Refusing unexpected cleanup path',
+  );
+  await rm(resolved, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 });
 }

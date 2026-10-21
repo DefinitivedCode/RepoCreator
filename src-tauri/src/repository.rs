@@ -94,11 +94,14 @@ pub fn begin(
         "Git rejected the initial branch name.",
     )?;
     for key in ["user.name", "user.email"] {
+        if !request.options.commit_author_name.is_empty() {
+            break;
+        }
         let value = runner
             .run(Program::Git, &args(&["config", "--get", key]), &parent)
             .ok();
         if !value.is_some_and(|v| v.success && !v.stdout.trim().is_empty()) {
-            return Err(AppError::new("Set your Git commit identity first.", "In a terminal, run: git config --global user.name \"Your Name\" and git config --global user.email \"you@example.com\". Then check setup again."));
+            return Err(AppError::new("Set your Git commit identity first.", "Enter your name and email in Project Files → Git Settings to use them only for this new project, or configure Git yourself and recheck setup."));
         }
     }
     let account = if request.destination == Destination::Github {
@@ -252,6 +255,19 @@ pub fn create_local(
         ],
         "Could not initialise Git.",
     )?;
+    if !pending.request.options.commit_author_name.is_empty() {
+        for (key, value) in [
+            ("user.name", &pending.request.options.commit_author_name),
+            ("user.email", &pending.request.options.commit_author_email),
+        ] {
+            git(
+                runner,
+                &pending.path,
+                &["config", "--local", key, value],
+                "Could not configure this project's Git identity.",
+            )?;
+        }
+    }
     if let Some(email) = &pending.author_email {
         // Use the authenticated account's private address only in this new repository.
         // This also prevents GitHub's protected-email rule from rejecting the push.
@@ -453,4 +469,49 @@ pub fn publish(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod native_tests {
+    use super::*;
+    use crate::{model::Readme, process::SystemRunner};
+
+    #[test]
+    fn scoped_identity_and_unicode_parent_are_used_without_global_git_changes() {
+        let temp = tempfile::tempdir().unwrap();
+        let parent = temp.path().join("Projects with spaces 日本語");
+        fs::create_dir(&parent).unwrap();
+        let mut request = CreateRequest {
+            name: "scoped-identity".into(),
+            readme: Readme::None,
+            ..Default::default()
+        };
+        request.options.commit_author_name = "Local Project Author".into();
+        request.options.commit_author_email = "local-author@example.invalid".into();
+        let expected = generate_files(&request).unwrap();
+        let mut pending = begin(&SystemRunner, &parent, request).unwrap();
+        create_local(&SystemRunner, &mut pending, &|_| {}).unwrap();
+        for file in expected {
+            assert_eq!(
+                fs::read_to_string(pending.path.join(file.path)).unwrap(),
+                file.content
+            );
+        }
+        let identity = SystemRunner
+            .run(
+                Program::Git,
+                &args(&["log", "-1", "--format=%an <%ae>"]),
+                &pending.path,
+            )
+            .unwrap();
+        assert!(identity.success);
+        assert_eq!(
+            identity.stdout,
+            "Local Project Author <local-author@example.invalid>"
+        );
+        let config = fs::read_to_string(pending.path.join(".git/config")).unwrap();
+        assert!(config.contains("Local Project Author"));
+        assert!(config.contains("local-author@example.invalid"));
+        assert!(pending.commit.is_some());
+    }
 }

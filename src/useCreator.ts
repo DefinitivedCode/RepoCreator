@@ -17,6 +17,7 @@ import type {
   CreatedRepo,
   CreationState,
   Environment,
+  ExperienceMode,
   GeneratedFile,
   Preferences,
   ProjectPreset,
@@ -73,7 +74,7 @@ export function useCreator() {
   useEffect(() => {
     let active = true;
     if (!isTauri()) {
-      setNotice('Open the Windows desktop application to create repositories.');
+      setNotice('Open the desktop application to create repositories.');
       return;
     }
     Promise.all([invoke<Catalog>('get_catalog'), invoke<Preferences>('get_preferences')])
@@ -96,13 +97,21 @@ export function useCreator() {
     };
   }, [refresh]);
 
+  const previewKey = form
+    ? JSON.stringify({ ...form, brief: undefined, handoffTemplate: undefined })
+    : '';
   useEffect(() => {
     if (!form || busy || state.kind !== 'form') return;
     let active = true;
     setPreviewing(true);
     setFiles([]);
     const timer = setTimeout(() => {
-      const request = { ...form, name: form.name || 'project-name' };
+      // Brief/template metadata does not affect generated files. Leave it out of
+      // preview validation as well as its cache key so fixing it cannot leave a stale error.
+      const request = {
+        ...(JSON.parse(previewKey) as RepositoryForm),
+        name: form.name || 'project-name',
+      };
       if ((form.name && nameError(form.name)) || optionsError(form.options)) {
         setPreviewError(formError(request) ?? 'Complete the configuration to preview files.');
         setPreviewing(false);
@@ -126,7 +135,7 @@ export function useCreator() {
       active = false;
       clearTimeout(timer);
     };
-  }, [form, busy, state.kind]);
+  }, [previewKey, busy, state.kind]);
 
   useEffect(() => {
     if (!form || busy || previewing || previewError || optionsError(form.options)) return;
@@ -141,6 +150,8 @@ export function useCreator() {
     form?.options,
     form?.destination,
     form?.visibility,
+    form?.brief,
+    form?.handoffTemplate,
     busy,
     previewing,
     previewError,
@@ -204,9 +215,20 @@ export function useCreator() {
       setNotice(appError(value).message);
     }
   }
+  async function experienceMode(mode: ExperienceMode) {
+    setPreferences((preferences) =>
+      preferences ? { ...preferences, experienceMode: mode } : preferences,
+    );
+    try {
+      await invoke('set_experience_mode', { mode });
+    } catch (value) {
+      setNotice(appError(value).message);
+    }
+  }
   const setupReady =
     !!environment?.gitInstalled &&
-    environment.identityReady &&
+    (environment.identityReady ||
+      !!(form?.options.commitAuthorName?.trim() && form.options.commitAuthorEmail?.trim())) &&
     (form?.destination !== 'github' || (!!environment.ghInstalled && !!environment.githubUser));
   const ready =
     !!form &&
@@ -217,7 +239,7 @@ export function useCreator() {
     setupReady &&
     !picking &&
     !busy;
-  async function execute(retry = false) {
+  async function execute(retry = false, presetName = '') {
     if (locked.current || (!retry && !ready)) return;
     locked.current = true;
     setError(null);
@@ -230,7 +252,7 @@ export function useCreator() {
       );
       const result = await invoke<CreatedRepo>(
         retry ? 'retry_publish' : 'create_repository',
-        retry ? {} : { request: form },
+        retry ? {} : { request: { ...form, presetName } },
       );
       setState({ kind: 'success', result });
     } catch (value) {
@@ -262,7 +284,12 @@ export function useCreator() {
     }
   }
   async function managePreset(
-    command: 'save_custom_preset' | 'rename_custom_preset' | 'delete_custom_preset',
+    command:
+      | 'save_custom_preset'
+      | 'rename_custom_preset'
+      | 'delete_custom_preset'
+      | 'update_custom_preset'
+      | 'confirm_project_preset_import',
     args: Record<string, unknown>,
   ) {
     const customPresets = await invoke<ProjectPreset[]>(command, args);
@@ -330,6 +357,7 @@ export function useCreator() {
     chooseFolder,
     recentLocation,
     appearance,
+    experienceMode,
     execute,
     action,
     connect,

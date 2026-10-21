@@ -8,21 +8,33 @@ const mockSource = readFileSync('node_modules/@tauri-apps/api/mocks.js', 'utf8')
 const ignores = JSON.parse(readFileSync('src-tauri/resources/ignore-presets.json', 'utf8'));
 const studio = JSON.parse(readFileSync('src-tauri/resources/agent-studio.json', 'utf8'));
 
-export async function prepare(page: Page, failPublish = false) {
+export async function prepare(
+  page: Page,
+  failPublish = false,
+  mode: 'simple' | 'advanced' = 'advanced',
+) {
   await page.addInitScript({
     content: `${mockSource}
     window.isTauri = true;
     window.testCalls = [];
+    Object.defineProperty(navigator, 'clipboard', {value:{writeText:async text=>{window.testCopied=text;}}});
     const ignores = ${JSON.stringify(ignores)};
     const studio = ${JSON.stringify(studio)};
     const options = { readmeSections: ['overview', 'usage', 'development', 'license'], sectionContent: {}, ignorePresets: ['os', 'secrets'], customPatterns: [], license: 'none', copyrightName: '', copyrightYear: '2026', initialBranch: 'main', commitMessage: 'Initial commit', editorconfig: false, gitattributes: false, postActions: { folder: false, vscode: false, github: false } };
     options.ai = { schemaVersion:1, enabled:false, agents:[], instructions:{preset:'practical',workflow:'balanced',rules:studio.presets.find(p=>p.id==='practical').rules,wording:{},customText:'',technologies:[],technologyWording:{},stack:'',architecture:'',conventions:'',verification:''}, specialists:[],customSpecialists:[],scopedRules:[],skills:[],optionalConfig:{codex:false,codexSandbox:'workspace-write',claude:false,claudeMode:'default',gemini:false,opencode:false} };
-    const configuration = { readme: 'general', options };
-    const builtIns = [ ['default', 'Default', ['os','secrets']], ['blank', 'Blank repository', []], ['tauri', 'Tauri application', ['os','secrets','node','vite','typescript','rust','tauri']], ['python', 'Python project', ['os','secrets','python']] ].map(([id,name,ids]) => ({id,name,configuration:{readme:id==='blank'?'none':'general',options:{...structuredClone(options),ignorePresets:ids}}}));
+    options.commitAuthorName = ''; options.commitAuthorEmail = '';
+    const brief = {idea:'',audience:'',firstVersion:'',technologies:'',context:''};
+    const configuration = { readme: 'general', options, brief, handoffTemplate:'discovery' };
+    const builtIns = [ ['default', 'Default', ['os','secrets']], ['blank', 'Blank repository', []], ['tauri', 'Tauri application', ['os','secrets','node','vite','typescript','rust','tauri']], ['python', 'Python project', ['os','secrets','python']], ['standard','Standard',['os','secrets']],['experiment','Experiment',['os','secrets']],['website','Website',['os','secrets','node','frontend']],['desktop','Desktop Application',['os','secrets']],['claude-experiment','Claude Experiment',['os','secrets']] ].map(([id,name,ids]) => ({id,name,description:'Reusable '+name+' workflow',configuration:{readme:id==='blank'?'none':'general',options:{...structuredClone(options),ignorePresets:ids},brief:structuredClone(brief),handoffTemplate:'discovery',visibility:'private'}}));
     for(const preset of builtIns) preset.configuration.options.ai.instructions.technologies = studio.technologies.filter(t=>t.projectPresets.includes(preset.id)).map(t=>t.id);
-    const preferences = { schemaVersion: 3, parentPath: 'C:\\\\Projects', destination: 'local', appearance: 'system', defaults: configuration, customPresets: [], instructionPresets:[],specialistLibrary:[],recoveryNotice:null,recentLocations: [] };
+    builtIns.find(p=>p.id==='claude-experiment').configuration.options.ai = {...structuredClone(options.ai),enabled:true,agents:['claude']};
+    const preferences = { schemaVersion: 4, experienceMode:'${mode}', parentPath: 'C:\\\\Projects', destination: 'local', appearance: 'system', defaults: configuration, customPresets: [], instructionPresets:[],specialistLibrary:[],recoveryNotice:null,recentLocations: [] };
     let attempts = 0;
     let lastRequest;
+    function validateBrief(value) {
+      if(Object.values(value.brief || {}).some(text=>new TextEncoder().encode(text).length>4096 || text.includes('\\0')))
+        throw {message:'Project brief or handoff template is invalid.',guidance:'Keep each brief field within 4096 bytes.'};
+    }
     function preview(request) {
       const files = [];
       if(request.readme !== 'none') files.push({path:'README.md',content:'# '+request.name+'\\n'});
@@ -53,11 +65,26 @@ export async function prepare(page: Page, failPublish = false) {
       window.testCalls.push({ command, payload });
       if (command === 'get_catalog') return {studio,ignorePresets: ignores,builtInPresets: builtIns,defaultConfiguration: configuration};
       if (command === 'get_preferences') return structuredClone(preferences);
-      if (command === 'check_environment') return { gitInstalled:true,identityReady:true,ghInstalled:true,githubUser:'octocat',githubOwners:['octocat','sample-org'],identityName:'Test Author',vscodeAvailable:false };
+      if (command === 'check_environment') return { gitInstalled:true,identityReady:true,ghInstalled:true,githubUser:'octocat',githubOwners:['octocat','sample-org'],identityName:'Test Author',vscodeAvailable:false,...window.testEnvironment };
       if (command === 'choose_parent') return null;
-      if (command === 'preview_files') return preview(payload.request);
-      if (command === 'save_configuration') preferences.defaults = payload.configuration;
+      if (command === 'preview_files') { validateBrief(payload.request); return preview(payload.request); }
+      if (command === 'save_configuration') { validateBrief(payload.configuration); preferences.defaults = payload.configuration; }
       if (command === 'set_destination') preferences.destination = payload.destination;
+      if (command === 'set_experience_mode') { preferences.experienceMode=payload.mode; return structuredClone(preferences); }
+      if (command === 'set_appearance') { preferences.appearance=payload.appearance; return; }
+      if (command === 'list_recent_projects') return [];
+      if (command === 'export_project_preset' || command === 'export_handoff_text') return true;
+      if (command === 'import_handoff_template') return window.testPromptImport || '{}';
+      if (command === 'preview_project_preset_import') {
+        if(window.testPresetImportError) throw {message:'This preset contains invalid or unsupported fields.',guidance:'Choose a supported JSON preset.'};
+        return {schemaVersion:1,name:'Imported workflow',description:'A portable workflow',configuration:structuredClone(configuration)};
+      }
+      if (command === 'confirm_project_preset_import') {
+        const p=payload.preset;
+        if(preferences.customPresets.some(s=>s.name.toLowerCase()===p.name.toLowerCase())) throw {message:'A custom preset with this name already exists.',guidance:'Choose another name.'};
+        preferences.customPresets.push({id:'custom-'+(preferences.customPresets.length+1),name:p.name,description:p.description,configuration:p.configuration}); return structuredClone(preferences.customPresets);
+      }
+      if (command === 'update_custom_preset') { const p=preferences.customPresets.find(p=>p.id===payload.id);Object.assign(p,{name:payload.name,description:payload.description,configuration:payload.configuration});return structuredClone(preferences.customPresets); }
       if (command === 'save_instruction_preset') {
         if(preferences.instructionPresets.some(p=>p.name===payload.name)) throw {message:'A preset with that name exists.',guidance:'Choose another name.'};
         preferences.instructionPresets.push({id:'instructions-'+(preferences.instructionPresets.length+1),name:payload.name,profile:payload.profile}); return structuredClone(preferences);
@@ -68,7 +95,7 @@ export async function prepare(page: Page, failPublish = false) {
       if(command === 'import_instructions') return 'Imported instructions 🦀.\\n';
       if(command === 'export_instruction_preset') return true;
       if(command === 'import_instruction_preset') {preferences.instructionPresets.push({id:'instructions-imported',name:'Imported preset',profile:{...structuredClone(options.ai.instructions),customText:'Imported preset text.'}});return structuredClone(preferences);}
-      if (command === 'save_custom_preset') { preferences.customPresets.push({id:'custom-'+(preferences.customPresets.length+1),name:payload.name,configuration:payload.configuration}); return structuredClone(preferences.customPresets); }
+      if (command === 'save_custom_preset') { preferences.customPresets.push({id:'custom-'+(preferences.customPresets.length+1),name:payload.name,description:payload.description||'',configuration:payload.configuration}); return structuredClone(preferences.customPresets); }
       if (command === 'rename_custom_preset') { preferences.customPresets.find(p=>p.id===payload.id).name=payload.name; return structuredClone(preferences.customPresets); }
       if (command === 'delete_custom_preset') { preferences.customPresets=preferences.customPresets.filter(p=>p.id!==payload.id); return structuredClone(preferences.customPresets); }
       if (command === 'create_repository' || command === 'retry_publish') {
@@ -81,4 +108,37 @@ export async function prepare(page: Page, failPublish = false) {
   });
   await page.goto('/');
   await expect(page.getByText('Git ready', { exact: true })).toBeVisible();
+}
+
+export async function navigate(page: Page, name: string) {
+  await page
+    .getByRole('navigation', { name: 'Project setup' })
+    .getByRole('button', { name, exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole('main', { name: 'Repository configuration' })
+      .getByRole('heading', { name, exact: true }),
+  ).toBeFocused();
+}
+
+export async function fileTab(page: Page, name: string) {
+  await navigate(page, 'Project Files');
+  await page
+    .getByRole('group', { name: 'Project file settings' })
+    .getByRole('button', { name, exact: true })
+    .click();
+}
+
+export async function agentTab(page: Page, name: string) {
+  await navigate(page, 'AI Agents');
+  await page
+    .getByRole('group', { name: 'AI agent settings' })
+    .getByRole('button', { name, exact: true })
+    .click();
+}
+
+export async function createProject(page: Page) {
+  await navigate(page, 'Review');
+  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
 }

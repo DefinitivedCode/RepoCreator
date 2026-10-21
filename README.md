@@ -1,17 +1,20 @@
-# Repo Creator 1.2.0
+# Repo Creator 1.3.0
 
-A Windows desktop utility for creating local or GitHub repositories with configurable project files and AI coding-agent instructions. Built with Tauri 2, React, TypeScript and Rust. AI Agent Studio generates project-local configuration; it does not run agents or require AI credentials.
+A Windows and macOS desktop utility for creating local or GitHub repositories with configurable project files and AI coding-agent instructions. Built with Tauri 2, React, TypeScript and Rust. AI Agent Studio generates project-local configuration; it does not run agents or require AI credentials.
 
 ## Create a repository
 
-Open Repo Creator, enter a project name, choose **Local only** or **GitHub**, select the parent location, and click **Create Repository**. The app creates a new child folder, generates the selected files, initialises Git and verifies the initial commit. Existing files and folders are never overwritten.
+New installations open in **Simple** mode. Enter a project name and optional idea, choose a **Starting point**, optional technology and assistant, then a native save location. Choose **On this computer** or **Computer and GitHub**, select **Review project**, inspect the destination and generated files, and choose **Create Project**. The app creates a new child folder, generates the selected files, initialises Git and verifies the initial commit. Existing files and folders are never overwritten.
 
-The neutral light/dark interface follows Windows appearance or your **System / Light / Dark** selection. A scrolling content area holds expanded settings while the creation action remains available in the footer. Native title-bar controls and window resizing are retained.
+The neutral **System / Light / Dark** desktop workspace has a navigation rail, an independently scrolling main pane, and a contextual file panel on wider windows. **Overview**, **Project Files**, **AI Agents**, **Review**, **AI Handoff**, **Recent Projects** and **Setup & status** keep related work together. The review/create action stays at the bottom. The default window is 1100×740 with an 820×580 minimum; window size and maximized state are remembered.
+
+**Simple** hides technical Git, file and AI rule editors. **Advanced** exposes every existing setting through local subsections. Both use the same configuration, so navigation and switching modes preserve settings. Existing v1.1/v1.2 installations migrate to Advanced; fresh installations start Simple. The Review pane uses the same Rust generator that writes the project files.
 
 ### Runtime requirements
 
 - Windows 11 x64 and [Microsoft Edge WebView2](https://developer.microsoft.com/microsoft-edge/webview2/). Installers can bootstrap WebView2 if needed.
-- [Git for Windows](https://git-scm.com/downloads/win) on `PATH`, with a commit identity. If missing, the app shows these setup commands:
+- macOS 11 or newer; Apple Silicon and Intel test builds are provided by GitHub Actions after successful packaging. See the [Mac testing guide](docs/macOS-testing.md).
+- [Git](https://git-scm.com/downloads) with a commit identity. **Setup & status** explains requirements, provides official installation links, and can set an identity only in the new repository. Alternatively, configure Git yourself:
 
   ```powershell
   git config --global user.name "Your Name"
@@ -19,23 +22,23 @@ The neutral light/dark interface follows Windows appearance or your **System / L
   ```
 
 - For publishing: [GitHub CLI](https://cli.github.com/) on `PATH`, authenticated to an account with permission to create the selected repository.
-- VS Code is optional. The app detects its native Windows executable and explains when it is unavailable.
+- VS Code is optional. The app detects native Windows/macOS installations and explains when it is unavailable.
 
-Reopen Repo Creator after installing a command-line tool so it inherits the updated `PATH`. Local mode works offline. **Connect to GitHub** opens the official `gh auth login --web` device flow in an interactive terminal and browser; select **Check connection** afterward. Credentials remain with GitHub CLI.
+Use **Recheck** after installing a tool. Executable discovery includes common Homebrew and user-install locations when Finder does not inherit a Terminal PATH. Local mode works offline. **Connect to GitHub** opens the official `gh auth login --web` device flow in an interactive terminal and browser; select **Check connection** afterward. Credentials remain with GitHub CLI.
 
 ## Configuration
 
 ### Project presets
 
-Choose **Default**, **Blank repository**, **Web application**, **React / Vite**, **Python project**, **Rust project**, **Tauri application**, or **Unity project**. Presets select README sections, ignore rules and appropriate optional files. They configure the repository; they do not install dependencies or scaffold frameworks.
+Choose **Blank repository**, **Experiment**, **Standard**, **Website**, **Desktop Application**, or **Claude Experiment**, alongside the retained Default, Web application, React / Vite, Python, Rust, Tauri and Unity presets. Experiment uses a short exploratory README, safe file exclusions, no license and a Discovery handoff. Claude Experiment includes Claude instructions without requiring Claude to be installed. Presets select README sections, ignore rules and appropriate optional files. They configure the repository; they do not install dependencies or scaffold frameworks.
 
-All options remain editable after selection. **Manage…** lets you save the current configuration as a named preset, load it, rename it, or delete it after confirmation. **Reset configuration** restores the default configuration while retaining the project identity and location. Names, descriptions, GitHub owner details and credentials are not included in custom presets.
+All options remain editable after selection. **Manage…** saves current settings with a name and description, duplicates built-ins, loads or restores defaults, updates custom presets, renames and deletes them, and imports/exports portable versioned JSON through native dialogs. Applying a preset has an **Undo preset change** action. Built-ins cannot be overwritten. Project names, GitHub owner details, credentials and save paths are excluded; the optional project brief and preferred handoff template are included. Imported files are bounded to 1 MiB, strictly validated, and shown for review before adding a new preset. Duplicate names and unsupported schemas are reported; imports never install or execute anything.
 
 Saved project presets now include destination, visibility and the complete AI Studio configuration alongside existing file/Git/action settings. Older v1.1 presets remain loadable and start with AI disabled. Built-in project presets recommend intended technologies without claiming to scaffold or inspect an implementation.
 
 ### AI Agent Studio
 
-Expand **AI Agents**, enable **Generate AI agent files**, and select one or more tools. AI is off by default. The existing workflow remains available without generating any AI files.
+In Advanced mode open **AI Agents → Assistants**, enable **Generate AI agent files**, and select one or more tools. AI is off by default. The existing workflow remains available without generating any AI files.
 
 | Tool | Generated integration |
 | --- | --- |
@@ -60,7 +63,7 @@ See [verified agent formats and compatibility decisions](docs/agent-formats.md) 
 
 ### .gitignore
 
-Expand **.gitignore** to search and combine 18 curated presets:
+Open **Project Files → Gitignore** to search and combine 18 curated presets:
 
 - General: operating-system files, environment/local secrets, editors/IDEs, temporary files/logs.
 - JavaScript/web: Node.js, React, Vite, Next.js, TypeScript, frontend builds.
@@ -79,7 +82,7 @@ README modes are **None**, **Minimal**, **General**, and **Custom**. General and
 
 License choices are **None** (default), **MIT**, **Apache-2.0**, **GPL-3.0**, **BSD-3-Clause**, and **Unlicense**. Texts are bundled from the official [SPDX License List Data v3.29.0](https://github.com/spdx/license-list-data/tree/v3.29.0/text) for offline generation. GPL-3.0 uses GPL-3.0-only. Applicable licenses require an editable copyright holder and year; the holder is initially suggested from Git identity. MIT/BSD fields are substituted; Apache/GPL retain the complete canonical text and instructional appendices, with a separate project copyright notice. Unlicense remains unchanged.
 
-Expand **File preview** to inspect a searchable file tree, generated-file count and syntax-highlighted Markdown, TOML, JSON, MDC and YAML metadata. It uses the same Rust generator as repository creation. Invalid configuration must be corrected before creation. The initial commit stages exactly the selected generated files, even if a broad local/global ignore rule matches them; unrelated runtime files are not staged.
+Open **Review** to inspect a searchable file tree, generated-file count and syntax-highlighted Markdown, TOML, JSON, MDC and YAML metadata. It uses the same Rust generator as repository creation. Invalid configuration must be corrected before creation. The initial commit stages exactly the selected generated files, even if a broad local/global ignore rule matches them; unrelated runtime files are not staged.
 
 ### Advanced Git settings and actions
 
@@ -88,6 +91,16 @@ Choose a valid **Initial branch** and **Initial commit message**. Defaults remai
 Optional `.editorconfig` uses UTF-8, LF endings and final newlines, retaining significant trailing whitespace in Markdown. Optional `.gitattributes` enables automatic text detection and identifies common binary formats. Neither assumes an indentation style or framework.
 
 Independent post-creation actions can open the folder, VS Code, and the GitHub page. A launcher failure is reported on the success screen without falsely marking repository creation as failed. These actions never run after incomplete creation. The success screen also has manual open actions and copy controls for the path and GitHub URL.
+
+## Local AI Project Handoff
+
+**AI Handoff** creates deterministic prompts on this computer. No model, AI API, account or network request is involved. Three templates cover **Project Discovery**, **Architecture & Planning**, and **Development Handoff**. Five styles tailor the next conversation: Beginner Guide, Rapid Prototype, Architecture First, Production-Oriented, and Coding Agent Implementation.
+
+An optional Project Brief supplies the concept, audience, first version, preferred technologies and constraints. Missing details stay unspecified. Planning prompts describe proposed files; post-creation prompts use the verified path, branch, file list and actual remote URL. A private URL never implies chatbot access to its contents.
+
+Edit the prompt, regenerate explicitly, copy it or save Markdown/text through a native dialog. Duplicate built-ins into custom templates, edit/rename/delete them, restore template text, or import/export validated JSON. Supported variables are listed in the editor. Unknown variables and unsupported versions are rejected. Changes to context retain prompt edits until you regenerate; navigation retains the current draft in memory.
+
+The success screen includes the handoff panel. **Recent Projects** stores up to 20 creation records with name, time, path, verified remote URL, brief, preset, selected assistants and generated file paths. It stores no generated file contents or prompt bodies. Reopen known folders/URLs, regenerate prompts or remove records. Missing/moved folders report an error without deleting history. This history describes creation time and does not inspect later changes.
 
 ## GitHub publishing and recovery
 
@@ -109,7 +122,11 @@ Only harmless preferences and custom configurations are stored in:
 %APPDATA%/com.definitivedcode.repocreator/preferences.json
 ```
 
-The versioned v3 settings format migrates v1 location/destination settings and v2 project presets. It remembers appearance, file/Git/action preferences, AI Studio configuration, instruction presets, specialist definitions and up to five native-picked recent locations. AI configuration has its own versioned structure. Malformed AI fields can fall back without discarding valid v1.1 file/Git settings, with a visible recovery notice. Original damaged settings are backed up before replacement; existing backups are retained. Settings from an unsupported future version are not overwritten. Writes and recovery backups use temporary files and replacement.
+The versioned v4 settings format migrates v1 location/destination settings, v2 project presets and v3 AI Studio settings, preserving existing configurations and choosing Advanced for existing users. The preferred experience mode is remembered. It remembers appearance, file/Git/action preferences, AI Studio configuration, instruction presets, specialist definitions and up to five native-picked recent locations. AI configuration has its own versioned structure. Malformed AI fields can fall back without discarding valid v1.1 file/Git settings, with a visible recovery notice. Original damaged settings are backed up before replacement; existing backups are retained. Settings from an unsupported future version are not overwritten. Writes and recovery backups use temporary files and replacement.
+
+On macOS preferences use the native application configuration directory (`~/Library/Application Support/com.definitivedcode.repocreator`). Separate bounded `window.json` and `history.json` files hold presentation state and recent-project metadata. Custom prompt templates/styles are versioned in the webview’s local storage; edited prompt drafts are kept only in memory until the app closes.
+
+For portable use or isolated smoke tests, the process environment may set `REPO_CREATOR_DATA_DIR` to an absolute local directory. This relocates preferences, history and window state together; normal launches use the native default. The webview cannot set this override.
 
 The frontend cannot supply arbitrary output paths or executable commands. All inputs are revalidated in Rust. Git and GitHub CLI receive structured arguments with bounded output and per-command timeouts. Raw command diagnostics are not displayed or logged because they can contain credentials. A backend operation guard prevents duplicate creation, and the window refuses normal closure during an operation. Files already created are preserved after a failure or forced termination.
 
@@ -133,10 +150,10 @@ npm run desktop:build
 | Artifact | Path relative to repository root |
 | --- | --- |
 | Standalone executable | `src-tauri/target/release/repo-creator.exe` |
-| Per-user NSIS installer | `src-tauri/target/release/bundle/nsis/Repo Creator_1.2.0_x64-setup.exe` |
-| MSI installer | `src-tauri/target/release/bundle/msi/Repo Creator_1.2.0_x64_en-US.msi` |
+| Per-user NSIS installer | `src-tauri/target/release/bundle/nsis/Repo Creator_1.3.0_x64-setup.exe` |
+| MSI installer | `src-tauri/target/release/bundle/msi/Repo Creator_1.3.0_x64_en-US.msi` |
 
-The first build downloads official NSIS/WiX tools. `npm run build` checks and builds the frontend only. Generated binaries, settings and test output are excluded from source control. Windows CI runs checks and uploads the executable and installer artifacts. Builds are unsigned; code signing requires a signing certificate.
+The first build downloads official NSIS/WiX tools. `npm run build` checks and builds the frontend only. Generated binaries, settings and test output are excluded from source control. CI builds explicit Windows x64, Apple Silicon ARM64 and Intel x86_64 targets. Successful macOS jobs upload `.dmg` installers and `.app.tar.gz` bundles with executable permissions preserved, verify Mach-O architecture and ad-hoc signatures, and run frontend/Rust checks before packaging. No release or tag is created. Windows builds are unsigned. Mac test builds are ad-hoc signed, **not notarized**; public distribution needs Apple signing/notarization credentials. CI packaging does not confirm a physical Mac launch. See the [Mac guide](docs/macOS-testing.md).
 
 ### Verification
 
@@ -154,7 +171,7 @@ Native tests create actual temporary Git repositories and verify generation, cus
 
 AI coverage includes all six adapters, all instruction presets and rule toggles, custom wording and Unicode, native specialist formats, scoped metadata, optional configuration, shared skill paths, deterministic previews, v1.1 migration, invalid paths/contents, and exact initial-commit contents with AI on/off. UI tests cover complete preset restore, instruction libraries, import/export calls, specialist reuse, escaped syntax previews and expanded Studio scrolling. Provider model sessions and native file-dialog interaction are not automated; import/export parsing and size limits are tested separately.
 
-Scrolling regressions expand all configuration panels at 540×780 (default), 440×560 (minimum), 900×620 and 640×1000. They check wheel input, fractional pixel deltas representing touchpad input, keyboard navigation, native scrollbar dragging, disclosure changes, unclipped controls and the fixed Create Repository bar. Settings share one main scrollbar; code previews retain independent scrolling. Fresh OS/environment ignore defaults and explicit saved selections are covered separately.
+Workspace regressions inspect 1100×740 (default), 820×580 (minimum), 1440×900 (wide) and 1024×680 (laptop) in both themes. They verify navigation, main-pane scrolling, unclipped controls, absence of page overflow, review/creation states and preserved state across Simple/Advanced. Code previews retain independent scrolling. Fresh OS/environment ignore defaults and explicit saved selections are covered separately.
 
 After building, an opt-in smoke test exercises the production executable through its real WebView2 and Rust commands:
 
@@ -162,26 +179,8 @@ After building, an opt-in smoke test exercises the production executable through
 node tests/native-smoke.mjs
 ```
 
-Close other Repo Creator instances first. The test backs up/restores the actual harmless settings file, uses temporary local project directories, checks preview/output equality, licenses, custom Git settings, native preset persistence, empty commits and both themes, then removes its temporary directories. A compact report and a few inspection screenshots remain in ignored `artifacts/`. The debugging port is enabled only in the launched test process; normal release launches do not enable it.
+The test isolates app data and WebView2 state in a temporary directory, uses temporary local project directories, checks preview/output equality, custom Git settings, empty commits, metadata history and both themes, then removes its temporary directories. Other running instances keep their own settings. A compact report and a few inspection screenshots remain in ignored `artifacts/`. The debugging port is enabled only in the launched test process; normal release launches do not enable it.
 
-The smoke test also runs the scrolling regressions in the production WebView2, resizing its owned native window to each supported test size through `tests/resize-window.ps1`.
+The v1.3 production smoke test creates temporary Blank, Experiment and advanced multi-assistant local projects, verifies previews, exact files, Git branches and commits, and captures the workspace in both themes and supported sizes. It never publishes test repositories.
 
-It then configures all six integrations through the real Studio, saves custom instructions and a specialist, verifies syntax preview text, creates a local repository and checks every generated file against its preview and initial commit. Existing user settings are restored afterward.
-
-### Code layout
-
-```text
-src/                         React interface, state, styles and inline validation
-src-tauri/src/config.rs       Configuration types, built-in presets and validation
-src-tauri/src/generation.rs   Shared preview/output generation
-src-tauri/src/ai/             AI data model, validation, adapters, library/file-dialog commands and tests
-src-tauri/src/repository.rs   Exclusive local creation and verified publication
-src-tauri/src/github.rs       GitHub CLI arguments and account/URL validation
-src-tauri/src/preferences.rs  Versioned settings and custom preset persistence
-src-tauri/src/desktop.rs      Narrow native launchers and post-creation actions
-src-tauri/resources/          Curated ignore patterns and canonical license texts
-src/AgentStudio.tsx           Studio workflow, editable instructions and reusable presets
-src/SpecialistEditor.tsx      Specialist selection, editor and local library
-src/StudioAdvanced.tsx        Context, wording, scoped rules and optional settings
-tests/                       Interface tests and production smoke test
-```
+See [the architecture audit and integration boundaries](docs/v1.3-architecture.md) for the release design.

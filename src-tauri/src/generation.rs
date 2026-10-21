@@ -75,12 +75,17 @@ pub fn render_readme(request: &CreateRequest) -> Option<String> {
             if !request.options.readme_sections.iter().any(|s| s == id) {
                 continue;
             }
-            let custom = request
+            let custom_text = request
                 .options
                 .section_content
                 .get(*id)
                 .map(|s| s.trim())
-                .filter(|s| !s.is_empty());
+                .filter(|s| !s.is_empty())
+                .map(|s| {
+                    s.replace("{{description}}", request.description.trim())
+                        .replace("{{project_name}}", &request.name)
+                });
+            let custom = custom_text.as_deref();
             let (title, body) = match *id {
                 "overview" => (
                     "Overview",

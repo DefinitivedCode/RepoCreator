@@ -1,4 +1,4 @@
-name: Windows checks and build
+name: Desktop checks and test builds
 
 on:
   push:
@@ -21,6 +21,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
@@ -32,12 +33,82 @@ jobs:
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
-      - run: npm run desktop:build -- --ci
+      - run: npm run desktop:build -- --ci --target x86_64-pc-windows-msvc
+      - name: Verify Windows outputs
+        shell: pwsh
+        run: |
+          $release = 'src-tauri/target/x86_64-pc-windows-msvc/release'
+          if (-not (Test-Path -LiteralPath "$release/repo-creator.exe")) { throw 'Missing executable' }
+          if (-not (Get-ChildItem "$release/bundle/nsis/*-setup.exe")) { throw 'Missing NSIS installer' }
+          if (-not (Get-ChildItem "$release/bundle/msi/*.msi")) { throw 'Missing MSI installer' }
       - uses: actions/upload-artifact@v4
         with:
           name: Repo-Creator-Windows-x64
           if-no-files-found: error
           path: |
-            src-tauri/target/release/repo-creator.exe
-            src-tauri/target/release/bundle/nsis/*-setup.exe
-            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/x86_64-pc-windows-msvc/release/repo-creator.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+
+  macos:
+    name: macOS ${{ matrix.architecture }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Verified against https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            architecture: Apple-Silicon
+            machine_arch: arm64
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            architecture: Intel
+            machine_arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+      - run: npm ci
+      - run: npm run check
+      - run: npm run format:check
+      - run: npm test
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets --target ${{ matrix.target }} -- -D warnings
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --target ${{ matrix.target }}
+      - name: Build ad-hoc signed test application and DMG
+        # No Apple account/certificate or notarization credentials are used.
+        run: npm run desktop:build -- --ci --target ${{ matrix.target }} --bundles app,dmg
+      - name: Verify architecture, signature and installers; preserve app permissions
+        env:
+          TARGET: ${{ matrix.target }}
+          EXPECTED_ARCH: ${{ matrix.machine_arch }}
+          ARTIFACT_ARCH: ${{ matrix.architecture }}
+        run: |
+          set -euo pipefail
+          bundle="src-tauri/target/$TARGET/release/bundle"
+          app="$bundle/macos/Repo Creator.app"
+          test -d "$app"
+          test "$(lipo -archs "$app/Contents/MacOS/repo-creator")" = "$EXPECTED_ARCH"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          mkdir -p artifacts/macos
+          tar -czf "artifacts/macos/Repo-Creator-$ARTIFACT_ARCH.app.tar.gz" -C "$bundle/macos" 'Repo Creator.app'
+          find "$bundle/dmg" -name '*.dmg' -type f -size +0c | grep -q .
+          cp "$bundle"/dmg/*.dmg artifacts/macos/
+          printf 'Ad-hoc signed, not notarized. Architecture: %s. A physical Mac launch remains to be tested.\n' "$EXPECTED_ARCH" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Repo-Creator-macOS-${{ matrix.architecture }}
+          if-no-files-found: error
+          path: artifacts/macos/*

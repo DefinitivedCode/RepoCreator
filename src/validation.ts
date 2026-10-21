@@ -43,6 +43,14 @@ export function branchError(branch: string): string | null {
 }
 
 export function optionsError(options: ProjectOptions): string | null {
+  const authorName = options.commitAuthorName ?? '';
+  const authorEmail = options.commitAuthorEmail ?? '';
+  if (
+    !!authorName.trim() !== !!authorEmail.trim() ||
+    (authorName && (authorName.length > 160 || /[\x00-\x1f\x7f<>]/.test(authorName))) ||
+    (authorEmail && (!/^[^\s<>@]+@[^\s<>@]+$/.test(authorEmail) || authorEmail.length > 254))
+  )
+    return 'Enter both a name and valid email for this project’s commit identity.';
   if (options.ai?.enabled && !options.ai.agents.length)
     return 'Select at least one coding agent, or disable AI Agents.';
   const branch = branchError(options.initialBranch);
@@ -80,6 +88,8 @@ export function optionsError(options: ProjectOptions): string | null {
 
 export function configurationOf(form: RepositoryForm): Configuration {
   return {
+    brief: form.brief,
+    handoffTemplate: form.handoffTemplate,
     readme: form.readme,
     options: form.options,
     destination: form.destination,
@@ -88,6 +98,13 @@ export function configurationOf(form: RepositoryForm): Configuration {
 }
 
 export function formError(form: RepositoryForm): string | null {
+  if (
+    form.brief &&
+    Object.values(form.brief).some(
+      (s) => new TextEncoder().encode(s).length > 4096 || s.includes('\0'),
+    )
+  )
+    return 'Keep each project brief field within 4096 bytes.';
   if (nameError(form.name)) return nameError(form.name);
   if (Array.from(form.description).length > 350 || form.description.includes('\0'))
     return 'Use a description of 350 characters or fewer.';

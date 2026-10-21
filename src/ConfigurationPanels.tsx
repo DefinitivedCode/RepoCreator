@@ -16,11 +16,13 @@ export function FilePreview({
   files,
   loading,
   error,
+  expanded = false,
 }: {
   name: string;
   files: GeneratedFile[];
   loading: boolean;
   error: string;
+  expanded?: boolean;
 }) {
   const [selected, setSelected] = useState('README.md');
   const [search, setSearch] = useState('');
@@ -77,7 +79,10 @@ export function FilePreview({
     </ul>
   );
   return (
-    <details className="disclosure file-preview">
+    <details
+      className={`disclosure file-preview ${expanded ? 'workspace-panel' : ''}`}
+      open={expanded || undefined}
+    >
       <summary>
         <Icon name="file" size={15} />
         <span>File preview</span>
@@ -170,7 +175,7 @@ export function IgnorePanel({
     recommendation &&
     [...recommendation].sort().join('|') !== [...options.ignorePresets].sort().join('|');
   return (
-    <details className="disclosure ignore-panel">
+    <details className="disclosure ignore-panel workspace-panel" open>
       <summary>
         <Icon name="file" size={15} />
         <span>.gitignore</span>
@@ -303,7 +308,8 @@ export function IgnorePanel({
 }
 
 const title = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
-export function AdvancedPanel({ creator }: { creator: Creator }) {
+export type FileSection = 'readme' | 'license' | 'additional' | 'git';
+export function AdvancedPanel({ creator, section }: { creator: Creator; section?: FileSection }) {
   const { form, environment } = creator;
   const [topicsText, setTopicsText] = useState(form?.topics.join(', ') ?? '');
   if (!form) return null;
@@ -313,14 +319,14 @@ export function AdvancedPanel({ creator }: { creator: Creator }) {
   const licenseAuthor = !['none', 'Unlicense'].includes(options.license);
   const readmeConfigurable = form.readme === 'general' || form.readme === 'custom';
   return (
-    <details className="disclosure advanced-panel">
+    <details className="disclosure advanced-panel workspace-panel" open>
       <summary>
         <Icon name="settings" size={15} />
         <span>Advanced settings</span>
         <Icon name="chevron" size={14} />
       </summary>
       <div className="disclosure-body advanced-body">
-        {readmeConfigurable && (
+        {readmeConfigurable && (!section || section === 'readme') && (
           <section className="settings-section">
             <h3>README sections</h3>
             <div className="checkbox-grid">
@@ -374,7 +380,7 @@ export function AdvancedPanel({ creator }: { creator: Creator }) {
             <p className="help">Missing details are marked with editable Markdown comments.</p>
           </section>
         )}
-        <section className="settings-section">
+        <section className="settings-section" hidden={!!section && section !== 'license'}>
           <h3>License</h3>
           <div className="field">
             <label htmlFor="license">License type</label>
@@ -423,7 +429,7 @@ export function AdvancedPanel({ creator }: { creator: Creator }) {
             </div>
           )}
         </section>
-        <section className="settings-section">
+        <section className="settings-section" hidden={!!section && section !== 'git'}>
           <h3>Git</h3>
           <div className="field">
             <label htmlFor="initial-branch">Initial branch</label>
@@ -453,7 +459,7 @@ export function AdvancedPanel({ creator }: { creator: Creator }) {
             )}
           </div>
         </section>
-        <section className="settings-section">
+        <section className="settings-section" hidden={!!section && section !== 'additional'}>
           <h3>Additional files</h3>
           <label className="check-label">
             <input
@@ -474,7 +480,7 @@ export function AdvancedPanel({ creator }: { creator: Creator }) {
             <span className="help">Text detection and common binary files</span>
           </label>
         </section>
-        {form.destination === 'github' && (
+        {form.destination === 'github' && (!section || section === 'git') && (
           <section className="settings-section">
             <h3>GitHub details</h3>
             <div className="field">
@@ -512,7 +518,7 @@ export function AdvancedPanel({ creator }: { creator: Creator }) {
             </div>
           </section>
         )}
-        <section className="settings-section">
+        <section className="settings-section" hidden={!!section && section !== 'git'}>
           <h3>After creation</h3>
           <label className="check-label">
             <input

@@ -3,6 +3,14 @@ export type Destination = 'local' | 'github';
 export type Readme = 'general' | 'minimal' | 'none' | 'custom';
 export type Visibility = 'private' | 'public';
 export type Appearance = 'system' | 'light' | 'dark';
+export type ExperienceMode = 'simple' | 'advanced';
+export interface ProjectBrief {
+  idea: string;
+  audience: string;
+  firstVersion: string;
+  technologies: string;
+  context: string;
+}
 export type License = 'none' | 'MIT' | 'Apache-2.0' | 'GPL-3.0' | 'BSD-3-Clause' | 'Unlicense';
 export const readmeSections = [
   'overview',
@@ -15,6 +23,8 @@ export const readmeSections = [
 ] as const;
 export type ReadmeSection = (typeof readmeSections)[number];
 export interface ProjectOptions {
+  commitAuthorName?: string;
+  commitAuthorEmail?: string;
   ai: AIStudio;
   readmeSections: ReadmeSection[];
   sectionContent: Partial<Record<ReadmeSection, string>>;
@@ -30,12 +40,16 @@ export interface ProjectOptions {
   postActions: { folder: boolean; vscode: boolean; github: boolean };
 }
 export interface Configuration {
+  brief?: ProjectBrief;
+  handoffTemplate?: string;
   destination?: Destination;
   visibility?: Visibility;
   readme: Readme;
   options: ProjectOptions;
 }
 export interface RepositoryForm {
+  brief?: ProjectBrief;
+  handoffTemplate?: string;
   name: string;
   description: string;
   destination: Destination;
@@ -49,6 +63,7 @@ export interface RepositoryForm {
 export interface ProjectPreset {
   id: string;
   name: string;
+  description?: string;
   configuration: Configuration;
 }
 export interface IgnorePreset {
@@ -68,6 +83,7 @@ export interface GeneratedFile {
   content: string;
 }
 export interface Preferences {
+  experienceMode?: ExperienceMode;
   instructionPresets: SavedInstructions[];
   specialistLibrary: Specialist[];
   recoveryNotice: string | null;
@@ -80,6 +96,11 @@ export interface Preferences {
   customPresets: ProjectPreset[];
 }
 export interface Environment {
+  optionalTools?: {
+    id: string;
+    name: string;
+    status: 'available' | 'unavailable' | 'not-checked';
+  }[];
   gitInstalled: boolean;
   identityReady: boolean;
   ghInstalled: boolean;

@@ -241,7 +241,12 @@ fn github_creation_uses_safe_arguments_and_never_seeds_remote_files() {
     value.visibility = Visibility::Public;
     assert!(github::create_args(&value, "octocat", Path::new(".")).contains(&"--public".into()));
     let command = command(Program::Gh, &values, Path::new("."));
-    assert_eq!(command.get_program(), "gh");
+    let executable = crate::process::resolve_executable("gh").unwrap_or_else(|| "gh".into());
+    assert_eq!(command.get_program(), executable.as_os_str());
+    assert!(matches!(
+        executable.file_name().and_then(|name| name.to_str()),
+        Some("gh" | "gh.exe")
+    ));
     assert_eq!(
         command
             .get_args()
@@ -777,7 +782,7 @@ fn settings_migrate_v1_and_survive_malformed_fields_and_future_versions() {
     let legacy = Preferences::load(&file, temp.path().into());
     assert_eq!(legacy.destination, Destination::Github);
     assert_eq!(legacy.parent_path, temp.path().canonicalize().unwrap());
-    assert_eq!(legacy.schema_version, 3);
+    assert_eq!(legacy.schema_version, 4);
     assert_eq!(legacy.defaults.options.initial_branch, "main");
     fs::write(&file, serde_json::json!({ "schemaVersion": 2, "parentPath": temp.path(), "destination": "github", "appearance": 50, "customPresets": [ {"id":"bad"} ], "defaults": { "options": {"initialBranch":"-unsafe"} } }).to_string()).unwrap();
     let partial = Preferences::load(&file, temp.path().into());

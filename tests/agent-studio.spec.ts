@@ -1,34 +1,34 @@
-import { test, expect } from '@playwright/test';
-import { prepare } from './fixtures';
+import { test, expect, type Page } from '@playwright/test';
+import { prepare, navigate, agentTab, createProject } from './fixtures';
 import { verifyExpandedScrolling } from './scrolling.mjs';
 import { mkdirSync } from 'node:fs';
 
-async function enableStudio(page) {
-  await page.locator('.agent-panel > summary').click();
+async function enableStudio(page: Page) {
+  await agentTab(page, 'Assistants');
   await expect(page.getByLabel('Generate AI agent files')).not.toBeChecked();
   await page.getByLabel('Generate AI agent files').check();
 }
 
-test('agent selection, rules, project presets and file tree reach the creation command', async ({
+test('agent selection, rules, specialists, scoped configuration and previews reach creation', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   await prepare(page);
   await page.getByLabel('Project name').fill('agent-workspace');
   await page.getByLabel('Project preset').selectOption('tauri');
   await enableStudio(page);
   await page.getByLabel('Claude Code', { exact: true }).check();
   await page.getByLabel('GitHub Copilot', { exact: true }).check();
+  await agentTab(page, 'Instructions');
   await page.getByLabel('Instruction preset', { exact: true }).selectOption('strict');
-  await page
-    .locator('summary')
-    .filter({ hasText: /^Development rules/ })
-    .click();
   await page.getByLabel('Verify the build', { exact: true }).uncheck();
   await page
     .getByLabel('Additional project instructions')
     .fill('Keep café 🦀 exact.\n<script>window.injected = true</script>');
+  await agentTab(page, 'Specialists & Skills');
   await page.locator('.specialist-panel > summary').click();
   await page.getByLabel('Code Reviewer', { exact: true }).check();
+  await agentTab(page, 'Advanced');
   await page.getByText('Advanced AI configuration', { exact: true }).click();
   await page.getByLabel('Codex project configuration', { exact: true }).check();
   await page.getByLabel('Claude project permission mode', { exact: true }).check();
@@ -39,7 +39,7 @@ test('agent selection, rules, project presets and file tree reach the creation c
     .getByLabel('Scoped rule instructions')
     .fill('Preserve established component contracts.');
   await page.getByRole('button', { name: 'Add scoped rule', exact: true }).click();
-  await page.locator('.file-preview > summary').click();
+  await navigate(page, 'Review');
   await page
     .getByRole('group', { name: 'Preview file' })
     .getByRole('button', { name: 'AGENTS.md', exact: true })
@@ -56,20 +56,38 @@ test('agent selection, rules, project presets and file tree reach the creation c
     page.getByRole('button', { name: '.codex/agents/code-reviewer.toml', exact: true }),
   ).toBeVisible();
   await page.getByLabel('Find generated files').fill('');
-  await page.getByRole('button', { name: 'GitHub', exact: true }).click();
-  await page.getByRole('radio', { name: 'Public', exact: true }).check();
-  await page.getByRole('button', { name: 'Manage…' }).click();
-  await page.getByLabel('Save current configuration as').fill('Tauri + agents');
-  await page.getByRole('button', { name: 'Save preset', exact: true }).click();
-  await page.getByLabel('Project preset').selectOption('blank');
+  await navigate(page, 'Overview');
+  const assistant = page.getByLabel('AI coding assistant');
+  await expect(assistant).toHaveValue('multiple');
+  await assistant.selectOption('');
+  await expect(assistant.locator('option[value="multiple"]')).toBeDisabled();
+  await expect(assistant).toHaveValue('');
+  await agentTab(page, 'Assistants');
   await expect(page.getByLabel('Generate AI agent files')).not.toBeChecked();
-  await page.getByRole('radio', { name: 'Private', exact: true }).check();
+  await page.getByLabel('Generate AI agent files').check();
+  await expect(page.getByLabel('Claude Code', { exact: true })).toBeChecked();
+  await page.getByLabel('GitHub Copilot', { exact: true }).uncheck();
+  await page.getByLabel('GitHub Copilot', { exact: true }).check();
+  await navigate(page, 'Overview');
+  await expect(assistant).toHaveValue('multiple');
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click();
+  await page.getByRole('radio', { name: /^Public/ }).check();
+  await page.getByRole('button', { name: 'Manage…' }).click();
+  await page.getByLabel('Save a new custom preset').fill('Tauri + agents');
+  await page.getByRole('button', { name: 'Save preset', exact: true }).click();
+  await expect(page.getByText('Saved “Tauri + agents”.')).toBeVisible();
+  await page.getByRole('button', { name: 'Close presets' }).click();
+  await page.getByLabel('Project preset').selectOption('blank');
   await page.getByRole('button', { name: 'Local only', exact: true }).click();
+  await agentTab(page, 'Assistants');
+  await expect(page.getByLabel('Generate AI agent files')).not.toBeChecked();
+  await navigate(page, 'Overview');
   await page.getByLabel('Project preset').selectOption('custom-1');
-  await expect(page.getByRole('radio', { name: 'Public', exact: true })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /^Public/ })).toBeChecked();
+  await agentTab(page, 'Assistants');
   await expect(page.getByLabel('Generate AI agent files')).toBeChecked();
   await expect(page.getByLabel('Claude Code', { exact: true })).toBeChecked();
-  await page.getByRole('button', { name: 'Create Repository' }).click();
+  await createProject(page);
   await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
   const call = await page.evaluate(() =>
     (window as any).testCalls.find((c: any) => c.command === 'create_repository'),
@@ -90,12 +108,13 @@ test('agent selection, rules, project presets and file tree reach the creation c
   expect(call.payload.request.options.ai.instructions.rules).not.toContain('build');
 });
 
-test('custom instruction presets, imports and reusable specialist definitions preserve user text', async ({
+test('instruction presets, Markdown imports and reusable specialist definitions preserve user text', async ({
   page,
 }) => {
   await prepare(page);
   await page.getByLabel('Project name').fill('custom-agents');
   await enableStudio(page);
+  await agentTab(page, 'Instructions');
   const text = page.getByLabel('Additional project instructions');
   await text.fill('Original team instructions 🦀.');
   await page.getByLabel('Save instructions as').fill('Team workflow');
@@ -121,6 +140,7 @@ test('custom instruction presets, imports and reusable specialist definitions pr
   await expect(text).toHaveValue('Original team instructions 🦀.\n\nImported instructions 🦀.\n');
   await page.getByRole('button', { name: 'Import preset…' }).click();
   await expect(text).toHaveValue('Imported preset text.');
+  await agentTab(page, 'Specialists & Skills');
   await page.locator('.specialist-panel > summary').click();
   await page.getByText('Custom specialist editor', { exact: true }).click();
   await page.getByLabel('Start from a role').selectOption('code-reviewer');
@@ -132,29 +152,35 @@ test('custom instruction presets, imports and reusable specialist definitions pr
   await page.getByRole('button', { name: 'Delete library entry' }).click();
   await page.getByRole('button', { name: 'Delete saved specialist', exact: true }).click();
   await expect(page.getByLabel('Team Reviewer', { exact: true })).toBeChecked();
+  await agentTab(page, 'Assistants');
   await page.getByLabel('OpenAI Codex', { exact: true }).uncheck();
-  await expect(page.getByRole('button', { name: 'Create Repository' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Review project' })).toBeDisabled();
   await page.getByLabel('Generate AI agent files').uncheck();
-  await expect(page.getByRole('button', { name: 'Create Repository' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Review project' })).toBeEnabled();
 });
 
-test('all expanded Studio panels retain scrolling and frame stability', async ({ page }, info) => {
-  test.setTimeout(60_000);
+test('complex Studio subsections keep controls and footer inside supported frames', async ({
+  page,
+}, info) => {
+  test.setTimeout(90_000);
   await prepare(page);
   await page.getByLabel('Project name').fill('studio-scroll');
   await page.getByLabel('Project preset').selectOption('tauri');
   await enableStudio(page);
   await page.getByLabel('Claude Code', { exact: true }).check();
   await page.getByLabel('GitHub Copilot', { exact: true }).check();
+  await agentTab(page, 'Instructions');
   await page
     .getByLabel('Additional project instructions')
     .fill('Verify the requested workflow.\n'.repeat(12));
-  await page.evaluate(() =>
-    document
-      .querySelectorAll('.agent-panel details')
-      .forEach((el) => ((el as HTMLDetailsElement).open = true)),
-  );
+  await verifyExpandedScrolling(page);
+  await agentTab(page, 'Specialists & Skills');
+  await page.locator('.specialist-panel > summary').click();
+  await page.getByText('Custom specialist editor', { exact: true }).click();
+  await verifyExpandedScrolling(page);
+  await agentTab(page, 'Advanced');
+  await page.getByText('Advanced AI configuration', { exact: true }).click();
   await verifyExpandedScrolling(page);
   mkdirSync('artifacts', { recursive: true });
-  await page.screenshot({ path: `artifacts/v1.2-studio-bottom-${info.project.name}.png` });
+  await page.screenshot({ path: `artifacts/v1.3-studio-${info.project.name}.png` });
 });

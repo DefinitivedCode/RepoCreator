@@ -471,7 +471,7 @@ fn v11_presets_migrate_without_enabling_ai_or_losing_existing_choices() {
     let file = temp.path().join("preferences.json");
     fs::write(&file,serde_json::json!({"schemaVersion":2,"parentPath":temp.path(),"appearance":"dark","defaults":{"readme":"custom","options":{"ignorePresets":[],"initialBranch":"develop"}},"customPresets":[{"id":"custom-old","name":"Old tools","configuration":{"readme":"none","options":{"ignorePresets":["python"],"initialBranch":"old-branch"}}}]}).to_string()).unwrap();
     let migrated = Preferences::load(&file, temp.path().into());
-    assert_eq!(migrated.schema_version, 3);
+    assert_eq!(migrated.schema_version, 4);
     assert_eq!(migrated.defaults.readme, Readme::Custom);
     assert!(!migrated.defaults.options.ai.enabled);
     assert!(migrated.defaults.options.ignore_presets.is_empty());
@@ -502,6 +502,7 @@ fn complete_project_and_instruction_presets_round_trip_with_embedded_specialists
         options: value.options.clone(),
         destination: Some(crate::model::Destination::Github),
         visibility: Some(crate::model::Visibility::Public),
+        ..Default::default()
     };
     prefs
         .save_preset("Tauri + Codex + Claude".into(), configuration)
@@ -600,7 +601,12 @@ fn disabling_ai_preserves_an_unfinished_draft_without_generating_or_executing_it
 #[test]
 fn project_presets_recommend_technologies_without_inventing_scaffolding() {
     for preset in crate::config::built_in_presets() {
-        assert!(!preset.configuration.options.ai.enabled);
+        if preset.id == "claude-experiment" {
+            assert!(preset.configuration.options.ai.enabled);
+            assert_eq!(preset.configuration.options.ai.agents, vec![Agent::Claude]);
+        } else {
+            assert!(!preset.configuration.options.ai.enabled);
+        }
         let technologies = &preset.configuration.options.ai.instructions.technologies;
         if preset.id == "blank" {
             assert!(technologies.is_empty());
