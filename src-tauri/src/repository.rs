@@ -14,6 +14,7 @@ pub struct PendingRepo {
     pub request: CreateRequest,
     pub path: PathBuf,
     pub owner: Option<String>,
+    pub author_email: Option<String>,
     pub commit: Option<String>,
     pub remote_created: bool,
     pub github_url: Option<String>,
@@ -78,8 +79,8 @@ pub fn begin(
             return Err(AppError::new("Set your Git commit identity first.", "In a terminal, run: git config --global user.name \"Your Name\" and git config --global user.email \"you@example.com\". Then check setup again."));
         }
     }
-    let owner = if request.destination == Destination::Github {
-        Some(github::authenticated_owner(runner, &parent)?)
+    let account = if request.destination == Destination::Github {
+        Some(github::authenticated_account(runner, &parent)?)
     } else {
         None
     };
@@ -118,7 +119,8 @@ pub fn begin(
     Ok(PendingRepo {
         request,
         path: canonical,
-        owner,
+        owner: account.as_ref().map(|account| account.login.clone()),
+        author_email: account.map(|account| account.noreply_email()),
         commit: None,
         remote_created: false,
         github_url: None,
@@ -162,6 +164,16 @@ pub fn create_local(
         ],
         "Could not initialise Git.",
     )?;
+    if let Some(email) = &pending.author_email {
+        // Use the authenticated account's private address only in this new repository.
+        // This also prevents GitHub's protected-email rule from rejecting the push.
+        git(
+            runner,
+            &pending.path,
+            &["config", "--local", "user.email", email],
+            "Could not configure the repository's private commit address.",
+        )?;
+    }
     git(runner, &pending.path, &["var", "GIT_AUTHOR_IDENT"], "Git could not resolve your commit identity. Set user.name and user.email for this location.")?;
     git(
         runner,

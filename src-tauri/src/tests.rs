@@ -153,7 +153,7 @@ impl Runner for FakeGithub {
         self.calls.lock().unwrap().push((program, values.to_vec()));
         let (success, stdout) =
             if program == Program::Gh && values.starts_with(&args(&["api", "user"])) {
-                (true, "octocat".into())
+                (true, r#"{"login":"octocat","id":123}"#.into())
             } else if program == Program::Gh && values.starts_with(&args(&["repo", "create"])) {
                 (!self.fail_create, String::new())
             } else if program == Program::Gh && values.starts_with(&args(&["repo", "view"])) {
@@ -195,6 +195,7 @@ fn pending(temp: &tempfile::TempDir) -> repository::PendingRepo {
         request: value,
         path: temp.path().canonicalize().unwrap(),
         owner: Some("octocat".into()),
+        author_email: Some("123+octocat@users.noreply.github.com".into()),
         commit: Some("a".repeat(40)),
         remote_created: false,
         github_url: None,
@@ -395,4 +396,49 @@ fn native_operation_guard_rejects_duplicates_and_releases_on_drop() {
     assert!(crate::acquire(&runtime).is_err());
     drop(guard);
     assert!(crate::acquire(&runtime).is_ok());
+}
+
+#[test]
+fn github_initial_commit_uses_verified_noreply_address_without_global_changes() {
+    struct AuthenticatedGit;
+    impl Runner for AuthenticatedGit {
+        fn run(&self, program: Program, values: &[String], cwd: &Path) -> Result<Output, String> {
+            if program == Program::Gh {
+                assert_eq!(
+                    values,
+                    args(&["api", "user", "--jq", "{login: .login, id: .id}"])
+                );
+                return Ok(Output {
+                    success: true,
+                    stdout: r#"{"login":"octocat","id":123}"#.into(),
+                });
+            }
+            if values == args(&["config", "--get", "user.email"]) {
+                return Ok(Output {
+                    success: true,
+                    stdout: "private@example.invalid".into(),
+                });
+            }
+            let mut prefixed = args(&["-c", "user.name=Repo Creator Test"]);
+            prefixed.extend_from_slice(values);
+            SystemRunner.run(program, &prefixed, cwd)
+        }
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let mut value = request(Readme::None);
+    value.destination = Destination::Github;
+    let mut pending = repository::begin(&AuthenticatedGit, temp.path(), value).unwrap();
+    repository::create_local(&AuthenticatedGit, &mut pending, &|_| {}).unwrap();
+    let author = SystemRunner
+        .run(
+            Program::Git,
+            &args(&["log", "-1", "--format=%ae"]),
+            &pending.path,
+        )
+        .unwrap();
+    assert!(author.success);
+    assert_eq!(author.stdout, "123+octocat@users.noreply.github.com");
+    let config = fs::read_to_string(pending.path.join(".git").join("config")).unwrap();
+    assert!(config.contains("123+octocat@users.noreply.github.com"));
+    assert!(!config.contains("private@example.invalid"));
 }

@@ -81,6 +81,7 @@ Run it with other instances of Repo Creator closed. It briefly backs up and repl
 - If publishing fails, the local project and commit are preserved. **Retry publishing** reuses a confirmed remote and does not create another one. Retries are available while the app remains open. After closing it, use the preserved folder and official Git/GitHub tools to finish publication.
 - If a network interruption makes remote creation ambiguous, the app refuses to adopt an existing repository on the next attempt. Inspect GitHub and the preserved folder before finishing manually. No remote is deleted automatically, and pushes never use `--force`.
 - Initial commits explicitly skip inherited hooks and signing, avoiding hidden prompts; your global Git configuration is left unchanged.
+- GitHub mode sets the authenticated account's `id+username@users.noreply.github.com` email **only in the new repository** before committing. This preserves email privacy and prevents protected-email push rejections. Local mode uses your configured identity.
 - Credentials remain managed by GitHub CLI. Only the parent location and destination are saved in `%APPDATA%/com.definitivedcode.repocreator/preferences.json`. Raw CLI error output is not displayed or logged because it can contain credentials.
 - The app prevents closing its window during creation. If a process is forcibly terminated, any files already written remain on disk.
 

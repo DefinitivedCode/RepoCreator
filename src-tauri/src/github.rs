@@ -4,19 +4,40 @@ use crate::{
 };
 use std::path::Path;
 
-pub fn authenticated_owner(runner: &dyn Runner, cwd: &Path) -> Result<String, AppError> {
-    let output = runner.run(Program::Gh, &args(&["api", "user", "--jq", ".login"]), cwd)
+#[derive(serde::Deserialize)]
+pub struct GithubAccount {
+    pub login: String,
+    pub id: u64,
+}
+
+impl GithubAccount {
+    pub fn noreply_email(&self) -> String {
+        format!("{}+{}@users.noreply.github.com", self.id, self.login)
+    }
+}
+
+pub fn authenticated_account(runner: &dyn Runner, cwd: &Path) -> Result<GithubAccount, AppError> {
+    let output = runner.run(Program::Gh, &args(&["api", "user", "--jq", "{login: .login, id: .id}"]), cwd)
         .map_err(|_| AppError::new("GitHub CLI is unavailable.", "Install GitHub CLI from cli.github.com, reopen Repo Creator and connect your account."))?;
+    let account = serde_json::from_str::<GithubAccount>(&output.stdout).ok();
     if !output.success
-        || output.stdout.is_empty()
-        || !output
-            .stdout
-            .bytes()
-            .all(|c| c.is_ascii_alphanumeric() || c == b'-')
+        || !account.as_ref().is_some_and(|account| {
+            account.id > 0
+                && !account.login.is_empty()
+                && account.login.len() <= 39
+                && account
+                    .login
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || c == b'-')
+        })
     {
         return Err(AppError::new("Connect to GitHub to continue.", "Use Connect to GitHub, complete the official sign-in, then check the connection again."));
     }
-    Ok(output.stdout)
+    account.ok_or_else(|| publish_error("Could not verify the GitHub account."))
+}
+
+pub fn authenticated_owner(runner: &dyn Runner, cwd: &Path) -> Result<String, AppError> {
+    Ok(authenticated_account(runner, cwd)?.login)
 }
 
 pub fn create_args(request: &CreateRequest, owner: &str, path: &Path) -> Vec<String> {
