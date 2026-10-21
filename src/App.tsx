@@ -66,7 +66,7 @@ export default function App() {
         <div className="app-title">
           <Icon name="repo" size={19} />
           <h1>Repo Creator</h1>
-          <span className="version">1.3</span>
+          <span className="version">1.3.1</span>
         </div>
         <div className="header-actions">
           <div className="segmented mode-switch" role="group" aria-label="Experience mode">
@@ -107,6 +107,14 @@ export default function App() {
       {!form || !catalog || !preferences ? (
         <main className="content">
           <p role="status">{creator.notice || creator.error?.message || 'Loading settings…'}</p>
+          {creator.error && (
+            <>
+              <p className="help">{creator.error.guidance}</p>
+              <button type="button" onClick={() => window.location.reload()}>
+                Retry loading settings
+              </button>
+            </>
+          )}
         </main>
       ) : state.kind !== 'form' ? (
         <RepositoryState
@@ -197,23 +205,14 @@ export default function App() {
                       onApply={apply}
                       onManage={() => setPresetsOpen(true)}
                       onAgents={() => navigate('agents')}
+                      canUndo={!!undo}
+                      onUndo={() => {
+                        if (!undo) return;
+                        creator.configure(undo.configuration, false);
+                        setPresetId(undo.id);
+                        setUndo(null);
+                      }}
                     />
-                    {undo && (
-                      <p className="notice">
-                        Starting point applied.{' '}
-                        <button
-                          type="button"
-                          className="text-button"
-                          onClick={() => {
-                            creator.configure(undo.configuration);
-                            setPresetId(undo.id);
-                            setUndo(null);
-                          }}
-                        >
-                          Undo preset change
-                        </button>
-                      </p>
-                    )}
                   </>
                 )}
                 {section === 'files' && (
@@ -322,7 +321,13 @@ export default function App() {
             </main>
             {contextOpen && (
               <aside className="context-panel" aria-label="Project context">
-                <Context creator={creator} section={section} presetName={presetName} />
+                <Context
+                  creator={creator}
+                  section={section}
+                  presetName={presetName}
+                  presetDescription={preset?.description}
+                  fileSection={fileSection}
+                />
               </aside>
             )}
           </div>

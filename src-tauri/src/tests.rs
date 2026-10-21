@@ -72,13 +72,76 @@ fn validates_names_at_the_native_boundary() {
 fn templates_have_expected_content_and_none_means_no_file() {
     let general = render_readme(&request(Readme::General)).unwrap();
     assert!(general.starts_with("# test-project\n\n## Overview\n\nA useful project."));
-    assert!(general.contains("## Usage"));
+    assert_eq!(
+        general,
+        "# test-project\n\n## Overview\n\nA useful project.\nWith a second line.\n"
+    );
     let minimal = render_readme(&request(Readme::Minimal)).unwrap();
     assert_eq!(
         minimal,
         "# test-project\n\nA useful project.\nWith a second line.\n"
     );
     assert!(render_readme(&request(Readme::None)).is_none());
+}
+
+#[test]
+fn built_in_readmes_omit_unwritten_sections_without_inventing_project_details() {
+    for preset in crate::config::built_in_presets() {
+        let mut value = request(preset.configuration.readme);
+        value.options = preset.configuration.options;
+        for description in ["An idea to explore.", ""] {
+            value.description = description.into();
+            let Some(readme) = render_readme(&value) else {
+                assert_eq!(preset.id, "blank");
+                continue;
+            };
+            for heading in [
+                "Features",
+                "Installation",
+                "Usage",
+                "Development",
+                "Contributing",
+            ] {
+                assert!(!readme.contains(&format!("## {heading}")), "{}", preset.id);
+            }
+            assert!(!readme.contains("<!--"), "{}", preset.id);
+            if preset.id.contains("experiment") {
+                assert!(readme.contains("This is an experimental project"));
+                assert_eq!(readme.matches("\n## ").count(), 1);
+            } else if description.is_empty() {
+                assert_eq!(readme, "# test-project\n");
+            }
+        }
+    }
+}
+
+#[test]
+fn readme_keeps_explicit_sections_and_authored_text_but_omits_empty_expanded_content() {
+    let mut value = request(Readme::Custom);
+    value.options.readme_sections = vec!["overview".into(), "installation".into(), "usage".into()];
+    value.options.section_content.insert(
+        "usage".into(),
+        "Keep café and 日本語 exact.\n\n```text\nuser-provided-command\n```".into(),
+    );
+    let readme = render_readme(&value).unwrap();
+    assert!(readme.contains(
+        "## Installation\n\n<!-- Add the prerequisites and actual installation steps. -->"
+    ));
+    assert!(readme.contains(
+        "## Usage\n\nKeep café and 日本語 exact.\n\n```text\nuser-provided-command\n```"
+    ));
+    // A saved list of explicit sections is still honored by General as well as Custom.
+    value.readme = Readme::General;
+    assert_eq!(render_readme(&value).unwrap(), readme);
+    value.description.clear();
+    value
+        .options
+        .section_content
+        .insert("usage".into(), " {{description}} \n ".into());
+    let readme = render_readme(&value).unwrap();
+    assert!(!readme.contains("## Overview"));
+    assert!(!readme.contains("## Usage"));
+    assert!(readme.contains("## Installation"));
 }
 
 #[test]
@@ -395,6 +458,34 @@ fn missing_git_or_identity_is_reported_before_creating_a_folder() {
 }
 
 #[test]
+fn github_account_check_distinguishes_missing_cli_from_timeouts_without_exposing_diagnostics() {
+    struct FailingGithub(&'static str);
+    impl Runner for FailingGithub {
+        fn run(&self, program: Program, _: &[String], _: &Path) -> Result<Output, String> {
+            assert_eq!(program, Program::Gh);
+            Err(self.0.into())
+        }
+    }
+    let missing = github::authenticated_account(&FailingGithub("unavailable"), Path::new("."))
+        .err()
+        .expect("A missing CLI cannot verify the account");
+    assert_eq!(missing.message, "GitHub CLI is unavailable.");
+    assert!(missing.guidance.contains("Install GitHub CLI"));
+    for reason in ["timed out", "untrusted private process diagnostic"] {
+        let failure = github::authenticated_account(&FailingGithub(reason), Path::new("."))
+            .err()
+            .expect("An interrupted check cannot verify the account");
+        assert_eq!(
+            failure.message,
+            "GitHub account verification did not finish."
+        );
+        assert!(failure.guidance.contains("Check your connection"));
+        assert!(!failure.guidance.contains("Install"));
+        assert!(!format!("{} {}", failure.message, failure.guidance).contains(reason));
+    }
+}
+
+#[test]
 fn native_operation_guard_rejects_duplicates_and_releases_on_drop() {
     use std::sync::{atomic::AtomicBool, Arc};
     let temp = tempfile::tempdir().unwrap();
@@ -476,6 +567,7 @@ fn generated_files_match_preview_with_custom_readme_license_branch_and_commit() 
         gitattributes: true,
         ..Default::default()
     };
+    value.options.readme_sections.push("usage".into());
     value.options.section_content.insert(
         "usage".into(),
         "Actual usage goes here.\n\n```text\nexample\n```".into(),
@@ -634,6 +726,20 @@ fn ignore_rules_preserve_negation_and_keep_secrets_and_generated_files_out_of_gi
 fn configuration_validation_rejects_unsafe_values_before_creating_files() {
     let base = request(Readme::General);
     let mut invalid = Vec::new();
+    for (name, email) in [
+        (" ", ""),
+        (" ", "author@example.invalid"),
+        ("Author <alias>", "author@example.invalid"),
+        ("Author", "author@example.invalid>"),
+        ("Author", "author@@example.invalid"),
+        ("Author\u{85}", "author@example.invalid"),
+        (&"é".repeat(51), "author@example.invalid"),
+    ] {
+        let mut value = base.clone();
+        value.options.commit_author_name = name.into();
+        value.options.commit_author_email = email.into();
+        invalid.push(value);
+    }
     for branch in [
         "-flag",
         "../escape",

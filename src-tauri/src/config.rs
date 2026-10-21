@@ -94,12 +94,7 @@ impl Default for ProjectOptions {
     fn default() -> Self {
         Self {
             ai: crate::ai::AiStudio::default(),
-            readme_sections: vec![
-                "overview".into(),
-                "usage".into(),
-                "development".into(),
-                "license".into(),
-            ],
+            readme_sections: vec!["overview".into(), "license".into()],
             section_content: BTreeMap::new(),
             ignore_presets: vec!["os".into(), "secrets".into()],
             custom_patterns: Vec::new(),
@@ -219,13 +214,7 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
                 readme_sections: if *id == "blank" {
                     Vec::new()
                 } else {
-                    vec![
-                        "overview".into(),
-                        "installation".into(),
-                        "usage".into(),
-                        "development".into(),
-                        "license".into(),
-                    ]
+                    ProjectOptions::default().readme_sections
                 },
                 ..Default::default()
             };
@@ -361,19 +350,26 @@ pub fn validate_options(options: &ProjectOptions) -> Result<(), AppError> {
         )
     };
     validate_branch(&options.initial_branch)?;
-    if options.commit_author_name.is_empty() != options.commit_author_email.is_empty()
-        || options.commit_author_name.len() > 100
-        || options.commit_author_email.len() > 254
-        || options
-            .commit_author_name
-            .chars()
-            .chain(options.commit_author_email.chars())
-            .any(|c| c.is_control())
-        || (!options.commit_author_email.is_empty()
-            && (!options.commit_author_email.contains('@')
-                || options.commit_author_email.starts_with('@')
-                || options.commit_author_email.ends_with('@')
-                || options.commit_author_email.contains(char::is_whitespace)))
+    let identity_supplied =
+        !options.commit_author_name.is_empty() || !options.commit_author_email.is_empty();
+    let valid_email = options
+        .commit_author_email
+        .split_once('@')
+        .is_some_and(|(local, domain)| {
+            !local.is_empty() && !domain.is_empty() && !domain.contains('@')
+        });
+    if identity_supplied
+        && (options.commit_author_name.trim().is_empty()
+            || options.commit_author_email.trim().is_empty()
+            || options.commit_author_name.len() > 100
+            || options.commit_author_email.len() > 254
+            || options
+                .commit_author_name
+                .chars()
+                .chain(options.commit_author_email.chars())
+                .any(|c| c.is_control() || matches!(c, '<' | '>'))
+            || !valid_email
+            || options.commit_author_email.contains(char::is_whitespace))
     {
         return Err(fail("Enter both a project Git author name and a valid email address, or leave both empty to use your existing Git identity."));
     }

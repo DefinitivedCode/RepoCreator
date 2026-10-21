@@ -7,6 +7,7 @@ import {
   loadHandoffSettings,
   parseTemplate,
   renderPrompt,
+  refreshPromptDraft,
   saveHandoffSettings,
   templateError,
   type HandoffContext,
@@ -34,11 +35,12 @@ describe('local deterministic project prompts', () => {
     for (const template of builtInTemplates) {
       const prompt = renderPrompt(template, context, 'beginner');
       expect(prompt).toBe(renderPrompt(template, context, 'beginner'));
-      expect(prompt).toContain('"first-project"');
-      expect(prompt).toContain('"My team"');
-      expect(prompt).toContain('"CLAUDE.md"');
+      expect(prompt).toContain('Name: first-project');
+      expect(prompt).toContain('Intended users: My team');
+      expect(prompt).toContain('- CLAUDE.md');
       expect(prompt).toContain('not been confirmed as created');
-      expect(prompt).toContain('No successfully published repository URL');
+      expect(prompt).toContain('Planned branch: main');
+      expect(prompt).not.toContain('Repository URL:');
       expect(prompt).not.toMatch(/\{\{[A-Z_]+\}\}/);
       expect(prompt).not.toContain('https://github.com/');
     }
@@ -52,11 +54,98 @@ describe('local deterministic project prompts', () => {
     };
     const prompt = renderPrompt(builtInTemplates[2], created, 'implementation');
     expect(prompt).toContain('a local Git repository was created');
-    expect(prompt).toContain('initial commit "abc123"');
+    expect(prompt).toContain('initial commit abc123');
+    expect(prompt).toContain('Publishing to GitHub succeeded.');
     expect(prompt).toContain('The repository is private.');
     expect(prompt).toContain('access to repository contents is unconfirmed');
     expect(prompt).toContain('may have changed since then');
     expect(prompt).toContain('acceptance criteria and verification');
+    const publicPrompt = renderPrompt(
+      builtInTemplates[2],
+      { ...created, visibility: 'public' },
+      'implementation',
+    );
+    expect(publicPrompt).toContain('The repository is public.');
+    expect(publicPrompt).not.toContain('repository is private');
+  });
+  it('omits missing fields and empty briefs instead of rendering placeholder text or raw JSON', () => {
+    const prompt = renderPrompt(
+      builtInTemplates[0],
+      {
+        ...context,
+        projectName: '',
+        description: '',
+        projectType: '',
+        presetName: '',
+        language: 'Not specified',
+        brief: emptyBrief,
+        agents: [],
+        files: [],
+        localPath: '',
+        branch: '',
+      },
+      'beginner',
+    );
+    for (const unwanted of [
+      'Project brief:',
+      'Description:',
+      'Starting point:',
+      'Preferred technologies:',
+      'Configured assistants:',
+      'Planned files:',
+      'Planned branch:',
+      'Planned local folder:',
+      'Not supplied',
+      'Not specified',
+      '"idea":',
+      '{}',
+      'Project idea and proposed setup:',
+    ])
+      expect(prompt).not.toContain(unwanted);
+  });
+  it('formats only meaningful brief fields and retains user text without relabeling its content', () => {
+    const description = 'Local path: keep this phrase.\nBranch: this is my idea, not metadata.';
+    const prompt = renderPrompt(
+      builtInTemplates[1],
+      {
+        ...context,
+        description,
+        language: 'Rust',
+        brief: {
+          ...emptyBrief,
+          idea: 'A useful tool\nwith two lines',
+          technologies: 'Rust',
+          context: 'Keep data local.',
+        },
+      },
+      'production',
+    );
+    expect(prompt).toContain(description);
+    expect(prompt).toContain('- What I am building: A useful tool\n  with two lines');
+    expect(prompt).toContain('- Context and constraints: Keep data local.');
+    expect(prompt).not.toContain('Intended users:');
+    expect(prompt).not.toContain('First version:');
+    expect(prompt.match(/Preferred technologies: Rust/g)).toHaveLength(1);
+    expect(prompt).not.toContain('"idea":');
+  });
+  it('never treats a planned URL as published or describes a local repository as private', () => {
+    const planned = renderPrompt(
+      builtInTemplates[2],
+      { ...context, repositoryUrl: 'https://github.com/user/unconfirmed' },
+      'beginner',
+    );
+    expect(planned).not.toContain('https://github.com/user/unconfirmed');
+    expect(planned).not.toContain('Publishing to GitHub succeeded');
+    expect(planned).not.toContain('confirmed starting state');
+    const local = renderPrompt(
+      builtInTemplates[2],
+      { ...context, status: 'created', commit: 'abc123' },
+      'beginner',
+    );
+    expect(local).toContain('No remote publication was confirmed.');
+    expect(local).not.toContain('repository is private');
+    expect(local).not.toContain('Repository URL:');
+    expect(local).toContain('Local folder: /Users/test/My Projects/first-project');
   });
   it('quotes inserted content and does not recursively interpret its variable markers', () => {
     const template = {
@@ -105,6 +194,21 @@ describe('local deterministic project prompts', () => {
     expect(created.files).toEqual(['actual.md']);
     expect(created.branch).toBe('actual');
   });
+  it('refreshes unedited drafts after context changes while keeping edited prompts until deliberate regeneration', () => {
+    const original = renderPrompt(builtInTemplates[0], context, 'beginner');
+    const next = renderPrompt(
+      builtInTemplates[1],
+      { ...context, description: 'Updated idea' },
+      'production',
+    );
+    expect(refreshPromptDraft({ prompt: original, source: original }, next)).toEqual({
+      prompt: next,
+      source: next,
+    });
+    const edited = { prompt: `${original}\nMy carefully written addition.`, source: original };
+    expect(refreshPromptDraft(edited, next)).toBe(edited);
+    expect(refreshPromptDraft(edited, next, true)).toEqual({ prompt: next, source: next });
+  });
 });
 
 describe('portable text-only custom prompt templates', () => {
@@ -120,6 +224,19 @@ describe('portable text-only custom prompt templates', () => {
     expect(imported.body).toBe(source.body);
     expect(imported.id).not.toBe(source.id);
     expect(exported).not.toContain(source.id);
+  });
+  it('preserves custom template text and substitutes its brief as readable supplied content', () => {
+    const template = {
+      id: 'custom-existing',
+      name: 'Existing template',
+      body: 'My own introduction.\n{{PROJECT_BRIEF}}\nKeep this exact closing sentence.',
+    };
+    const before = exportTemplate(template);
+    const prompt = renderPrompt(template, context, 'beginner');
+    expect(prompt).toContain('My own introduction.\n\n- What I am building: Explore an idea');
+    expect(prompt).toContain('Keep this exact closing sentence.');
+    expect(prompt).not.toContain('"idea":');
+    expect(exportTemplate(template)).toBe(before);
   });
   it('rejects unknown variables, incomplete variables, future schemas and executable payload fields', () => {
     expect(templateError('Use {{SECRET_TOKEN}}')).toContain('Unsupported variable');
@@ -174,6 +291,12 @@ describe('portable text-only custom prompt templates', () => {
       ),
     ).toThrow('20');
     values.set('repo-creator.handoff.v1', '{bad');
-    expect(loadHandoffSettings(storage).templates).toEqual([]);
+    const recovered = loadHandoffSettings(storage);
+    expect(recovered.templates).toEqual([]);
+    expect(recovered.recoveryNotice).toContain('original local data is kept');
+    expect(() => saveHandoffSettings({ ...recovered, style: 'rapid' }, storage)).toThrow(
+      'original local data is kept',
+    );
+    expect(values.get('repo-creator.handoff.v1')).toBe('{bad');
   });
 });

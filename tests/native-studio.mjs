@@ -2,12 +2,13 @@ import { expect } from '@playwright/test';
 import assert from 'node:assert/strict';
 
 // Configure the production UI; generation and creation remain in native Rust.
-export async function configureNativeStudio({ page, invoke }) {
+export async function configureNativeStudio({ page, invoke, verifyOverview }) {
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();
   await page.getByLabel('Project preset', { exact: true }).selectOption('tauri');
   await page.getByLabel('Project name', { exact: true }).fill('native-advanced');
   const description = 'Production workspace verification with six optional assistants.';
   await page.getByRole('textbox', { name: 'Description', exact: false }).fill(description);
+  await verifyOverview?.('advanced');
   const nav = page.getByRole('navigation', { name: 'Project setup' });
   const fileTabs = page.getByRole('group', { name: 'Project file settings' });
   await nav.getByRole('button', { name: 'Project Files', exact: true }).click();
@@ -28,7 +29,8 @@ export async function configureNativeStudio({ page, invoke }) {
   }
   await nav.getByRole('button', { name: 'AI Agents', exact: true }).click();
   await page.getByLabel('Generate AI agent files', { exact: true }).check();
-  const assistants = (await invoke('get_catalog')).studio.agents.map((agent) => agent.name);
+  const { studio: catalog } = await invoke('get_catalog');
+  const assistants = catalog.agents.map((agent) => agent.name);
   assert.equal(assistants.length, 6);
   for (const name of assistants) await page.getByRole('checkbox', { name, exact: true }).check();
   const tabs = page.getByRole('group', { name: 'AI agent settings' });
@@ -43,8 +45,9 @@ export async function configureNativeStudio({ page, invoke }) {
     .toBe(1);
   await tabs.getByRole('button', { name: 'Specialists & Skills', exact: true }).click();
   await page.locator('.specialist-panel > summary').click();
-  await page.getByRole('checkbox', { name: 'Code Reviewer', exact: true }).check();
-  await page.getByRole('checkbox', { name: 'Focused Code Review', exact: true }).check();
+  for (const { name } of [...catalog.specialists, ...catalog.skills]) {
+    await page.getByRole('checkbox', { name, exact: true }).check();
+  }
   await tabs.getByRole('button', { name: 'Advanced', exact: true }).click();
   await page.locator('.studio-advanced > summary').click();
   await page
@@ -76,5 +79,12 @@ export async function configureNativeStudio({ page, invoke }) {
     .poll(async () => (await invoke('get_preferences')).defaults.options.ai.agents.length)
     .toBe(6);
   assert.equal((await invoke('get_preferences')).instructionPresets[0].profile.customText, custom);
-  return { name: 'native-advanced', description, presetName: 'Tauri application', custom };
+  return {
+    name: 'native-advanced',
+    description,
+    presetName: 'Tauri application',
+    custom,
+    specialists: catalog.specialists.map((role) => role.id),
+    skills: catalog.skills.map((skill) => skill.id),
+  };
 }

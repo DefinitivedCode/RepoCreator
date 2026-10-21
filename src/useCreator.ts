@@ -5,9 +5,12 @@ import {
   appError,
   blankForm,
   configurationOf,
+  configurationError,
+  configurationForPreset,
   formError,
   nameError,
   optionsError,
+  previewRequestOf,
 } from './validation';
 import type {
   AppError,
@@ -39,12 +42,21 @@ export function useCreator() {
   const [previewError, setPreviewError] = useState('');
   const [previewing, setPreviewing] = useState(false);
   const locked = useRef(false);
+  const environmentRequest = useRef(0);
+  const environmentFailure = useRef('');
   const busy = state.kind === 'creating';
 
   const refresh = useCallback(async (includeGithub: boolean) => {
+    const requestId = ++environmentRequest.current;
     setChecking(true);
     try {
       const environment = await invoke<Environment>('check_environment', { includeGithub });
+      if (requestId !== environmentRequest.current) return;
+      if (environmentFailure.current) {
+        const previous = environmentFailure.current;
+        setNotice((notice) => (notice === previous ? '' : notice));
+        environmentFailure.current = '';
+      }
       setEnvironment(environment);
       setForm((form) =>
         form
@@ -65,9 +77,12 @@ export function useCreator() {
           : form,
       );
     } catch (value) {
-      setNotice(appError(value).message);
+      if (requestId === environmentRequest.current) {
+        environmentFailure.current = appError(value).message;
+        setNotice(environmentFailure.current);
+      }
     } finally {
-      setChecking(false);
+      if (requestId === environmentRequest.current) setChecking(false);
     }
   }, []);
 
@@ -97,22 +112,15 @@ export function useCreator() {
     };
   }, [refresh]);
 
-  const previewKey = form
-    ? JSON.stringify({ ...form, brief: undefined, handoffTemplate: undefined })
-    : '';
+  const previewKey = form ? JSON.stringify(previewRequestOf(form)) : '';
   useEffect(() => {
     if (!form || busy || state.kind !== 'form') return;
     let active = true;
     setPreviewing(true);
     setFiles([]);
     const timer = setTimeout(() => {
-      // Brief/template metadata does not affect generated files. Leave it out of
-      // preview validation as well as its cache key so fixing it cannot leave a stale error.
-      const request = {
-        ...(JSON.parse(previewKey) as RepositoryForm),
-        name: form.name || 'project-name',
-      };
-      if ((form.name && nameError(form.name)) || optionsError(form.options)) {
+      const request = JSON.parse(previewKey) as RepositoryForm;
+      if (nameError(request.name) || optionsError(request.options)) {
         setPreviewError(formError(request) ?? 'Complete the configuration to preview files.');
         setPreviewing(false);
         return;
@@ -138,7 +146,8 @@ export function useCreator() {
   }, [previewKey, busy, state.kind]);
 
   useEffect(() => {
-    if (!form || busy || previewing || previewError || optionsError(form.options)) return;
+    if (!form || busy || previewing || previewError || configurationError(configurationOf(form)))
+      return;
     const timer = setTimeout(() => {
       void invoke('save_configuration', {
         configuration: configurationOf(form),
@@ -161,16 +170,22 @@ export function useCreator() {
     setForm((form) => (form ? { ...form, [key]: value } : form));
     setError(null);
   };
-  const configure = (configuration: Configuration) => {
-    const copy = structuredClone(configuration);
-    if (!copy.options.copyrightName && environment?.identityName)
-      copy.options.copyrightName = environment.identityName;
-    setForm((form) => (form ? { ...form, ...copy } : form));
-    if (copy.destination) {
-      void invoke('set_destination', { destination: copy.destination }).catch((value) =>
+  const configure = (configuration: Configuration, preserveProjectContext = true) => {
+    setForm((form) =>
+      form
+        ? {
+            ...form,
+            ...(preserveProjectContext
+              ? configurationForPreset(form, configuration, environment?.identityName)
+              : structuredClone(configuration)),
+          }
+        : form,
+    );
+    if (configuration.destination) {
+      void invoke('set_destination', { destination: configuration.destination }).catch((value) =>
         setNotice(appError(value).message),
       );
-      void refresh(copy.destination === 'github');
+      void refresh(configuration.destination === 'github');
     }
     setError(null);
   };

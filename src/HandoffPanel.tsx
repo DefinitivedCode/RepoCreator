@@ -11,6 +11,7 @@ import {
   promptStyles,
   promptVariables,
   renderPrompt,
+  refreshPromptDraft,
   saveHandoffSettings,
   templateError,
   type HandoffContext,
@@ -21,6 +22,7 @@ import {
 // Navigation drafts live only in this process. Prompt bodies are never written to
 // browser storage or native history, and closing the application clears them.
 const navigationDrafts = new Map<string, { templateId: string; prompt: string; source: string }>();
+const templateEditorDrafts = new Map<string, { name: string; body: string }>();
 
 export function HandoffPanel({
   form,
@@ -69,10 +71,10 @@ function PromptWorkspace({
   const draftKey = `${context.status}:${context.localPath}:${context.projectName}`;
   const [initialDraft] = useState(() => navigationDrafts.get(draftKey));
   const [templateId, setTemplateId] = useState(
-    initialDraft?.templateId || recommendedTemplate || 'discovery',
+    recommendedTemplate || initialDraft?.templateId || 'discovery',
   );
   const [missingRecommendation, setMissingRecommendation] = useState(() => {
-    const requested = initialDraft?.templateId || recommendedTemplate;
+    const requested = recommendedTemplate || initialDraft?.templateId;
     return requested &&
       ![...builtInTemplates, ...settings.templates].some((template) => template.id === requested)
       ? requested
@@ -91,13 +93,22 @@ function PromptWorkspace({
     () => renderPrompt(selected, context, settings.style),
     [selected.body, context, settings.style],
   );
-  const [prompt, setPrompt] = useState(initialDraft?.prompt ?? rendered);
-  const [source, setSource] = useState(initialDraft?.source ?? rendered);
+  const [prompt, setPrompt] = useState(() => refreshPromptDraft(initialDraft, rendered).prompt);
+  const [source, setSource] = useState(() => refreshPromptDraft(initialDraft, rendered).source);
   const changedContext = source !== rendered;
   const edited = prompt !== source;
   useEffect(() => {
-    setTemplateName(selected.name);
-    setTemplateBody(selected.body);
+    // Keep an unedited preview current after project/preset changes. User edits
+    // remain intact until the explicit Regenerate action.
+    if (!edited && source !== rendered) {
+      setPrompt(rendered);
+      setSource(rendered);
+    }
+  }, [rendered, source, edited]);
+  useEffect(() => {
+    const draft = templateEditorDrafts.get(selected.id);
+    setTemplateName(draft?.name ?? selected.name);
+    setTemplateBody(draft?.body ?? selected.body);
   }, [selected.id, selected.name, selected.body]);
   useEffect(() => {
     navigationDrafts.delete(draftKey);
@@ -117,26 +128,46 @@ function PromptWorkspace({
     }
   }
   function regenerate() {
-    setPrompt(rendered);
-    setSource(rendered);
+    const draft = refreshPromptDraft({ prompt, source }, rendered, true);
+    setPrompt(draft.prompt);
+    setSource(draft.source);
     setMessage('Prompt regenerated from the current project.');
+  }
+  function editTemplateDraft(name: string, body: string) {
+    templateEditorDrafts.delete(selected.id);
+    templateEditorDrafts.set(selected.id, { name, body });
+    if (templateEditorDrafts.size > 20)
+      templateEditorDrafts.delete(templateEditorDrafts.keys().next().value!);
+    setTemplateName(name);
+    setTemplateBody(body);
+  }
+  function updateRenderedPrompt(next: string, message: string) {
+    const draft = refreshPromptDraft({ prompt, source }, next);
+    setPrompt(draft.prompt);
+    setSource(draft.source);
+    setMessage(
+      edited
+        ? `${message} Your edited prompt is kept. Select Regenerate to use the new selection.`
+        : message,
+    );
   }
   function chooseTemplate(id: string) {
     const template = templates.find((item) => item.id === id) ?? builtInTemplates[0];
     const next = renderPrompt(template, context, settings.style);
     setTemplateId(template.id);
     onTemplateChange?.(template.id);
-    setPrompt(next);
-    setSource(next);
-    setMessage('');
+    updateRenderedPrompt(next, `${template.name} selected.`);
     setError('');
     setMissingRecommendation('');
   }
   function changeStyle(style: HandoffStyle) {
-    if (!persist({ ...settings, style })) return;
+    if (settings.readOnly) setSettings({ ...settings, style });
+    else if (!persist({ ...settings, style })) return;
     const next = renderPrompt(selected, context, style);
-    setPrompt(next);
-    setSource(next);
+    updateRenderedPrompt(
+      next,
+      settings.readOnly ? 'Prompt style selected for this session.' : 'Prompt style selected.',
+    );
   }
   function saveTemplate(duplicate: boolean) {
     const name = templateName.trim();
@@ -164,12 +195,12 @@ function PromptWorkspace({
       ? settings.templates.map((item) => (item.id === template.id ? template : item))
       : [...settings.templates, template];
     if (persist({ ...settings, templates: next })) {
+      templateEditorDrafts.delete(selected.id);
       setTemplateId(template.id);
+      setMissingRecommendation('');
       onTemplateChange?.(template.id);
       const text = renderPrompt(template, context, settings.style);
-      setPrompt(text);
-      setSource(text);
-      setMessage('Custom template saved on this device.');
+      updateRenderedPrompt(text, 'Custom template saved on this device.');
     }
   }
   async function nativeSave(content: string, kind: 'markdown' | 'text' | 'template') {
@@ -206,12 +237,11 @@ function PromptWorkspace({
     }
     if (persist({ ...settings, templates: [...settings.templates, imported] })) {
       setTemplateId(imported.id);
+      setMissingRecommendation('');
       onTemplateChange?.(imported.id);
       const text = renderPrompt(imported, context, settings.style);
-      setPrompt(text);
-      setSource(text);
+      updateRenderedPrompt(text, 'Template imported.');
       setImported(null);
-      setMessage('Template imported.');
     }
   }
   return (
@@ -261,6 +291,11 @@ function PromptWorkspace({
           Discovery is selected. Import the missing custom template or choose another template.
         </p>
       )}
+      {settings.recoveryNotice && (
+        <p className="notice" role="alert">
+          {settings.recoveryNotice}
+        </p>
+      )}
       <p className="help">
         {context.status === 'created'
           ? 'Uses the confirmed creation result.'
@@ -268,13 +303,14 @@ function PromptWorkspace({
         Review local paths and any sensitive information before sharing.
       </p>
       <p className="help">
-        Choosing a template or style regenerates the prompt and replaces prompt edits. Navigation
-        keeps your current draft until the app closes.
+        Edited prompts are kept when you change templates or styles. Regenerate replaces your
+        current prompt with the selected template and current project details. Navigation keeps your
+        draft until the app closes.
       </p>
       {changedContext && (
         <p role="status" className="notice">
-          Project settings changed. Regenerate the prompt to include them; your current edits have
-          been kept.
+          The template, style or project details changed. Your edited prompt is kept. Select
+          Regenerate when you are ready to replace it.
         </p>
       )}
       <div className="field">
@@ -320,7 +356,7 @@ function PromptWorkspace({
           <h3>Reusable prompt templates</h3>
           <p className="help">
             Built-in templates can be duplicated. Custom templates stay on this device until
-            exported.
+            exported. Unsaved template edits are kept during navigation until the app closes.
           </p>
           <div className="field">
             <label htmlFor="template-name">Template name</label>
@@ -328,7 +364,7 @@ function PromptWorkspace({
               id="template-name"
               maxLength={60}
               value={templateName}
-              onChange={(event) => setTemplateName(event.target.value)}
+              onChange={(event) => editTemplateDraft(event.target.value, templateBody)}
             />
           </div>
           <div className="field">
@@ -338,7 +374,7 @@ function PromptWorkspace({
               rows={10}
               maxLength={65536}
               value={templateBody}
-              onChange={(event) => setTemplateBody(event.target.value)}
+              onChange={(event) => editTemplateDraft(templateName, event.target.value)}
             />
           </div>
           <p className="help">
@@ -351,7 +387,7 @@ function PromptWorkspace({
             <button
               type="button"
               onClick={() => {
-                setTemplateName(`${selected.name.slice(0, 50)} copy`);
+                editTemplateDraft(`${selected.name.slice(0, 50)} copy`, templateBody);
                 setMessage('Name the copy, then select Save as duplicate.');
               }}
             >
@@ -363,7 +399,8 @@ function PromptWorkspace({
             <button
               type="button"
               onClick={() => {
-                setTemplateBody(
+                editTemplateDraft(
+                  templateName,
                   builtInTemplates.find((item) => item.id === selected.id)?.body ?? selected.body,
                 );
                 setMessage('Template text reset. Save changes to keep it.');
@@ -395,8 +432,10 @@ function PromptWorkspace({
                       ...settings,
                       templates: settings.templates.filter((item) => item.id !== selected.id),
                     })
-                  )
+                  ) {
+                    templateEditorDrafts.delete(selected.id);
                     chooseTemplate('discovery');
+                  }
                 }}
               >
                 Delete custom template

@@ -17,8 +17,21 @@ impl GithubAccount {
 }
 
 pub fn authenticated_account(runner: &dyn Runner, cwd: &Path) -> Result<GithubAccount, AppError> {
-    let output = runner.run(Program::Gh, &args(&["api", "user", "--jq", "{login: .login, id: .id}"]), cwd)
-        .map_err(|_| AppError::new("GitHub CLI is unavailable.", "Install GitHub CLI from cli.github.com, reopen Repo Creator and connect your account."))?;
+    let output = runner
+        .run(
+            Program::Gh,
+            &args(&["api", "user", "--jq", "{login: .login, id: .id}"]),
+            cwd,
+        )
+        .map_err(|reason| {
+            if reason == "unavailable" {
+                AppError::new("GitHub CLI is unavailable.", "Install GitHub CLI from cli.github.com, reopen Repo Creator and connect your account.")
+            } else {
+                // Process diagnostics stay private: only the missing executable
+                // warrants installation guidance; timeouts may be network failures.
+                AppError::new("GitHub account verification did not finish.", "Check your connection, then recheck setup or retry publishing. Use Connect to GitHub if your sign-in expired.")
+            }
+        })?;
     let account = serde_json::from_str::<GithubAccount>(&output.stdout).ok();
     if !output.success
         || !account.as_ref().is_some_and(|account| {

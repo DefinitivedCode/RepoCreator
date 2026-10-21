@@ -1,4 +1,4 @@
-# Repo Creator 1.3.0
+# Repo Creator 1.3.1
 
 A Windows and macOS desktop utility for creating local or GitHub repositories with configurable project files and AI coding-agent instructions. Built with Tauri 2, React, TypeScript and Rust. AI Agent Studio generates project-local configuration; it does not run agents or require AI credentials.
 
@@ -6,7 +6,7 @@ A Windows and macOS desktop utility for creating local or GitHub repositories wi
 
 New installations open in **Simple** mode. Enter a project name and optional idea, choose a **Starting point**, optional technology and assistant, then a native save location. Choose **On this computer** or **Computer and GitHub**, select **Review project**, inspect the destination and generated files, and choose **Create Project**. The app creates a new child folder, generates the selected files, initialises Git and verifies the initial commit. Existing files and folders are never overwritten.
 
-The neutral **System / Light / Dark** desktop workspace has a navigation rail, an independently scrolling main pane, and a contextual file panel on wider windows. **Overview**, **Project Files**, **AI Agents**, **Review**, **AI Handoff**, **Recent Projects** and **Setup & status** keep related work together. The review/create action stays at the bottom. The default window is 1100×740 with an 820×580 minimum; window size and maximized state are remembered.
+The neutral **System / Light / Dark** desktop workspace has a navigation rail, an independently scrolling main pane, and a contextual file panel on wider windows. **Overview**, **Project Files**, **AI Agents**, **Review**, **AI Handoff**, **Recent Projects** and **Setup & status** keep related work together. The review/create action stays at the bottom. The compact Overview fits ordinary local and GitHub setup without scrolling at default size. Independent fields share rows, secondary help lives in the context panel, and long file lists scroll within bounded areas. Expanded editors, increased text size and smaller windows retain normal scrolling. The default window is 1100×740 with an 820×580 minimum; window size and maximized state are remembered.
 
 **Simple** hides technical Git, file and AI rule editors. **Advanced** exposes every existing setting through local subsections. Both use the same configuration, so navigation and switching modes preserve settings. Existing v1.1/v1.2 installations migrate to Advanced; fresh installations start Simple. The Review pane uses the same Rust generator that writes the project files.
 
@@ -78,7 +78,7 @@ The live preview is produced by the same Rust generator used to write the actual
 
 ### README and licenses
 
-README modes are **None**, **Minimal**, **General**, and **Custom**. General and Custom expose independent overview, features, installation, usage, development, contributing and license sections. Custom supports Markdown content for each selected section. Unknown details are marked with editable HTML comments, never invented commands or functionality. A license section is generated only when a license file is selected.
+README modes are **None**, **Minimal**, **General**, and **Custom**. General and Custom expose independent overview, features, installation, usage, development, contributing and license sections. Fresh defaults and built-in presets select only overview and license, avoiding comment-only headings on GitHub. Saved and explicitly requested sections are preserved; an explicitly selected empty section still contains an editable comment. Custom supports Markdown content for each selected section. Unknown details are marked with editable HTML comments, never invented commands or functionality. A license section is generated only when a license file is selected.
 
 License choices are **None** (default), **MIT**, **Apache-2.0**, **GPL-3.0**, **BSD-3-Clause**, and **Unlicense**. Texts are bundled from the official [SPDX License List Data v3.29.0](https://github.com/spdx/license-list-data/tree/v3.29.0/text) for offline generation. GPL-3.0 uses GPL-3.0-only. Applicable licenses require an editable copyright holder and year; the holder is initially suggested from Git identity. MIT/BSD fields are substituted; Apache/GPL retain the complete canonical text and instructional appendices, with a separate project copyright notice. Unlicense remains unchanged.
 
@@ -98,9 +98,9 @@ Independent post-creation actions can open the folder, VS Code, and the GitHub p
 
 An optional Project Brief supplies the concept, audience, first version, preferred technologies and constraints. Missing details stay unspecified. Planning prompts describe proposed files; post-creation prompts use the verified path, branch, file list and actual remote URL. A private URL never implies chatbot access to its contents.
 
-Edit the prompt, regenerate explicitly, copy it or save Markdown/text through a native dialog. Duplicate built-ins into custom templates, edit/rename/delete them, restore template text, or import/export validated JSON. Supported variables are listed in the editor. Unknown variables and unsupported versions are rejected. Changes to context retain prompt edits until you regenerate; navigation retains the current draft in memory.
+Edit the prompt, regenerate explicitly, copy it or save Markdown/text through a native dialog. Duplicate built-ins into custom templates, edit/rename/delete them, restore template text, or import/export validated JSON. Supported variables are listed in the editor. Unknown variables and unsupported versions are rejected. Empty brief fields are omitted and built-in prompts use readable labeled context. Template/style/context changes retain prompt edits until you explicitly regenerate; navigation retains the current prompt and template-editor drafts in memory. Invalid or newer saved template data is kept read-only with a notice.
 
-The success screen includes the handoff panel. **Recent Projects** stores up to 20 creation records with name, time, path, verified remote URL, brief, preset, selected assistants and generated file paths. It stores no generated file contents or prompt bodies. Reopen known folders/URLs, regenerate prompts or remove records. Missing/moved folders report an error without deleting history. This history describes creation time and does not inspect later changes.
+The success screen keeps the project path, branch, commit, remote URL and open actions visible first. Generated files appear as a count with a collapsible preview/tree, and **AI Project Handoff** expands the prompt panel. **Recent Projects** stores up to 20 creation records with name, time, path, verified remote URL, brief, preset, selected assistants and generated file paths. It stores no generated file contents or prompt bodies. Reopen known folders/URLs, regenerate prompts or remove records. Missing/moved folders report an error without deleting history. This history describes creation time and does not inspect later changes.
 
 ## GitHub publishing and recovery
 
@@ -150,8 +150,8 @@ npm run desktop:build
 | Artifact | Path relative to repository root |
 | --- | --- |
 | Standalone executable | `src-tauri/target/release/repo-creator.exe` |
-| Per-user NSIS installer | `src-tauri/target/release/bundle/nsis/Repo Creator_1.3.0_x64-setup.exe` |
-| MSI installer | `src-tauri/target/release/bundle/msi/Repo Creator_1.3.0_x64_en-US.msi` |
+| Per-user NSIS installer | `src-tauri/target/release/bundle/nsis/Repo Creator_1.3.1_x64-setup.exe` |
+| MSI installer | `src-tauri/target/release/bundle/msi/Repo Creator_1.3.1_x64_en-US.msi` |
 
 The first build downloads official NSIS/WiX tools. `npm run build` checks and builds the frontend only. Generated binaries, settings and test output are excluded from source control. CI builds explicit Windows x64, Apple Silicon ARM64 and Intel x86_64 targets. Successful macOS jobs upload `.dmg` installers and `.app.tar.gz` bundles with executable permissions preserved, verify Mach-O architecture and ad-hoc signatures, and run frontend/Rust checks before packaging. No release or tag is created. Windows builds are unsigned. Mac test builds are ad-hoc signed, **not notarized**; public distribution needs Apple signing/notarization credentials. CI packaging does not confirm a physical Mac launch. See the [Mac guide](docs/macOS-testing.md).
 
@@ -171,7 +171,7 @@ Native tests create actual temporary Git repositories and verify generation, cus
 
 AI coverage includes all six adapters, all instruction presets and rule toggles, custom wording and Unicode, native specialist formats, scoped metadata, optional configuration, shared skill paths, deterministic previews, v1.1 migration, invalid paths/contents, and exact initial-commit contents with AI on/off. UI tests cover complete preset restore, instruction libraries, import/export calls, specialist reuse, escaped syntax previews and expanded Studio scrolling. Provider model sessions and native file-dialog interaction are not automated; import/export parsing and size limits are tested separately.
 
-Workspace regressions inspect 1100×740 (default), 820×580 (minimum), 1440×900 (wide) and 1024×680 (laptop) in both themes. They verify navigation, main-pane scrolling, unclipped controls, absence of page overflow, review/creation states and preserved state across Simple/Advanced. Code previews retain independent scrolling. Fresh OS/environment ignore defaults and explicit saved selections are covered separately.
+Workspace regressions verify zero overflow for normal Simple/Advanced local/GitHub Overview at the default size, bounded 40–100-file success views, rendering-scale emulation and increased root text size. They also inspect 1100×740 (default), 820×580 (minimum), 1440×900 (wide) and 1024×680 (laptop) in both themes. They verify navigation, main-pane scrolling, unclipped controls, absence of page overflow, review/creation states and preserved state across Simple/Advanced. Code previews retain independent scrolling. Fresh OS/environment ignore defaults and explicit saved selections are covered separately.
 
 After building, an opt-in smoke test exercises the production executable through its real WebView2 and Rust commands:
 
@@ -183,4 +183,4 @@ The test isolates app data and WebView2 state in a temporary directory, uses tem
 
 The v1.3 production smoke test creates temporary Blank, Experiment and advanced multi-assistant local projects, verifies previews, exact files, Git branches and commits, and captures the workspace in both themes and supported sizes. It never publishes test repositories.
 
-See [the architecture audit and integration boundaries](docs/v1.3-architecture.md) for the release design.
+See [the v1.3.1 quality inventory](docs/v1.3.1-quality-audit.md) and [the architecture audit and integration boundaries](docs/v1.3-architecture.md) for the release design.

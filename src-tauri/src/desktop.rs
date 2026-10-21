@@ -43,11 +43,17 @@ pub fn restore_window(app: &tauri::AppHandle) {
     let Ok(directory) = crate::data_dir(app) else {
         return;
     };
-    let Some(mut size) = saved_window_size(&directory.join("window.json")) else {
-        return;
-    };
+    // Apply the same monitor bounds on first launch, when no geometry exists yet.
+    let mut size = saved_window_size(&directory.join("window.json")).unwrap_or(WindowSize {
+        width: 1100.0,
+        height: 740.0,
+        maximized: false,
+    });
     if let Ok(Some(monitor)) = window.current_monitor() {
-        let screen = monitor.size().to_logical::<f64>(monitor.scale_factor());
+        let screen = monitor
+            .work_area()
+            .size
+            .to_logical::<f64>(monitor.scale_factor());
         size.width = size.width.min((screen.width - 60.0).max(820.0));
         size.height = size.height.min((screen.height - 80.0).max(580.0));
     }

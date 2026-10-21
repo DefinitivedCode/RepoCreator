@@ -13,13 +13,13 @@ import { configureNativeStudio } from './native-studio.mjs';
 assert.equal(process.platform, 'win32', 'This smoke test requires Windows WebView2');
 const root = path.resolve(import.meta.dirname, '..');
 const temporaryRoot = path.resolve(os.tmpdir());
-const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.3-'));
+const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.3.1-'));
 const parent = path.join(temporary, 'Projects with spaces 日本語');
 const settingsDirectory = path.join(temporary, 'isolated-app-data');
 const executable =
   process.env.REPO_CREATOR_SMOKE_EXE ||
   path.join(root, 'src-tauri', 'target', 'release', 'repo-creator.exe');
-const screenshots = path.join(root, 'artifacts', 'native-v1.3');
+const screenshots = path.join(root, 'artifacts', 'native-v1.3.1');
 const names = ['preferences.json', 'preferences.json.bak', 'history.json', 'window.json'];
 const backups = new Map();
 let child,
@@ -29,6 +29,9 @@ let child,
   settingsChanged = false;
 const errors = [],
   created = [];
+let hostDisplay;
+const scaleEmulation = [];
+let windowPersistence;
 const check = (condition, message) => assert.ok(condition, message);
 const optionalRead = (file) =>
   readFile(file).catch((error) => {
@@ -71,6 +74,180 @@ async function resize(size) {
     .toEqual(size);
 }
 const screenshot = (name) => page.screenshot({ path: path.join(screenshots, `${name}.png`) });
+async function verifyOverview(mode) {
+  await resize(scrollSizes[0]);
+  const main = page.locator('.workspace-main');
+  await main.focus();
+  await page.keyboard.press('Control+Home');
+  await expect
+    .poll(() => main.evaluate((el) => Math.max(0, el.scrollHeight - el.clientHeight)), {
+      message: `${mode} normal local Overview should fit at default size`,
+    })
+    .toBeLessThanOrEqual(1);
+  await screenshot(`${mode}-overview-default`);
+}
+async function readHostDisplay() {
+  const file = path.join(temporary, 'native-dpi.ps1');
+  await writeFile(
+    file,
+    `param([Parameter(Mandatory)][int]$ProcessId)
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class SmokeDpi {
+    [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr window);
+}
+'@
+$owned = Get-Process -Id $ProcessId
+if ($owned.ProcessName -ne 'repo-creator' -or $owned.MainWindowHandle -eq [IntPtr]::Zero) { throw 'Owned test window unavailable' }
+$dpi = [SmokeDpi]::GetDpiForWindow($owned.MainWindowHandle)
+[pscustomobject]@{ dpi = $dpi; nativeScale = ($dpi / 96.0) } | ConvertTo-Json -Compress
+`,
+  );
+  const native = JSON.parse(
+    execFileSync('powershell.exe', ['-NoProfile', '-File', file, '-ProcessId', String(child.pid)], {
+      encoding: 'utf8',
+      windowsHide: true,
+    }),
+  );
+  return {
+    ...native,
+    initialViewport: await page.evaluate(() => ({
+      width: innerWidth,
+      height: innerHeight,
+      devicePixelRatio,
+    })),
+  };
+}
+async function verifyEmulatedScales() {
+  const session = await browser.contexts()[0].newCDPSession(page);
+  try {
+    for (const factor of [1.25, 1.5]) {
+      await session.send('Emulation.setDeviceMetricsOverride', {
+        width: 1100,
+        height: 740,
+        deviceScaleFactor: factor,
+        mobile: false,
+      });
+      await expect.poll(() => page.evaluate(() => devicePixelRatio)).toBe(factor);
+      await expect(
+        page.getByRole('button', { name: 'Review project', exact: true }),
+      ).toBeInViewport({ ratio: 1 });
+      await expect
+        .poll(() =>
+          page
+            .locator('.workspace-main')
+            .evaluate((el) => Math.max(0, el.scrollHeight - el.clientHeight)),
+        )
+        .toBeLessThanOrEqual(1);
+      await screenshot(`simple-cdp-scale-${factor}`);
+      scaleEmulation.push({
+        deviceScaleFactor: factor,
+        logicalViewport: { width: 1100, height: 740 },
+        kind: 'CDP rendering emulation; OS display settings unchanged',
+      });
+    }
+  } finally {
+    await session.send('Emulation.clearDeviceMetricsOverride');
+    await session.detach();
+  }
+}
+async function verifyWindowPersistence() {
+  const wanted = {
+    width: Math.max(820, Math.min(960, hostDisplay.initialViewport.width - 40)),
+    height: Math.max(580, Math.min(640, hostDisplay.initialViewport.height - 40)),
+  };
+  await resize(wanted);
+  const closer = path.join(temporary, 'close-owned-window.ps1');
+  await writeFile(
+    closer,
+    `param([Parameter(Mandatory)][int]$ProcessId)
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class SmokeClose {
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr window, uint message, IntPtr w, IntPtr l);
+}
+'@
+$owned = Get-Process -Id $ProcessId
+if ($owned.ProcessName -ne 'repo-creator' -or $owned.MainWindowHandle -eq [IntPtr]::Zero) { throw 'Owned test window unavailable' }
+if (-not [SmokeClose]::PostMessage($owned.MainWindowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)) { throw 'Could not close owned test window' }
+`,
+  );
+  const stopped = once(child, 'exit');
+  execFileSync('powershell.exe', ['-NoProfile', '-File', closer, '-ProcessId', String(child.pid)], {
+    windowsHide: true,
+  });
+  await stopped;
+  await browser.close().catch(() => {});
+  const saved = JSON.parse(await readFile(path.join(settingsDirectory, 'window.json'), 'utf8'));
+  assert.deepEqual(
+    saved,
+    { ...wanted, maximized: false },
+    'Native close must save resized logical dimensions',
+  );
+  await expect
+    .poll(() =>
+      fetch('http://127.0.0.1:9224/json/version', { signal: AbortSignal.timeout(1000) })
+        .then(() => true)
+        .catch(() => false),
+    )
+    .toBe(false);
+  child = spawn(executable, [], {
+    cwd: root,
+    windowsHide: true,
+    stdio: 'ignore',
+    env: {
+      ...process.env,
+      REPO_CREATOR_DATA_DIR: settingsDirectory,
+      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=9224',
+      WEBVIEW2_USER_DATA_FOLDER: path.join(temporary, 'webview'),
+    },
+  });
+  child.once('error', (error) => {
+    launchError = error;
+  });
+  let endpoint;
+  await expect
+    .poll(
+      async () => {
+        if (launchError) throw launchError;
+        endpoint = await fetch('http://127.0.0.1:9224/json/version', {
+          signal: AbortSignal.timeout(1000),
+        })
+          .then((response) => response.json())
+          .catch(() => null);
+        return !!endpoint?.webSocketDebuggerUrl;
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true);
+  browser = await chromium.connectOverCDP(endpoint.webSocketDebuggerUrl);
+  await expect
+    .poll(() => {
+      page = browser
+        .contexts()
+        .flatMap((context) => context.pages())
+        .find((candidate) => candidate.url().includes('tauri.localhost'));
+      return !!page;
+    })
+    .toBe(true);
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30000 });
+  await expect
+    .poll(() => page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
+    .toEqual(wanted);
+  const preferences = await invoke('get_preferences');
+  assert.equal(preferences.experienceMode, 'advanced');
+  assert.equal(preferences.defaults.options.ai.specialists.length, 7);
+  assert.equal((await invoke('list_recent_projects')).length, 3);
+  await screenshot('relaunch-restored-window');
+  windowPersistence = {
+    saved,
+    restoredViewport: await page.evaluate(() => ({ width: innerWidth, height: innerHeight })),
+    isolatedData: true,
+  };
+}
 async function identityIfNeeded() {
   const environment = await invoke('check_environment', { includeGithub: false });
   check(environment.gitInstalled, 'Git is required for the production smoke test');
@@ -136,6 +313,25 @@ async function createAndVerify(details) {
   await page
     .getByRole('heading', { name: 'Repository created', exact: true })
     .waitFor({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Open Folder', exact: true })).toBeInViewport({
+    ratio: 1,
+  });
+  await expect(
+    page.locator('.result-details').getByText(request.options.initialBranch, { exact: true }),
+  ).toBeInViewport({ ratio: 1 });
+  await expect(
+    page.locator('.result-details dd').getByText(request.options.commitMessage, { exact: true }),
+  ).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.completion-handoff > summary')).toBeInViewport({ ratio: 1 });
+  await screenshot(`${details.name}-success-compact`);
+  if (preview.length) {
+    const summary = page.locator('.result-files > summary');
+    await expect(summary).toContainText(String(preview.length));
+    assert.equal(await page.locator('.result-files').getAttribute('open'), null);
+    await summary.click();
+    await screenshot(`${details.name}-success-files`);
+    await summary.click();
+  }
   const project = path.join(parent, details.name);
   assert.equal(git(['branch', '--show-current'], project), request.options.initialBranch);
   assert.equal(git(['log', '-1', '--format=%s'], project), request.options.commitMessage);
@@ -162,6 +358,7 @@ async function createAndVerify(details) {
       `Committed file: ${file.path}`,
     );
   }
+  await page.locator('.completion-handoff > summary').click();
   await page.getByLabel('Prompt template', { exact: true }).selectOption('development');
   const prompt = await page.getByLabel('AI prompt', { exact: true }).inputValue();
   check(prompt.includes(details.name), 'Handoff includes confirmed project name');
@@ -208,10 +405,7 @@ try {
     path.join(settingsDirectory, 'history.json'),
     JSON.stringify({ schemaVersion: 1, projects: [] }),
   );
-  await writeFile(
-    path.join(settingsDirectory, 'window.json'),
-    JSON.stringify({ width: 1100, height: 740, maximized: false }),
-  );
+  // No window.json: exercise the real first-run monitor-clamping path.
   child = spawn(executable, [], {
     cwd: root,
     windowsHide: true,
@@ -258,9 +452,12 @@ try {
     'aria-pressed',
     'true',
   );
+  hostDisplay = await readHostDisplay();
+  await screenshot('first-launch-monitor-bounds');
   await page.getByLabel('Starting point', { exact: true }).selectOption('blank');
   await page.getByLabel('Project name', { exact: true }).fill('native-blank');
   await identityIfNeeded();
+  await verifyOverview('simple');
   await verifyExpandedScrolling(page, resize);
   for (const size of scrollSizes) {
     await resize(size);
@@ -271,6 +468,7 @@ try {
   await resize(scrollSizes[0]);
   await page.getByRole('combobox', { name: /Appearance/ }).selectOption('light');
   await screenshot('simple-light-1100x740');
+  await verifyEmulatedScales();
   assert.equal(
     (
       await createAndVerify({
@@ -302,18 +500,31 @@ try {
     'Simple assistant generates instruction files',
   );
   await page.getByRole('button', { name: 'Create Another', exact: true }).click();
-  const details = await configureNativeStudio({ page, invoke });
+  const details = await configureNativeStudio({ page, invoke, verifyOverview });
   await page.getByRole('combobox', { name: /Appearance/ }).selectOption('dark');
   await verifyExpandedScrolling(page, resize);
   await resize(scrollSizes[0]);
   await screenshot('advanced-assistants-dark');
   const advanced = await createAndVerify(details);
+  check(
+    advanced.preview.length >= 40,
+    'Complex success must exercise at least 40 actual generated files',
+  );
+  assert.deepEqual(
+    [...advanced.request.options.ai.specialists].sort(),
+    [...details.specialists].sort(),
+  );
+  assert.deepEqual([...advanced.request.options.ai.skills].sort(), [...details.skills].sort());
   const byPath = Object.fromEntries(advanced.preview.map((file) => [file.path, file.content]));
   assert.equal(byPath['CLAUDE.md'], '@AGENTS.md\n');
   assert.equal(byPath['AGENTS.md'], byPath['.github/copilot-instructions.md']);
   check(
     byPath['AGENTS.md'].includes(details.custom),
     'Advanced instructions remain exact and inert',
+  );
+  check(
+    !byPath['README.md'].includes('<!--'),
+    'Built-in defaults do not enable unwritten README sections',
   );
   for (const required of [
     'LICENSE',
@@ -345,17 +556,20 @@ try {
     history.map((project) => project.context.projectName).sort(),
     created.map((project) => project.name).sort(),
   );
+  await verifyWindowPersistence();
   assert.deepEqual(errors, []);
   await unlink(path.join(screenshots, 'failure.png')).catch((error) => {
     if (error.code !== 'ENOENT') throw error;
   });
   const report = {
-    version: '1.3.0',
+    version: '1.3.1',
     checks: [
       'Production WebView2 and native IPC',
       'Simple Blank empty initial commit',
       'Simple Experiment and Claude instructions',
-      'Advanced six assistants, specialist, skill, scoped rules and permission configs',
+      'Advanced six assistants, every built-in specialist and skill, scoped rules and permission configs',
+      '40+ file success keeps metadata/actions immediately visible and file list collapsed',
+      'Simple and Advanced normal local Overview fit without main scrolling',
       'Modes and navigation preserve settings',
       'Exact UI previews, files and initial commit contents',
       'Unicode/spaces filesystem path',
@@ -364,11 +578,15 @@ try {
       'Dark/light appearance and fixed actions',
       'Confirmed development handoff',
       'Recent-project persistence',
+      'Resized logical window dimensions persist and restore after a real relaunch',
       'Existing-directory protection',
       'No JavaScript errors',
     ],
     created,
     dimensions: scrollSizes,
+    hostDisplay,
+    scaleEmulation,
+    windowPersistence,
     screenshots,
   };
   await writeFile(
@@ -403,7 +621,7 @@ try {
   const resolved = path.resolve(temporary);
   check(
     path.dirname(resolved) === temporaryRoot &&
-      path.basename(resolved).startsWith('repo-creator-v1.3-'),
+      path.basename(resolved).startsWith('repo-creator-v1.3.1-'),
     'Refusing unexpected cleanup path',
   );
   await rm(resolved, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 });

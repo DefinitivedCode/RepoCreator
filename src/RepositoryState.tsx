@@ -3,6 +3,7 @@ import type { Creator } from './useCreator';
 import { displayPath } from './validation';
 import { stages } from './types';
 import { HandoffPanel } from './HandoffPanel';
+import { FilePreview } from './ConfigurationPanels';
 
 export function RepositoryState({
   creator,
@@ -61,9 +62,9 @@ export function RepositoryState({
   const url = result?.githubUrl ?? error?.githubUrl;
   return (
     <>
-      <main className="content">
-        <div className="state-content" aria-live="polite">
-          <div className="state-heading">
+      <main className="content completion-content">
+        <div className="state-content completion-summary">
+          <div className="state-heading" role="status">
             <Icon name={success ? 'check' : 'alert'} size={21} />
             <h2>
               {success
@@ -75,7 +76,7 @@ export function RepositoryState({
           </div>
           <p className="state-project">{result?.name ?? form.name}</p>
           {error && (
-            <div className="error-banner">
+            <div className="error-banner" role="alert">
               <strong>{error.message}</strong>
               <p>{error.guidance}</p>
             </div>
@@ -128,16 +129,6 @@ export function RepositoryState({
                 </dd>
               </>
             )}
-            {result && (
-              <>
-                <dt>Generated files</dt>
-                <dd className="generated-files">
-                  {result.files.length
-                    ? result.files.map((file) => <code key={file}>{file}</code>)
-                    : 'None — empty initial commit'}
-                </dd>
-              </>
-            )}
           </dl>
           {result?.warnings.map((warning) => (
             <p key={warning} className="notice" role="status">
@@ -167,17 +158,40 @@ export function RepositoryState({
               </button>
             )}
           </div>
+          {result &&
+            (result.files.length ? (
+              <details className="result-files">
+                <summary>
+                  Generated files <span className="file-count">{result.files.length}</span>
+                </summary>
+                <FilePreview
+                  name={result.name}
+                  files={creator.files}
+                  loading={false}
+                  error=""
+                  expanded
+                  created
+                />
+              </details>
+            ) : (
+              <p className="help">0 files · empty initial commit</p>
+            ))}
           {result && (
-            <HandoffPanel
-              form={form}
-              files={creator.files}
-              parentPath={creator.preferences?.parentPath ?? ''}
-              presetName={presetName}
-              result={result}
-              simple={creator.preferences?.experienceMode !== 'advanced'}
-              onTemplateChange={(id) => creator.update('handoffTemplate', id)}
-              copy={creator.copy}
-            />
+            <details className="completion-handoff">
+              <summary>
+                AI Project Handoff <span className="help">Plan your next step</span>
+              </summary>
+              <HandoffPanel
+                form={form}
+                files={creator.files}
+                parentPath={creator.preferences?.parentPath ?? ''}
+                presetName={presetName}
+                result={result}
+                simple={creator.preferences?.experienceMode !== 'advanced'}
+                onTemplateChange={(id) => creator.update('handoffTemplate', id)}
+                copy={creator.copy}
+              />
+            </details>
           )}
           {creator.notice && (
             <p className="notice" role="status">

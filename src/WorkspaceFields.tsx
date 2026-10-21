@@ -14,6 +14,8 @@ export function Overview({
   onApply,
   onManage,
   onAgents,
+  canUndo,
+  onUndo,
 }: {
   creator: Creator;
   simple: boolean;
@@ -21,19 +23,15 @@ export function Overview({
   onApply: (c: Configuration, id: string) => void;
   onManage: () => void;
   onAgents: () => void;
+  canUndo: boolean;
+  onUndo: () => void;
 }) {
   const { form, catalog, preferences } = creator;
   if (!form || !catalog || !preferences) return null;
   const presets = [...catalog.builtInPresets, ...preferences.customPresets];
-  const preset = presets.find((p) => p.id === presetId);
   return (
-    <>
-      <p className="section-intro">
-        {simple
-          ? 'Give your idea a home. Choose a starting point, then review the files before creating your project.'
-          : 'Configure the project identity and starting point. Use the navigation to refine files and AI instructions.'}
-      </p>
-      <div className="overview-grid">
+    <div className="overview-layout">
+      <div className="overview-identity two-columns">
         <label className="field">
           <span className="control-label">Project name</span>
           <input
@@ -56,7 +54,8 @@ export function Overview({
             <span className="optional">optional</span>
           </span>
           <textarea
-            rows={2}
+            className="short-description"
+            rows={1}
             maxLength={350}
             value={form.description}
             placeholder="A short description of your idea"
@@ -64,77 +63,73 @@ export function Overview({
           />
         </label>
       </div>
-      <section className="settings-section">
-        <div className="field">
-          <label htmlFor="project-preset">{simple ? 'Starting point' : 'Project preset'}</label>
-          <div className="inline-actions">
-            <select
-              id="project-preset"
-              value={presetId}
-              onChange={(e) => {
-                const p = presets.find((p) => p.id === e.target.value);
-                if (p) onApply(p.configuration, p.id);
-              }}
-            >
-              <option value="">Last used settings</option>
-              <optgroup label="Built-in">
-                {catalog.builtInPresets.map((p) => (
+      <div className="field overview-preset">
+        <label htmlFor="project-preset">{simple ? 'Starting point' : 'Project preset'}</label>
+        <div className="inline-actions">
+          <select
+            id="project-preset"
+            value={presetId}
+            onChange={(e) => {
+              const p = presets.find((p) => p.id === e.target.value);
+              if (p) onApply(p.configuration, p.id);
+            }}
+          >
+            <option value="">Last used settings</option>
+            <optgroup label="Built-in">
+              {catalog.builtInPresets.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </optgroup>
+            {preferences.customPresets.length > 0 && (
+              <optgroup label="Custom">
+                {preferences.customPresets.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
               </optgroup>
-              {preferences.customPresets.length > 0 && (
-                <optgroup label="Custom">
-                  {preferences.customPresets.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-            <button type="button" onClick={onManage}>
-              Manage…
-            </button>
-          </div>
+            )}
+          </select>
+          <button type="button" onClick={onManage}>
+            Manage…
+          </button>
         </div>
-        {preset && (
-          <p className="help">
-            <strong>What’s included? </strong>
-            {preset.description ||
-              `${preset.configuration.readme === 'none' ? 'No README' : 'README'}, ${preset.configuration.options.ignorePresets.length} exclude-file presets, ${preset.configuration.options.ai.enabled ? preset.configuration.options.ai.agents.join(', ') + ' instructions' : 'AI instructions off'}.`}
-          </p>
+      </div>
+      <div className="overview-assistants two-columns">
+        <Technology creator={creator} />
+        <Assistant creator={creator} simple={simple} onAdvanced={onAgents} />
+      </div>
+      <Location creator={creator} />
+      <Destination creator={creator} simple={simple} />
+      <div className="overview-tools">
+        <details className="brief-details">
+          <summary>
+            Project brief <span className="help">optional</span>
+          </summary>
+          <ProjectBrief
+            value={form.brief}
+            onChange={(brief) => creator.update('brief', brief)}
+            simple={simple}
+          />
+        </details>
+        {canUndo && (
+          <button type="button" className="text-button" onClick={onUndo}>
+            Undo preset change
+          </button>
         )}
-        <div className="two-columns">
-          <Technology creator={creator} />
-          <Assistant creator={creator} simple={simple} onAdvanced={onAgents} />
-        </div>
-      </section>
-      <section className="settings-section">
-        <Location creator={creator} />
-        <Destination creator={creator} simple={simple} />
-      </section>
-      <details className="brief-details">
-        <summary>
-          Project brief <span className="help">optional · helps your AI handoff</span>
-        </summary>
-        <ProjectBrief
-          value={form.brief}
-          onChange={(brief) => creator.update('brief', brief)}
-          simple={simple}
-        />
-      </details>
-      {!simple && (
-        <button
-          type="button"
-          className="text-button"
-          onClick={() => onApply(catalog.defaultConfiguration, 'default')}
-        >
-          Reset configuration
-        </button>
-      )}
-    </>
+        {!simple && (
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => onApply(catalog.defaultConfiguration, 'default')}
+          >
+            Reset configuration
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 function Technology({ creator }: { creator: Creator }) {
@@ -158,7 +153,7 @@ function Technology({ creator }: { creator: Creator }) {
           <option key={t}>{t}</option>
         ))}
       </select>
-      <span className="help">A planning preference; no framework is installed.</span>
+      <span className="sr-only">A planning preference; no framework is installed.</span>
     </label>
   );
 }
@@ -175,7 +170,19 @@ function Assistant({
     ai = form.options.ai;
   return (
     <div className="field">
-      <label htmlFor="quick-assistant">AI coding assistant</label>
+      <div className="field-label-row">
+        <label htmlFor="quick-assistant">AI coding assistant</label>
+        {!simple && (
+          <button
+            type="button"
+            className="text-button"
+            aria-label="Configure multiple assistants"
+            onClick={onAdvanced}
+          >
+            More…
+          </button>
+        )}
+      </div>
       <select
         id="quick-assistant"
         value={!ai.enabled ? '' : ai.agents.length === 1 ? ai.agents[0] : 'multiple'}
@@ -202,58 +209,54 @@ function Assistant({
           </option>
         )}
       </select>
-      <span className="help">
+      <span className="sr-only">
         {ai.enabled
           ? 'Recommended project instructions included. Installation is optional.'
           : 'You can add project instructions later.'}
       </span>
-      {!simple && (
-        <button type="button" className="text-button" onClick={onAdvanced}>
-          Configure multiple assistants
-        </button>
-      )}
     </div>
   );
 }
 function Location({ creator }: { creator: Creator }) {
   const prefs = creator.preferences!;
   return (
-    <div className="field">
+    <div className="field overview-location">
       <label id="location-label">Save location</label>
-      <div className="location-control">
-        <span aria-labelledby="location-label" title={displayPath(prefs.parentPath)}>
-          {displayPath(prefs.parentPath)}
-        </span>
-        <button
-          type="button"
-          onClick={() => void creator.chooseFolder()}
-          disabled={creator.picking}
-        >
-          {creator.picking ? 'Choosing…' : 'Browse…'}
-        </button>
-      </div>
-      <p className="help">
-        A new <code>{creator.form?.name || 'my-project'}</code> folder will be created here.
-        Existing folders are protected.
-      </p>
-      {prefs.recentLocations.length > 0 && (
-        <label className="recent-select">
-          <span className="sr-only">Recent locations</span>
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value !== '') void creator.recentLocation(Number(e.target.value));
-            }}
+      <div className="location-row">
+        <div className="location-control">
+          <span aria-labelledby="location-label" title={displayPath(prefs.parentPath)}>
+            {displayPath(prefs.parentPath)}
+          </span>
+          <button
+            type="button"
+            onClick={() => void creator.chooseFolder()}
+            disabled={creator.picking}
           >
-            <option value="">Recent locations</option>
-            {prefs.recentLocations.map((p, i) => (
-              <option key={p} value={i}>
-                {displayPath(p)}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+            {creator.picking ? 'Choosing…' : 'Browse…'}
+          </button>
+        </div>
+        {prefs.recentLocations.length > 0 && (
+          <label className="recent-select">
+            <span className="sr-only">Recent locations</span>
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value !== '') void creator.recentLocation(Number(e.target.value));
+              }}
+            >
+              <option value="">Recent locations</option>
+              {prefs.recentLocations.map((p, i) => (
+                <option key={p} value={i}>
+                  {displayPath(p)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      <span className="sr-only">
+        Creates a new project folder here. Existing folders are protected.
+      </span>
     </div>
   );
 }
@@ -261,83 +264,96 @@ function Destination({ creator, simple }: { creator: Creator; simple: boolean })
   const form = creator.form!,
     env = creator.environment;
   return (
-    <div className="field">
-      <label id="destination-label">
-        {simple ? 'Where should the project live?' : 'Destination'}
-      </label>
-      <div
-        className="segmented destination-options"
-        role="group"
-        aria-labelledby="destination-label"
-      >
-        <button
-          type="button"
-          aria-pressed={form.destination === 'local'}
-          onClick={() => void creator.destination('local')}
+    <div className="overview-destination" data-github={form.destination === 'github'}>
+      <div className="field">
+        <label id="destination-label">
+          {simple ? 'Where should the project live?' : 'Destination'}
+        </label>
+        <div
+          className="segmented destination-options"
+          role="group"
+          aria-labelledby="destination-label"
         >
-          {simple ? 'On this computer' : 'Local only'}
-        </button>
-        <button
-          type="button"
-          aria-pressed={form.destination === 'github'}
-          onClick={() => void creator.destination('github')}
-        >
-          {simple ? 'Computer and GitHub' : 'GitHub'}
-        </button>
+          <button
+            type="button"
+            aria-pressed={form.destination === 'local'}
+            onClick={() => void creator.destination('local')}
+          >
+            {simple ? 'On this computer' : 'Local only'}
+          </button>
+          <button
+            type="button"
+            aria-pressed={form.destination === 'github'}
+            onClick={() => void creator.destination('github')}
+          >
+            {simple ? 'Computer and GitHub' : 'GitHub'}
+          </button>
+        </div>
       </div>
       {form.destination === 'github' && (
         <>
-          <p className="help">
-            GitHub stores and shares your project online. You need a connected account.
-          </p>
-          <div className="visibility" role="radiogroup" aria-label="Repository visibility">
-            {(['private', 'public'] as const).map((v) => (
-              <label key={v}>
-                <input
-                  type="radio"
-                  name="visibility"
-                  checked={form.visibility === v}
-                  onChange={() => creator.update('visibility', v)}
-                />
-                {v === 'private'
-                  ? 'Private — only people you choose'
-                  : 'Public — anyone can see the project'}
-              </label>
-            ))}
+          <div className="github-options two-columns">
+            <div className="field github-visibility">
+              <span className="control-label" id="visibility-label">
+                Visibility
+              </span>
+              <div className="visibility" role="radiogroup" aria-label="Repository visibility">
+                {(['private', 'public'] as const).map((v) => (
+                  <label key={v}>
+                    <input
+                      type="radio"
+                      name="visibility"
+                      checked={form.visibility === v}
+                      onChange={() => creator.update('visibility', v)}
+                    />
+                    {v === 'private' ? 'Private' : 'Public'}
+                  </label>
+                ))}
+              </div>
+              <span className="help visibility-help">
+                {form.visibility === 'private'
+                  ? 'Only you and people you choose.'
+                  : 'Anyone can view this project.'}
+              </span>
+            </div>
+            <div className="field github-owner">
+              <label htmlFor="github-owner">Owner</label>
+              <select
+                id="github-owner"
+                value={form.githubOwner || env?.githubUser || ''}
+                disabled={!env?.githubUser}
+                onChange={(e) => creator.update('githubOwner', e.target.value)}
+              >
+                {!env?.githubUser && <option value="">Connect to GitHub first</option>}
+                {env?.githubOwners.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+              <div className="connection-actions">
+                <span className="help">
+                  {env?.githubUser ? `Signed in as ${env.githubUser}` : 'Not connected'}
+                </span>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => void creator.refresh(true)}
+                  disabled={creator.checking}
+                >
+                  Check connection
+                </button>
+              </div>
+            </div>
           </div>
-          <label className="field">
-            <span className="control-label">Owner</span>
-            <select
-              value={form.githubOwner || env?.githubUser || ''}
-              disabled={!env?.githubUser}
-              onChange={(e) => creator.update('githubOwner', e.target.value)}
-            >
-              {!env?.githubUser && <option value="">Connect to GitHub first</option>}
-              {env?.githubOwners.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="inline-actions">
-            <span className="help">
-              {env?.githubUser ? `Signed in as ${env.githubUser}` : 'Not connected'}
-            </span>
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => void creator.refresh(true)}
-              disabled={creator.checking}
-            >
-              Check connection
-            </button>
-            {!env?.githubUser && (
+          {!env?.githubUser && (
+            <div className="inline-actions">
+              <span className="help">GitHub stores your project online.</span>
               <button type="button" onClick={() => void creator.connect()}>
                 Connect to GitHub
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -382,17 +398,27 @@ export function Context({
   creator,
   section,
   presetName,
+  presetDescription,
+  fileSection,
 }: {
   creator: Creator;
   section: Section;
   presetName: string;
+  presetDescription?: string;
+  fileSection?: string;
 }) {
   const files = creator.files,
     preview = files.find((f) =>
       section === 'agents'
         ? f.path === 'AGENTS.md'
         : section === 'files'
-          ? f.path === 'README.md'
+          ? f.path ===
+            ({
+              ignore: '.gitignore',
+              license: 'LICENSE',
+              additional: '.editorconfig',
+              readme: 'README.md',
+            }[fileSection ?? 'readme'] ?? 'README.md')
           : false,
     );
   return (
@@ -419,20 +445,37 @@ export function Context({
       ) : (
         <>
           <p className="help">{presetName}</p>
+          {section === 'overview' && (
+            <p className="context-description help">
+              {presetDescription ||
+                'Choose a starting point, then adjust any setting. Existing folders are never overwritten.'}
+            </p>
+          )}
           <div className="context-facts">
             <span>
               {creator.form!.destination === 'github'
-                ? `${creator.form!.visibility} on GitHub`
-                : 'Saved on this computer'}
+                ? `${creator.form!.visibility === 'private' ? 'Private' : 'Public'} on GitHub`
+                : 'On this computer'}
             </span>
             <span>
               {creator.form!.options.ai.enabled
-                ? creator.form!.options.ai.agents.join(', ')
+                ? creator
+                    .catalog!.studio.agents.filter((agent) =>
+                      creator.form!.options.ai.agents.includes(agent.id),
+                    )
+                    .map((agent) => agent.name)
+                    .join(', ')
                 : 'No AI instructions'}
             </span>
           </div>
+          {section === 'overview' && (
+            <p className="help context-description">
+              No tools are installed. AI assistants are optional; choosing one adds project
+              instructions.
+            </p>
+          )}
           <h4>{creator.previewing ? 'Updating files…' : `${files.length} planned files`}</h4>
-          <ul className="context-files">
+          <ul className="context-files" tabIndex={0} aria-label="Planned generated files">
             {files.map((f) => (
               <li key={f.path}>
                 <Icon name="file" size={12} />
@@ -465,7 +508,27 @@ export function Context({
 export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: () => void }) {
   const env = creator.environment,
     form = creator.form!;
-  if (!env) return <p role="status">Checking your computer…</p>;
+  if (!env)
+    return (
+      <div className="setup-checklist">
+        <p role="status">
+          {creator.checking ? 'Checking your computer…' : 'Computer checks are unavailable.'}
+        </p>
+        {!creator.checking && (
+          <div className="inline-actions">
+            <button
+              type="button"
+              onClick={() => void creator.refresh(form.destination === 'github')}
+            >
+              Recheck
+            </button>
+            <button type="button" onClick={onReturn}>
+              Return to project
+            </button>
+          </div>
+        )}
+      </div>
+    );
   const github = form.destination === 'github',
     option = (key: 'commitAuthorName' | 'commitAuthorEmail', value: string) =>
       creator.update('options', { ...form.options, [key]: value });

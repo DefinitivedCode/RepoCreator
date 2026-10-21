@@ -84,6 +84,8 @@ pub fn render_readme(request: &CreateRequest) -> Option<String> {
                 .map(|s| {
                     s.replace("{{description}}", request.description.trim())
                         .replace("{{project_name}}", &request.name)
+                        .trim()
+                        .to_string()
                 });
             let custom = custom_text.as_deref();
             let (title, body) = match *id {

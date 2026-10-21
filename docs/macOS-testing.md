@@ -1,4 +1,4 @@
-# Testing Repo Creator 1.3 on a Mac
+# Testing Repo Creator 1.3.1 on a Mac
 
 These are development test builds. They are **ad-hoc signed, not notarized**.
 CI checks compilation, tests, packaging, the binary architecture and the local

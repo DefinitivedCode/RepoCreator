@@ -36,6 +36,12 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
     .toBe('learning-lab-draft');
   await page.getByLabel('What are you building?').fill('A small local learning tool');
   await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  await page.getByLabel('Starting point').selectOption('website');
+  await expect(page.getByLabel('What are you building?')).toHaveValue(
+    'A small local learning tool',
+  );
+  await expect(page.getByLabel('Language or technology')).toHaveValue('Python');
+  await page.getByRole('button', { name: 'Undo preset change' }).click();
   await page.getByLabel('Project name').fill('learning-lab');
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();
   await fileTab(page, 'Git Settings');
@@ -53,6 +59,7 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
   await expect(page.locator('.project-summary')).toContainText('experiment/start');
   await page.getByRole('button', { name: 'Create Project', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
+  await page.locator('.completion-handoff > summary').click();
   await expect(page.getByLabel('AI prompt')).toHaveValue(/learning-lab/);
   const call = await page.evaluate(() =>
     (window as any).testCalls.find((c: any) => c.command === 'create_repository'),
@@ -300,11 +307,21 @@ test('optional tools and disconnected GitHub never block a local project or hand
 test('local handoff templates render, preserve prompt edits, copy and persist custom text', async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    (window as any).testPreferredTemplate = 'missing-template';
+  });
   await prepare(page, false, 'simple');
   await page.getByLabel('Project name').fill('prompt-project');
   await page.getByLabel('What are you making?').fill('A private learning experiment');
   await navigate(page, 'AI Handoff');
   const prompt = page.getByLabel('AI prompt');
+  await expect(page.getByText(/Recommended template.*is unavailable/)).toBeVisible();
+  await page.getByRole('button', { name: 'Custom templates', exact: true }).click();
+  await page.getByLabel('Template name').fill('Recovered template');
+  await page.getByLabel('Template text').fill('Plan {{PROJECT_NAME}}.');
+  await page.getByRole('button', { name: 'Save as custom', exact: true }).click();
+  await expect(page.getByText(/Recommended template.*is unavailable/)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Custom templates', exact: true }).click();
   for (const template of ['discovery', 'architecture', 'development']) {
     await page.getByLabel('Prompt template').selectOption(template);
     await expect(prompt).toHaveValue(/prompt-project/);
@@ -312,6 +329,16 @@ test('local handoff templates render, preserve prompt edits, copy and persist cu
   }
   await page.getByLabel('Prompt style').selectOption('rapid');
   await prompt.fill('My reviewed prompt text.');
+  await page.getByLabel('Prompt template').selectOption('discovery');
+  await expect(prompt).toHaveValue('My reviewed prompt text.');
+  await expect(
+    page.getByText(/^Project Discovery selected\. Your edited prompt is kept/),
+  ).toBeVisible();
+  await navigate(page, 'Overview');
+  await page.getByLabel('Starting point').selectOption('website');
+  await navigate(page, 'AI Handoff');
+  await expect(page.getByLabel('Prompt template')).toHaveValue('architecture');
+  await expect(prompt).toHaveValue('My reviewed prompt text.');
   await page.getByRole('button', { name: 'Copy AI Prompt', exact: true }).click();
   expect(await page.evaluate(() => (window as any).testCopied)).toBe('My reviewed prompt text.');
   await page.getByRole('button', { name: 'Save Markdown' }).click();
@@ -339,4 +366,272 @@ test('local handoff templates render, preserve prompt edits, copy and persist cu
   await expect(
     page.getByLabel('Prompt template').locator('option').filter({ hasText: 'Focused task' }),
   ).toHaveCount(1);
+});
+
+test('ordinary Overview fits the default window across display ratios and enlarged text remains reachable', async ({
+  browser,
+  baseURL,
+}, info) => {
+  test.setTimeout(90_000);
+  for (const scale of [1, 1.25, 1.5]) {
+    const context = await browser.newContext({
+      baseURL,
+      viewport: { width: 1100, height: 740 },
+      deviceScaleFactor: scale,
+      colorScheme: info.project.name === 'light' ? 'light' : 'dark',
+    });
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+      (window as any).testRecentLocations = ['C:\\Projects', 'C:\\Repositories'];
+    });
+    await prepare(page, false, 'simple');
+    await page.getByLabel('Project name').fill('comfortable-overview');
+    await page.getByLabel('Starting point').selectOption('experiment');
+    await page.getByLabel('AI coding assistant').selectOption('claude');
+    for (const mode of ['simple', 'advanced']) {
+      await page
+        .getByRole('button', { name: mode === 'simple' ? 'Simple' : 'Advanced', exact: true })
+        .click();
+      for (const destination of ['local', 'github']) {
+        const name =
+          destination === 'local'
+            ? mode === 'simple'
+              ? 'On this computer'
+              : 'Local only'
+            : mode === 'simple'
+              ? 'Computer and GitHub'
+              : 'GitHub';
+        await page.getByRole('button', { name, exact: true }).click();
+        await expect(
+          page.getByRole('button', { name: 'Review project', exact: true }),
+        ).toBeEnabled();
+        const overflow = await page
+          .locator('.workspace-main')
+          .evaluate((el) => el.scrollHeight - el.clientHeight);
+        expect(overflow, `${mode}/${destination} at DPR ${scale}`).toBeLessThanOrEqual(1);
+      }
+    }
+    if (scale === 1) {
+      mkdirSync('artifacts', { recursive: true });
+      await page.screenshot({ path: `artifacts/v1.3.1-zero-scroll-${info.project.name}.png` });
+    } else {
+      // This emulates increased text size; it does not change the host OS display setting.
+      await page.evaluate(
+        (size) => (document.documentElement.style.fontSize = `${size}px`),
+        scale * 16,
+      );
+      const description = page.locator('.short-description');
+      await description.fill('A small project');
+      expect(
+        await description.evaluate((el) => el.scrollHeight - el.clientHeight),
+        'A single description line must fit with enlarged text',
+      ).toBeLessThanOrEqual(1);
+      await page.locator('.brief-details > summary').focus();
+      await expect(page.locator('.brief-details > summary')).toBeInViewport({ ratio: 1 });
+      await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
+      const geometry = await page.evaluate(() => {
+        const main = document.querySelector('.workspace-main')!.getBoundingClientRect();
+        const nav = document.querySelector('.navigation-rail')!;
+        const clipped = [
+          ...document.querySelectorAll(
+            '.overview-layout input,.overview-layout select,.overview-layout button',
+          ),
+        ]
+          .filter((el) => el.checkVisibility())
+          .filter((el) => {
+            const rect = el.getBoundingClientRect();
+            return rect.left < main.left - 1 || rect.right > main.right + 1;
+          })
+          .map((el) => el.textContent || el.id);
+        const clippedNavigation = [...nav.querySelectorAll('button')]
+          .filter(
+            (el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
+          )
+          .map((el) => el.textContent);
+        return {
+          clipped,
+          clippedNavigation,
+          navOverflow: nav.scrollWidth - nav.clientWidth,
+          width: document.documentElement.scrollWidth,
+          viewport: innerWidth,
+        };
+      });
+      expect(geometry.clipped).toEqual([]);
+      expect(geometry.clippedNavigation).toEqual([]);
+      expect(geometry.navOverflow).toBeLessThanOrEqual(1);
+      expect(geometry.width).toBeLessThanOrEqual(geometry.viewport);
+      await page.screenshot({
+        path: `artifacts/v1.3.1-text-${scale * 100}-${info.project.name}.png`,
+      });
+      if (scale === 1.5) {
+        await page.setViewportSize({ width: 820, height: 580 });
+        for (const mode of ['simple', 'advanced']) {
+          await page
+            .getByRole('button', { name: mode === 'simple' ? 'Simple' : 'Advanced', exact: true })
+            .click();
+          await description.focus();
+          expect(
+            await description.evaluate((el) => el.scrollHeight - el.clientHeight),
+          ).toBeLessThanOrEqual(1);
+          await page.locator('.brief-details > summary').focus();
+          await expect(page.locator('.brief-details > summary')).toBeInViewport({ ratio: 1 });
+          await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
+          expect(
+            await page
+              .locator('.navigation-rail')
+              .evaluate((el) => el.scrollWidth - el.clientWidth),
+          ).toBeLessThanOrEqual(1);
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+          ).toBeLessThanOrEqual(0);
+          await page.screenshot({
+            path: `artifacts/v1.3.1-text-150-minimum-${mode}-${info.project.name}.png`,
+          });
+        }
+      }
+    }
+    await context.close();
+  }
+});
+
+test('operational settings persist without redundant previews and stale checks cannot overwrite the latest connection', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    (window as any).testPersistPreferences = true;
+  });
+  await prepare(page);
+  await page.getByLabel('Project name').fill('persistent-workflow');
+  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  const count = await page.evaluate(
+    () => (window as any).testCalls.filter((call: any) => call.command === 'preview_files').length,
+  );
+  await fileTab(page, 'Git Settings');
+  await page.getByLabel('Initial branch').fill('feature/context');
+  await page.getByLabel('Initial commit message').fill('Begin a focused workflow');
+  await page.getByRole('checkbox', { name: 'Open project folder', exact: true }).check();
+  await navigate(page, 'Overview');
+  await page.evaluate(
+    () =>
+      ((window as any).testEnvironmentQueue = [
+        { delay: 300, environment: { githubUser: null, githubOwners: [] } },
+        { delay: 0, environment: { githubUser: null, githubOwners: [] } },
+        {
+          delay: 0,
+          environment: { githubUser: 'octocat', githubOwners: ['octocat', 'sample-org'] },
+        },
+      ]),
+  );
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click();
+  await page.getByRole('button', { name: 'Local only', exact: true }).click();
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click();
+  await page.getByRole('radio', { name: 'Public', exact: true }).check();
+  await page.getByRole('combobox', { name: 'Owner', exact: true }).selectOption('sample-org');
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as any).testCalls
+            .filter((call: any) => call.command === 'save_configuration')
+            .at(-1)?.payload.configuration.visibility,
+      ),
+    )
+    .toBe('public');
+  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  await expect(page.getByRole('combobox', { name: 'Owner', exact: true })).toHaveValue(
+    'sample-org',
+  );
+  expect(
+    await page.evaluate(
+      () =>
+        (window as any).testCalls.filter((call: any) => call.command === 'preview_files').length,
+    ),
+  ).toBe(count);
+  await page.getByRole('button', { name: 'Simple', exact: true }).click();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Simple', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('radio', { name: 'Public', exact: true })).toBeChecked();
+  await page.getByRole('button', { name: 'Advanced', exact: true }).click();
+  await fileTab(page, 'Git Settings');
+  await expect(page.getByLabel('Initial branch')).toHaveValue('feature/context');
+  await expect(page.getByLabel('Initial commit message')).toHaveValue('Begin a focused workflow');
+  await expect(
+    page.getByRole('checkbox', { name: 'Open project folder', exact: true }),
+  ).toBeChecked();
+});
+
+test('first-run prerequisite and settings failures provide working retry actions', async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await page.addInitScript(() => {
+    (window as any).testEnvironmentError = true;
+  });
+  await prepare(page, false, 'simple', false);
+  await navigate(page, 'Setup & status');
+  await expect(page.getByText('Could not inspect local tools.', { exact: true })).toBeVisible();
+  await page.evaluate(() => ((window as any).testEnvironmentError = false));
+  await page.getByRole('button', { name: 'Recheck', exact: true }).click();
+  await expect(page.getByText('Git ready', { exact: true })).toBeVisible();
+  await expect(page.getByText('Could not inspect local tools.', { exact: true })).toHaveCount(0);
+  const context = await browser.newContext({ baseURL });
+  const startup = await context.newPage();
+  await startup.addInitScript(() => {
+    if (!sessionStorage.getItem('bootstrapAttempted')) {
+      sessionStorage.setItem('bootstrapAttempted', 'true');
+      sessionStorage.setItem('failBootstrap', 'true');
+    }
+  });
+  await prepare(startup, false, 'simple', false);
+  await expect(startup.getByText('Could not load saved settings.', { exact: true })).toBeVisible();
+  await startup.evaluate(() => sessionStorage.removeItem('failBootstrap'));
+  await startup.getByRole('button', { name: 'Retry loading settings' }).click();
+  await expect(startup.getByLabel('Project name')).toBeVisible();
+  await expect(startup.getByText('Git ready', { exact: true })).toBeVisible();
+  await context.close();
+});
+
+test('success keeps confirmed facts and actions visible with a hundred generated files', async ({
+  page,
+}, info) => {
+  await page.addInitScript(() => {
+    (window as any).testExtraFiles = 96;
+  });
+  await prepare(page, false, 'simple');
+  await page.getByLabel('Project name').fill('hundred-files');
+  await page.getByLabel('AI coding assistant').selectOption('claude');
+  await createProject(page);
+  await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
+  await expect(page.locator('.result-files .file-count')).toHaveText('100');
+  expect(
+    await page.locator('.result-files').evaluate((el) => (el as HTMLDetailsElement).open),
+  ).toBe(false);
+  expect(
+    await page.locator('.completion-handoff').evaluate((el) => (el as HTMLDetailsElement).open),
+  ).toBe(false);
+  await expect(page.getByRole('button', { name: 'Open Folder', exact: true })).toBeInViewport({
+    ratio: 1,
+  });
+  await expect(page.locator('.result-details')).toContainText('Initial commit');
+  await expect(page.getByRole('button', { name: 'Create Another' })).toBeInViewport({ ratio: 1 });
+  await page.screenshot({ path: `artifacts/v1.3.1-success-100-${info.project.name}.png` });
+  await page.locator('.result-files > summary').click();
+  expect(
+    await page
+      .locator('.result-files .file-tree')
+      .evaluate((el) => el.getBoundingClientRect().height),
+  ).toBeLessThanOrEqual(182);
+  await page.getByLabel('Find generated files').fill('file-95.md');
+  await page.getByRole('button', { name: 'generated/nested/file-95.md', exact: true }).click();
+  await expect(
+    page.getByLabel('generated/nested/file-95.md preview', { exact: true }),
+  ).toContainText('Generated preview 95');
+  await page.locator('.result-files > summary').click();
+  await page.locator('.completion-handoff > summary').click();
+  await expect(page.getByLabel('AI prompt')).toHaveValue(/hundred-files/);
+  await expect(page.getByLabel('AI prompt')).toHaveValue(/created|initialised/i);
 });

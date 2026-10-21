@@ -17,12 +17,14 @@ export function FilePreview({
   loading,
   error,
   expanded = false,
+  created = false,
 }: {
   name: string;
   files: GeneratedFile[];
   loading: boolean;
   error: string;
   expanded?: boolean;
+  created?: boolean;
 }) {
   const [selected, setSelected] = useState('README.md');
   const [search, setSearch] = useState('');
@@ -91,8 +93,9 @@ export function FilePreview({
       </summary>
       <div className="disclosure-body">
         <p className="help">
-          Selected generated files are included in the initial commit, even when a broad ignore rule
-          matches them.
+          {created
+            ? 'These files were generated and included in the initial commit.'
+            : 'Selected generated files are included in the initial commit, even when a broad ignore rule matches them.'}
         </p>
         {loading ? (
           <p className="help" role="status">

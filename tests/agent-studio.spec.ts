@@ -19,6 +19,8 @@ test('agent selection, rules, specialists, scoped configuration and previews rea
   await enableStudio(page);
   await page.getByLabel('Claude Code', { exact: true }).check();
   await page.getByLabel('GitHub Copilot', { exact: true }).check();
+  for (const name of ['Cursor', 'Gemini CLI', 'OpenCode'])
+    await page.getByLabel(name, { exact: true }).check();
   await agentTab(page, 'Instructions');
   await page.getByLabel('Instruction preset', { exact: true }).selectOption('strict');
   await page.getByLabel('Verify the build', { exact: true }).uncheck();
@@ -27,7 +29,8 @@ test('agent selection, rules, specialists, scoped configuration and previews rea
     .fill('Keep café 🦀 exact.\n<script>window.injected = true</script>');
   await agentTab(page, 'Specialists & Skills');
   await page.locator('.specialist-panel > summary').click();
-  await page.getByLabel('Code Reviewer', { exact: true }).check();
+  for (const role of await page.locator('.studio-role-list').getByRole('checkbox').all())
+    await role.check();
   await agentTab(page, 'Advanced');
   await page.getByText('Advanced AI configuration', { exact: true }).click();
   await page.getByLabel('Codex project configuration', { exact: true }).check();
@@ -98,14 +101,23 @@ test('agent selection, rules, specialists, scoped configuration and previews rea
     options: {
       ai: {
         enabled: true,
-        agents: ['codex', 'claude', 'copilot'],
+        agents: expect.arrayContaining([
+          'codex',
+          'claude',
+          'copilot',
+          'cursor',
+          'gemini',
+          'opencode',
+        ]),
         instructions: { preset: 'strict' },
-        specialists: ['code-reviewer'],
+        specialists: expect.arrayContaining(['code-reviewer']),
         scopedRules: [{ id: 'frontend', patterns: ['**/*.ts', '**/*.tsx'] }],
       },
     },
   });
   expect(call.payload.request.options.ai.instructions.rules).not.toContain('build');
+  expect(call.payload.request.options.ai.agents).toHaveLength(6);
+  expect(call.payload.request.options.ai.specialists).toHaveLength(7);
 });
 
 test('instruction presets, Markdown imports and reusable specialist definitions preserve user text', async ({

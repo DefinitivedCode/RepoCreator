@@ -66,7 +66,7 @@ body,
 body {
   color: var(--text);
   background: var(--background);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.45;
 }
 button,
@@ -159,23 +159,23 @@ p {
   margin: 0;
 }
 h1 {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 h2 {
-  font-size: 17px;
+  font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.25px;
 }
 h3 {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 650;
 }
 code,
 pre,
 .mono {
   font-family: 'Cascadia Mono', Consolas, monospace;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .app {
   height: 100dvh;
@@ -201,7 +201,7 @@ pre,
   width: 85px;
   min-height: 26px;
   padding: 2px 5px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   background: transparent;
   border-color: transparent;
 }
@@ -250,7 +250,7 @@ pre,
 }
 .field > label,
 .control-label {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
 }
 .main-fields {
@@ -263,14 +263,14 @@ pre,
   gap: 13px;
 }
 .optional {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--muted);
   font-weight: 400;
   margin-left: 4px;
 }
 .help {
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   line-height: 1.5;
 }
 .text-button,
@@ -280,7 +280,7 @@ pre,
   min-height: 24px;
   padding: 2px 3px;
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   border-radius: 3px;
 }
 .text-button:hover:not(:disabled) {
@@ -329,7 +329,7 @@ pre,
 .segmented button {
   min-height: 27px;
   padding: 4px 14px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   background: transparent;
   border-color: transparent;
   color: var(--muted);
@@ -343,7 +343,7 @@ pre,
 .visibility {
   display: flex;
   gap: 12px;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .visibility label {
   display: flex;
@@ -378,7 +378,7 @@ pre,
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 7px 9px;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .location-control > button {
   border: none;
@@ -399,7 +399,7 @@ pre,
 .recent-select select {
   min-height: 21px;
   max-width: 100%;
-  font-size: 10px;
+  font-size: 0.625rem;
   border-color: transparent;
   background: transparent;
   padding: 0 3px;
@@ -425,7 +425,7 @@ pre,
   gap: 8px;
   padding: 8px 0;
   cursor: pointer;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   font-weight: 600;
 }
 .disclosure > summary::-webkit-details-marker {
@@ -441,7 +441,7 @@ pre,
 }
 .summary-meta {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 400;
   margin-left: auto;
 }
@@ -469,7 +469,7 @@ pre,
 .ignore-group h3 {
   color: var(--muted);
   margin-bottom: 7px;
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .checkbox-grid {
   display: grid;
@@ -481,7 +481,7 @@ pre,
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.5;
   min-width: 0;
 }
@@ -513,7 +513,7 @@ pre,
   white-space: pre-wrap;
 }
 .preview-label {
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   font-weight: 600;
   margin-top: 4px;
 }
@@ -534,7 +534,7 @@ pre,
 .empty-preview {
   padding: 10px;
   background: var(--secondary);
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--muted);
   border-radius: var(--radius);
 }
@@ -545,7 +545,7 @@ pre,
 }
 .file-tabs button {
   min-height: 25px;
-  font-size: 10px;
+  font-size: 0.625rem;
   padding: 3px 7px;
   background: transparent;
   border-color: transparent;
@@ -573,7 +573,7 @@ pre,
 }
 .studio-subsection > summary {
   padding: 9px 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -655,7 +655,7 @@ pre,
   align-items: center;
   gap: 6px;
   min-height: 25px;
-  font-size: 10.5px;
+  font-size: 0.65625rem;
 }
 .preview-caption {
   display: flex;
@@ -696,7 +696,7 @@ pre,
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   color: var(--muted);
 }
 .create-button {
@@ -705,7 +705,7 @@ pre,
 }
 .inline-error {
   color: var(--error);
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   line-height: 1.5;
 }
 .config-error {
@@ -716,7 +716,7 @@ pre,
   background: var(--error-bg);
   padding: 10px 12px;
   margin-top: 13px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   overflow-wrap: anywhere;
 }
 .error-banner strong {
@@ -728,7 +728,7 @@ pre,
 }
 .notice {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   margin-top: 12px;
   overflow-wrap: anywhere;
 }
@@ -752,13 +752,13 @@ pre,
 }
 .setup-panel strong {
   width: 100%;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
 }
 .setup-commands {
   display: block;
   width: 100%;
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.8;
   overflow-wrap: anywhere;
 }
@@ -771,7 +771,7 @@ pre,
   gap: 9px;
 }
 .state-project {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
   margin-top: 10px;
   overflow-wrap: anywhere;
@@ -788,7 +788,7 @@ pre,
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 .progress-list li.active {
@@ -824,7 +824,7 @@ pre,
   margin: 19px 0;
   border-top: 1px solid var(--separator);
   border-bottom: 1px solid var(--separator);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .result-details dt {
   color: var(--muted);
@@ -856,7 +856,7 @@ pre,
   background: var(--secondary);
   border: 1px solid var(--separator);
   padding: 1px 4px;
-  font-size: 10px;
+  font-size: 0.625rem;
   border-radius: 2px;
 }
 .result-link {
@@ -864,7 +864,7 @@ pre,
   background: none;
   padding: 0;
   min-height: auto;
-  font-size: 11px;
+  font-size: 0.6875rem;
   white-space: normal;
   text-align: left;
   overflow-wrap: anywhere;
@@ -900,7 +900,7 @@ pre,
   border-bottom: 1px solid var(--separator);
 }
 .dialog-header h2 {
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .dialog-content {
   display: flex;
@@ -938,7 +938,7 @@ pre,
   margin-top: 8px;
   background: var(--secondary);
   border-radius: var(--radius);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .delete-confirm .inline-actions {
   margin-top: 8px;
@@ -1000,34 +1000,34 @@ pre,
   display: none !important;
 }
 .desktop-app h1 {
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .desktop-app h2 {
-  font-size: 23px;
+  font-size: 1.3125rem;
   line-height: 1.25;
 }
 .desktop-app h3 {
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .desktop-app h4 {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   margin: 22px 0 10px;
 }
 .desktop-app .help,
 .desktop-app .text-button,
 .desktop-app .optional {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .desktop-app .control-label,
 .desktop-app .field > label {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .desktop-app code,
 .desktop-app pre,
 .desktop-app .mono {
   font-family: 'SFMono-Regular', 'Cascadia Mono', Consolas, monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .desktop-app .app-header {
   min-height: 56px;
@@ -1040,15 +1040,15 @@ pre,
 }
 .version {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   border: 1px solid var(--border);
   padding: 1px 5px;
   border-radius: 3px;
 }
 .mode-switch button {
-  min-height: 27px;
+  min-height: 30px;
   padding: 3px 12px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .workspace-form {
   display: flex;
@@ -1078,7 +1078,7 @@ pre,
 .nav-caption,
 .eyebrow {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   letter-spacing: 1px;
   font-weight: 600;
 }
@@ -1092,8 +1092,15 @@ pre,
   justify-content: flex-start;
   padding: 9px 9px;
   gap: 8px;
-  font-size: 12px;
+  font-size: 0.75rem;
   min-height: 36px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  flex-shrink: 0;
+}
+.nav-item svg {
+  flex-shrink: 0;
 }
 .nav-item.active {
   color: var(--text);
@@ -1106,7 +1113,7 @@ pre,
   display: flex;
   gap: 7px;
   align-items: center;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .status-dot {
   width: 6px;
@@ -1120,12 +1127,12 @@ pre,
   line-height: 1.6;
 }
 .desktop-app .nav-note {
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .workspace-main {
   min-width: 0;
   min-height: 0;
-  padding: 26px clamp(18px, 2.8vw, 42px) 32px;
+  padding: 20px clamp(18px, 2.2vw, 32px);
   overflow: auto;
   scrollbar-gutter: stable;
   scroll-padding: 18px;
@@ -1140,10 +1147,10 @@ pre,
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 .workspace-heading h2 {
-  margin-top: 7px;
+  margin-top: 4px;
   outline: none;
 }
 .workspace-fields {
@@ -1153,7 +1160,7 @@ pre,
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   max-width: 880px;
 }
 .section-intro {
@@ -1220,7 +1227,7 @@ pre,
   margin-bottom: 2px;
 }
 .subnavigation button {
-  font-size: 12px;
+  font-size: 0.75rem;
   border-color: transparent;
   background: transparent;
   padding: 6px 9px;
@@ -1262,7 +1269,7 @@ pre,
   gap: 12px 18px;
 }
 .desktop-app .check-label {
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.6;
   align-items: flex-start;
 }
@@ -1278,7 +1285,7 @@ pre,
 }
 .brief-details > summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.8125rem;
   padding: 4px 0;
 }
 .project-brief {
@@ -1303,7 +1310,7 @@ pre,
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-size: 12px;
+  font-size: 0.75rem;
   margin-top: 20px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--separator);
@@ -1326,7 +1333,7 @@ pre,
   overflow-wrap: anywhere;
 }
 .desktop-app .context-files code {
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .context-code {
   max-height: 300px;
@@ -1341,7 +1348,7 @@ pre,
   background: var(--background);
 }
 .desktop-app .context-code {
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .context-bottom {
   margin-top: 26px;
@@ -1360,7 +1367,7 @@ pre,
 }
 .project-summary dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .project-summary dd {
   margin: 0;
@@ -1387,7 +1394,7 @@ pre,
   gap: 18px;
 }
 .footer-summary {
-  font-size: 12px;
+  font-size: 0.75rem;
   min-width: 0;
 }
 .footer-summary > span {
@@ -1400,7 +1407,7 @@ pre,
 .desktop-app .create-button {
   min-height: 38px;
   padding: 9px 18px;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .setup-checklist {
   display: flex;
@@ -1503,7 +1510,7 @@ pre,
     grid-template-columns: 115px minmax(0, 1fr);
   }
   .nav-item {
-    font-size: 11px;
+    font-size: 0.6875rem;
     padding: 7px 4px;
     gap: 4px;
     white-space: normal;
@@ -1541,9 +1548,272 @@ pre,
     padding: 10px 12px;
   }
   .footer-summary {
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
   .desktop-app .create-button {
     padding: 7px 12px;
   }
+}
+
+/* The default client area is 1100x740: header56 + footer70 leave614 for each pane. */
+.overview-layout {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.desktop-app .overview-layout .field {
+  gap: 5px;
+}
+.desktop-app .overview-layout .two-columns {
+  gap: 14px;
+}
+.desktop-app .overview-layout .short-description {
+  min-height: max(35px, calc(1.6em + 14px));
+  height: max(35px, calc(1.6em + 14px));
+  max-height: 160px;
+  padding-block: 6px;
+}
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+.field-label-row > label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.overview-assistants .control-label,
+.overview-assistants .field-label-row {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+.overview-assistants .field-label-row .text-button {
+  min-height: 24px;
+  padding: 0 3px;
+}
+.overview-destination {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.overview-destination[data-github='true'] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+.overview-destination[data-github='true'] > .field {
+  order: 1;
+}
+.overview-destination .github-options {
+  display: contents;
+}
+.github-owner {
+  order: 2;
+}
+.github-visibility {
+  order: 3;
+  grid-column: 1 / -1;
+}
+.desktop-app .overview-layout .github-visibility {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 14px;
+}
+.desktop-app .overview-layout .visibility {
+  flex-direction: row;
+  flex-wrap: wrap;
+  min-height: 35px;
+  gap: 16px;
+  padding: 0;
+}
+.overview-destination > .inline-actions {
+  order: 4;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+}
+.overview-layout .destination-options {
+  align-self: stretch;
+}
+.overview-layout .destination-options button {
+  min-height: 32px;
+  flex: 1;
+}
+.connection-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.connection-actions .text-button {
+  padding: 0;
+  min-height: 28px;
+}
+.location-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+.location-row .location-control {
+  flex: 1;
+  min-height: 35px;
+}
+.desktop-app .location-control > span {
+  font-size: 0.75rem;
+}
+.location-row .recent-select {
+  flex: 0 1 150px;
+  max-width: 35%;
+}
+.desktop-app .location-row .recent-select select {
+  height: 35px;
+  min-height: 35px;
+  padding: 4px 6px;
+  font-size: 0.75rem;
+  border-color: var(--border);
+}
+.overview-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--separator);
+}
+.overview-tools .brief-details {
+  flex: 1 1 180px;
+  padding-top: 0;
+  border-top: 0;
+}
+.overview-tools .brief-details > summary {
+  padding-block: 6px;
+  min-height: 32px;
+}
+.overview-tools > .text-button {
+  min-height: 32px;
+}
+.context-description {
+  margin-top: 10px;
+}
+.context-panel .context-files {
+  max-height: 190px;
+  overflow: auto;
+  flex-shrink: 0;
+  scrollbar-gutter: stable;
+}
+.context-panel .context-code {
+  max-height: 180px;
+}
+.context-panel h4 {
+  margin-top: 18px;
+}
+.context-panel {
+  padding: 24px 20px;
+}
+.completion-content .completion-summary {
+  padding-top: 4px;
+  max-width: 1000px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.completion-summary .state-project {
+  margin-top: -6px;
+  font-size: 0.875rem;
+}
+.completion-summary .result-details {
+  margin: 0;
+  padding: 14px 0;
+  gap: 10px 16px;
+  font-size: 0.8125rem;
+}
+.completion-summary .result-link {
+  font-size: 0.8125rem;
+}
+.completion-summary .result-actions {
+  gap: 8px;
+}
+.completion-summary .result-actions button {
+  min-height: 35px;
+}
+.result-files,
+.completion-handoff {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  min-width: 0;
+}
+.result-files > summary,
+.completion-handoff > summary {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+}
+.file-count {
+  margin-left: 8px;
+  color: var(--muted);
+}
+.result-files > .file-preview {
+  padding: 14px;
+  border-top: 1px solid var(--separator);
+}
+.result-files .file-preview.workspace-panel .file-tree {
+  max-height: 180px;
+}
+.result-files .file-preview.workspace-panel .preview {
+  max-height: 280px;
+}
+.completion-summary .completion-handoff .handoff-panel {
+  padding: 14px;
+  margin-top: 0;
+  border-top: 1px solid var(--separator);
+}
+.completion-handoff > summary .help {
+  margin-left: 10px;
+}
+@media (max-height: 700px) {
+  .workspace-main {
+    padding-block: 14px;
+  }
+  .workspace-heading {
+    margin-bottom: 12px;
+  }
+  .workspace-heading .eyebrow {
+    display: none;
+  }
+  .overview-layout {
+    gap: 10px;
+  }
+  .desktop-app .app-header {
+    min-height: 50px;
+    padding-block: 7px;
+  }
+  .desktop-app .action-bar {
+    min-height: 64px;
+    padding-block: 9px;
+  }
+}
+@media (max-width: 700px) {
+  .overview-identity,
+  .overview-destination[data-github='true'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .github-visibility {
+    grid-column: 1;
+  }
+  .location-row {
+    flex-wrap: wrap;
+  }
+  .location-row .location-control {
+    flex-basis: 100%;
+  }
+}
+
+.overview-layout .visibility label {
+  min-height: 32px;
+  padding-block: 6px;
 }

@@ -12,6 +12,7 @@ export async function prepare(
   page: Page,
   failPublish = false,
   mode: 'simple' | 'advanced' = 'advanced',
+  expectReady = true,
 ) {
   await page.addInitScript({
     content: `${mockSource}
@@ -28,7 +29,11 @@ export async function prepare(
     const builtIns = [ ['default', 'Default', ['os','secrets']], ['blank', 'Blank repository', []], ['tauri', 'Tauri application', ['os','secrets','node','vite','typescript','rust','tauri']], ['python', 'Python project', ['os','secrets','python']], ['standard','Standard',['os','secrets']],['experiment','Experiment',['os','secrets']],['website','Website',['os','secrets','node','frontend']],['desktop','Desktop Application',['os','secrets']],['claude-experiment','Claude Experiment',['os','secrets']] ].map(([id,name,ids]) => ({id,name,description:'Reusable '+name+' workflow',configuration:{readme:id==='blank'?'none':'general',options:{...structuredClone(options),ignorePresets:ids},brief:structuredClone(brief),handoffTemplate:'discovery',visibility:'private'}}));
     for(const preset of builtIns) preset.configuration.options.ai.instructions.technologies = studio.technologies.filter(t=>t.projectPresets.includes(preset.id)).map(t=>t.id);
     builtIns.find(p=>p.id==='claude-experiment').configuration.options.ai = {...structuredClone(options.ai),enabled:true,agents:['claude']};
+    builtIns.find(p=>p.id==='website').configuration.handoffTemplate = 'architecture';
     const preferences = { schemaVersion: 4, experienceMode:'${mode}', parentPath: 'C:\\\\Projects', destination: 'local', appearance: 'system', defaults: configuration, customPresets: [], instructionPresets:[],specialistLibrary:[],recoveryNotice:null,recentLocations: [] };
+    if(window.testRecentLocations) preferences.recentLocations=window.testRecentLocations;
+    if(window.testPreferredTemplate) preferences.defaults={...structuredClone(configuration),handoffTemplate:window.testPreferredTemplate};
+    if(window.testPersistPreferences && sessionStorage.getItem('testPreferences')) Object.assign(preferences,JSON.parse(sessionStorage.getItem('testPreferences')));
     let attempts = 0;
     let lastRequest;
     function validateBrief(value) {
@@ -59,13 +64,22 @@ export async function prepare(
           }
         }
       }
+      for(let index=0;index<(window.testExtraFiles||0);index++) files.push({path:'generated/nested/file-'+index+'.md',content:'Generated preview '+index});
       return files;
     }
     mockIPC(async (command, payload) => {
       window.testCalls.push({ command, payload });
+      try {
+      if(command==='get_catalog' && sessionStorage.getItem('failBootstrap')==='true') throw {message:'Could not load saved settings.',guidance:'Retry loading the application.'};
       if (command === 'get_catalog') return {studio,ignorePresets: ignores,builtInPresets: builtIns,defaultConfiguration: configuration};
       if (command === 'get_preferences') return structuredClone(preferences);
-      if (command === 'check_environment') return { gitInstalled:true,identityReady:true,ghInstalled:true,githubUser:'octocat',githubOwners:['octocat','sample-org'],identityName:'Test Author',vscodeAvailable:false,...window.testEnvironment };
+      if (command === 'check_environment') {
+        if(window.testEnvironmentError) throw {message:'Could not inspect local tools.',guidance:'Recheck your setup.'};
+        const queued=window.testEnvironmentQueue?.shift();
+        const result={gitInstalled:true,identityReady:true,ghInstalled:true,githubUser:'octocat',githubOwners:['octocat','sample-org'],identityName:'Test Author',vscodeAvailable:false,...window.testEnvironment,...queued?.environment};
+        if(queued?.delay) await new Promise(resolve=>setTimeout(resolve,queued.delay));
+        return result;
+      }
       if (command === 'choose_parent') return null;
       if (command === 'preview_files') { validateBrief(payload.request); return preview(payload.request); }
       if (command === 'save_configuration') { validateBrief(payload.configuration); preferences.defaults = payload.configuration; }
@@ -102,12 +116,15 @@ export async function prepare(
         attempts++; lastRequest=payload?.request || lastRequest;
         await new Promise(resolve => setTimeout(resolve, 240));
         if (${failPublish} && attempts === 1) throw { message:'The GitHub repository exists, but the initial commit could not be pushed.',guidance:'Your local repository and commit are safe. Check your connection, then retry publishing.',localPath:'C:\\\\Projects\\\\fresh-start',localReady:true,canRetry:true,githubUrl:'https://github.com/octocat/fresh-start' };
-        return { name:lastRequest.name,path:'C:\\\\Projects\\\\fresh-start',githubUrl:lastRequest.destination==='github'?'https://github.com/octocat/fresh-start':null,commit:'a'.repeat(40),branch:lastRequest.options.initialBranch,commitMessage:lastRequest.options.commitMessage,files:preview(lastRequest).map(f=>f.path),warnings:[] };
+        return { name:lastRequest.name,path:preferences.parentPath+String.fromCharCode(92)+lastRequest.name,githubUrl:lastRequest.destination==='github'?'https://github.com/octocat/'+lastRequest.name:null,commit:'a'.repeat(40),branch:lastRequest.options.initialBranch,commitMessage:lastRequest.options.commitMessage,files:preview(lastRequest).map(f=>f.path),warnings:[] };
+      }
+      } finally {
+        if(window.testPersistPreferences) sessionStorage.setItem('testPreferences',JSON.stringify(preferences));
       }
     }, { shouldMockEvents: true });`,
   });
   await page.goto('/');
-  await expect(page.getByText('Git ready', { exact: true })).toBeVisible();
+  if (expectReady) await expect(page.getByText('Git ready', { exact: true })).toBeVisible();
 }
 
 export async function navigate(page: Page, name: string) {
