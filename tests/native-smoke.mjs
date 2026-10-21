@@ -6,6 +6,7 @@ import { mkdir, mkdtemp, readFile, writeFile, unlink, rm } from 'node:fs/promise
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { verifyExpandedScrolling, scrollSizes } from './scrolling.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const temporaryRoot = path.resolve(os.tmpdir());
@@ -71,6 +72,39 @@ try {
   let preferences = await invoke('get_preferences');
   assert.equal(preferences.schemaVersion, 2);
   assert.equal(preferences.parentPath.replace(/^\\\\\?\\/, ''), parent);
+
+  assert.deepEqual(preferences.defaults.options.ignorePresets, ['os', 'secrets']);
+  await page.getByLabel('Project name').fill('scroll-check');
+  await page.getByLabel('Project preset').selectOption('tauri');
+  await page.getByLabel('README', { exact: true }).selectOption('custom');
+  await page.locator('.advanced-panel > summary').click();
+  for (const name of ['Features', 'Installation', 'Contributing']) {
+    await page.getByRole('checkbox', { name, exact: true }).check();
+  }
+  await page.getByLabel('License type').selectOption('Apache-2.0');
+  const resize = async ({ width, height }) => {
+    execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-File',
+        path.join(root, 'tests', 'resize-window.ps1'),
+        '-ProcessId',
+        String(child.pid),
+        '-Width',
+        String(width),
+        '-Height',
+        String(height),
+      ],
+      { windowsHide: true },
+    );
+  };
+  await verifyExpandedScrolling(page, resize);
+  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.1-scroll-bottom.png') });
+  for (const selector of ['.ignore-panel', '.advanced-panel', '.file-preview']) {
+    await page.locator(`${selector} > summary`).click();
+  }
+  await resize(scrollSizes[0]);
 
   await page.getByLabel('Project name').fill('native-smoke');
   await page
@@ -192,6 +226,9 @@ try {
     checks: [
       'Production WebView and native IPC',
       'Legacy settings migration',
+      'Safe fresh ignore defaults',
+      'Expanded scrolling at default, minimum, wide and tall native window sizes',
+      'Wheel, fractional touchpad deltas, keyboard, scrollbar drag and preview scroll chaining',
       'Native light/dark appearance',
       'Custom preset save/rename/delete',
       'Custom README, MIT license and optional files',

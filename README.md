@@ -125,6 +125,8 @@ cargo test --manifest-path src-tauri/Cargo.toml --locked
 
 Native tests create actual temporary Git repositories and verify generation, custom branches and commits, real ignore behaviour, canonical license content, migration/persistence, preset lifecycle, existing-directory protection, safe GitHub command construction and simulated partial failures. Browser tests use Tauri's official IPC mock and installed Edge to check light/dark layout, resizing, accessible controls, advanced settings, presets and recovery. Automated tests never create real GitHub repositories.
 
+Scrolling regressions expand all configuration panels at 540×780 (default), 440×560 (minimum), 900×620 and 640×1000. They check wheel input, fractional pixel deltas representing touchpad input, keyboard navigation, native scrollbar dragging, disclosure changes, unclipped controls and the fixed Create Repository bar. Settings share one main scrollbar; code previews retain independent scrolling. Fresh OS/environment ignore defaults and explicit saved selections are covered separately.
+
 After building, an opt-in smoke test exercises the production executable through its real WebView2 and Rust commands:
 
 ```powershell
@@ -132,6 +134,8 @@ node tests/native-smoke.mjs
 ```
 
 Close other Repo Creator instances first. The test backs up/restores the actual harmless settings file, uses temporary local project directories, checks preview/output equality, licenses, custom Git settings, native preset persistence, empty commits and both themes, then removes its temporary directories. A compact report and a few inspection screenshots remain in ignored `artifacts/`. The debugging port is enabled only in the launched test process; normal release launches do not enable it.
+
+The smoke test also runs the scrolling regressions in the production WebView2, resizing its owned native window to each supported test size through `tests/resize-window.ps1`.
 
 ### Code layout
 

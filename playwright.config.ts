@@ -7,6 +7,8 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:1420',
     viewport: { width: 540, height: 780 },
     channel: 'msedge',
+    // Keep native scrollbars available for the pointer-drag regression in headless Edge.
+    launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] },
     trace: 'retain-on-failure',
   },
   projects: [

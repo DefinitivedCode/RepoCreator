@@ -715,6 +715,56 @@ fn presets_can_be_saved_loaded_renamed_and_deleted_with_atomic_persistence() {
 }
 
 #[test]
+fn fresh_ignore_defaults_are_safe_without_overriding_saved_choices() {
+    let temp = tempfile::tempdir().unwrap();
+    let file = temp.path().join("preferences.json");
+    let fresh = Preferences::load(&file, temp.path().into());
+    assert_eq!(
+        fresh.defaults.options.ignore_presets,
+        args(&["os", "secrets"])
+    );
+    let rules = render_gitignore(&fresh.defaults.options).unwrap();
+    for pattern in [
+        ".DS_Store",
+        "Thumbs.db",
+        "Desktop.ini",
+        ".env",
+        ".env.*",
+        "!.env.example",
+        "!.env.sample",
+        "!.env.template",
+    ] {
+        assert!(
+            rules.lines().any(|line| line == pattern),
+            "Missing {pattern}"
+        );
+    }
+    let missing: Configuration = serde_json::from_str(r#"{"options":{}}"#).unwrap();
+    assert_eq!(missing.options.ignore_presets, args(&["os", "secrets"]));
+    let explicit: Configuration =
+        serde_json::from_str(r#"{"options":{"ignorePresets":[]}}"#).unwrap();
+    assert!(explicit.options.ignore_presets.is_empty());
+
+    for choice in [vec![], args(&["rust"])] {
+        let mut preferences = Preferences::new(temp.path().into());
+        preferences.defaults.options.ignore_presets = choice.clone();
+        preferences
+            .save_preset("My explicit choices".into(), preferences.defaults.clone())
+            .unwrap();
+        preferences.save(&file).unwrap();
+        let restored = Preferences::load(&file, temp.path().into());
+        assert_eq!(restored.defaults.options.ignore_presets, choice);
+        assert_eq!(
+            restored.custom_presets[0]
+                .configuration
+                .options
+                .ignore_presets,
+            choice
+        );
+    }
+}
+
+#[test]
 fn settings_migrate_v1_and_survive_malformed_fields_and_future_versions() {
     let temp = tempfile::tempdir().unwrap();
     let file = temp.path().join("preferences.json");

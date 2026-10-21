@@ -57,7 +57,7 @@ export default function App() {
             void creator.execute();
           }}
         >
-          <main className="content">
+          <main className="content" tabIndex={0} aria-label="Repository configuration">
             <div className="content-inner">
               <div className="section-title">
                 <h2>New repository</h2>

@@ -1,11 +1,27 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
+import { verifyExpandedScrolling } from './scrolling.mjs';
 
 const mockSource = readFileSync('node_modules/@tauri-apps/api/mocks.js', 'utf8').replace(
   /^export \{[^\n]*\};\s*$/m,
   '',
 );
 const ignores = JSON.parse(readFileSync('src-tauri/resources/ignore-presets.json', 'utf8'));
+
+test('expanded settings retain one page scroller and a fixed action bar', async ({ page }) => {
+  test.setTimeout(60_000);
+  await prepare(page);
+  await page.getByLabel('Project name').fill('scroll-check');
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click();
+  await page.getByLabel('Project preset').selectOption('tauri');
+  await page.getByLabel('README', { exact: true }).selectOption('custom');
+  await page.locator('.advanced-panel > summary').click();
+  for (const name of ['Features', 'Installation', 'Contributing']) {
+    await page.getByRole('checkbox', { name, exact: true }).check();
+  }
+  await page.getByLabel('License type').selectOption('Apache-2.0');
+  await verifyExpandedScrolling(page);
+});
 
 async function prepare(page: Page, failPublish = false) {
   await page.addInitScript({
@@ -119,10 +135,23 @@ test('custom presets save, load, rename and require confirmation before deletion
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await prepare(page);
+  await page.locator('.ignore-panel > summary').click();
+  const osJunk = page.getByLabel('Operating system files', { exact: true });
+  const secrets = page.getByLabel('Environment & local secrets', { exact: true });
+  await expect(osJunk).toBeChecked();
+  await expect(secrets).toBeChecked();
+  await osJunk.uncheck();
+  await secrets.uncheck();
   await page.getByRole('button', { name: 'Manage…' }).click();
   await page.getByLabel('Save current configuration as').fill('My tools');
   await page.getByRole('button', { name: 'Save preset', exact: true }).click();
   await expect(page.getByLabel('Project preset')).toHaveValue('custom-1');
+  await page.getByLabel('Project preset').selectOption('tauri');
+  await expect(osJunk).toBeChecked();
+  await expect(secrets).toBeChecked();
+  await page.getByLabel('Project preset').selectOption('custom-1');
+  await expect(osJunk).not.toBeChecked();
+  await expect(secrets).not.toBeChecked();
   await page.getByRole('button', { name: 'Manage…' }).click();
   await page.getByRole('button', { name: 'Rename', exact: true }).click();
   await page.getByLabel('Rename preset').fill('Team tools');
