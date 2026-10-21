@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible application or installation problem.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Review screenshots and error text for private paths, account information and credentials before submitting. Do not attach complete settings or authentication output. Follow SECURITY.md for vulnerabilities.
+  - type: input
+    id: version
+    attributes:
+      label: Version and package
+      description: App version, installer or test artifact, and commit if known.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and architecture
+      description: Windows x64, macOS Apple Silicon or macOS Intel, including OS version.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the mode, preset and operation using generic demonstration data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and error
+      description: Include the displayed error or warning. Redact sensitive information.
+    validations:
+      required: true

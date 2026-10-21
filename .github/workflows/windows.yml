@@ -5,15 +5,51 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      build_ref:
+        type: string
+        default: ''
+      expected_version:
+        type: string
+        default: ''
+      release_tag:
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.build_ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test scripts/release.test.mjs scripts/build-desktop.test.mjs scripts/licensing.test.mjs
+      - run: node scripts/third-party-notices.mjs --check
+      - name: Verify application versions
+        id: version
+        env:
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: node scripts/release.mjs version --version "$EXPECTED_VERSION" --tag "$RELEASE_TAG"
+
   windows:
+    needs: version
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.build_ref || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -41,16 +77,25 @@ jobs:
           if (-not (Test-Path -LiteralPath "$release/repo-creator.exe")) { throw 'Missing executable' }
           if (-not (Get-ChildItem "$release/bundle/nsis/*-setup.exe")) { throw 'Missing NSIS installer' }
           if (-not (Get-ChildItem "$release/bundle/msi/*.msi")) { throw 'Missing MSI installer' }
+          $msi = @(Get-ChildItem "$release/bundle/msi/*.msi")
+          if ($msi.Count -ne 1) { throw 'Expected one MSI installer' }
+          ./scripts/verify-windows-notices.ps1 -Msi $msi[0].FullName -ReleaseDirectory $release
+      - name: Package versioned Windows assets and checksums
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: node scripts/release.mjs package --version "$env:VERSION" --platform windows --architecture x64 --source src-tauri/target/x86_64-pc-windows-msvc/release --output artifacts/distribution
       - uses: actions/upload-artifact@v4
         with:
-          name: Repo-Creator-Windows-x64
+          name: Repo-Creator-${{ needs.version.outputs.version }}-windows-x64
           if-no-files-found: error
           path: |
-            src-tauri/target/x86_64-pc-windows-msvc/release/repo-creator.exe
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+            artifacts/distribution/Repo-Creator-*.exe
+            artifacts/distribution/Repo-Creator-*.msi
+            artifacts/distribution/Repo-Creator-*.zip
+            artifacts/distribution/SHA256SUMS-*.txt
 
   macos:
+    needs: version
     name: macOS ${{ matrix.architecture }}
     strategy:
       fail-fast: false
@@ -61,13 +106,18 @@ jobs:
             target: aarch64-apple-darwin
             architecture: Apple-Silicon
             machine_arch: arm64
+            asset_arch: arm64
           - runner: macos-15-intel
             target: x86_64-apple-darwin
             architecture: Intel
             machine_arch: x86_64
+            asset_arch: x64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.build_ref || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -94,7 +144,6 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
           EXPECTED_ARCH: ${{ matrix.machine_arch }}
-          ARTIFACT_ARCH: ${{ matrix.architecture }}
         run: |
           set -euo pipefail
           bundle="src-tauri/target/$TARGET/release/bundle"
@@ -102,13 +151,21 @@ jobs:
           test -d "$app"
           test "$(lipo -archs "$app/Contents/MacOS/repo-creator")" = "$EXPECTED_ARCH"
           codesign --verify --deep --strict --verbose=2 "$app"
-          mkdir -p artifacts/macos
-          tar -czf "artifacts/macos/Repo-Creator-$ARTIFACT_ARCH.app.tar.gz" -C "$bundle/macos" 'Repo Creator.app'
+          cmp LICENSE "$app/Contents/Resources/LICENSE"
+          cmp THIRD_PARTY_NOTICES.txt "$app/Contents/Resources/THIRD_PARTY_NOTICES.txt"
           find "$bundle/dmg" -name '*.dmg' -type f -size +0c | grep -q .
-          cp "$bundle"/dmg/*.dmg artifacts/macos/
           printf 'Ad-hoc signed, not notarized. Architecture: %s. A physical Mac launch remains to be tested.\n' "$EXPECTED_ARCH" >> "$GITHUB_STEP_SUMMARY"
+      - name: Package versioned Mac assets and checksums
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          TARGET: ${{ matrix.target }}
+          ASSET_ARCH: ${{ matrix.asset_arch }}
+        run: node scripts/release.mjs package --version "$VERSION" --platform macos --architecture "$ASSET_ARCH" --source "src-tauri/target/$TARGET/release/bundle" --output artifacts/distribution
       - uses: actions/upload-artifact@v4
         with:
-          name: Repo-Creator-macOS-${{ matrix.architecture }}
+          name: Repo-Creator-${{ needs.version.outputs.version }}-macos-${{ matrix.asset_arch }}
           if-no-files-found: error
-          path: artifacts/macos/*
+          path: |
+            artifacts/distribution/Repo-Creator-*.dmg
+            artifacts/distribution/Repo-Creator-*.tar.gz
+            artifacts/distribution/SHA256SUMS-*.txt

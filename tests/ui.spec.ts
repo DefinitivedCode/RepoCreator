@@ -413,7 +413,7 @@ test('ordinary Overview fits the default window across display ratios and enlarg
     }
     if (scale === 1) {
       mkdirSync('artifacts', { recursive: true });
-      await page.screenshot({ path: `artifacts/v1.3.1-zero-scroll-${info.project.name}.png` });
+      await page.screenshot({ path: `artifacts/v1.3.2-zero-scroll-${info.project.name}.png` });
     } else {
       // This emulates increased text size; it does not change the host OS display setting.
       await page.evaluate(
@@ -461,7 +461,7 @@ test('ordinary Overview fits the default window across display ratios and enlarg
       expect(geometry.navOverflow).toBeLessThanOrEqual(1);
       expect(geometry.width).toBeLessThanOrEqual(geometry.viewport);
       await page.screenshot({
-        path: `artifacts/v1.3.1-text-${scale * 100}-${info.project.name}.png`,
+        path: `artifacts/v1.3.2-text-${scale * 100}-${info.project.name}.png`,
       });
       if (scale === 1.5) {
         await page.setViewportSize({ width: 820, height: 580 });
@@ -485,7 +485,7 @@ test('ordinary Overview fits the default window across display ratios and enlarg
             await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
           ).toBeLessThanOrEqual(0);
           await page.screenshot({
-            path: `artifacts/v1.3.1-text-150-minimum-${mode}-${info.project.name}.png`,
+            path: `artifacts/v1.3.2-text-150-minimum-${mode}-${info.project.name}.png`,
           });
         }
       }
@@ -618,7 +618,7 @@ test('success keeps confirmed facts and actions visible with a hundred generated
   });
   await expect(page.locator('.result-details')).toContainText('Initial commit');
   await expect(page.getByRole('button', { name: 'Create Another' })).toBeInViewport({ ratio: 1 });
-  await page.screenshot({ path: `artifacts/v1.3.1-success-100-${info.project.name}.png` });
+  await page.screenshot({ path: `artifacts/v1.3.2-success-100-${info.project.name}.png` });
   await page.locator('.result-files > summary').click();
   expect(
     await page

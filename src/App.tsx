@@ -66,7 +66,7 @@ export default function App() {
         <div className="app-title">
           <Icon name="repo" size={19} />
           <h1>Repo Creator</h1>
-          <span className="version">1.3.1</span>
+          <span className="version">1.3.2</span>
         </div>
         <div className="header-actions">
           <div className="segmented mode-switch" role="group" aria-label="Experience mode">

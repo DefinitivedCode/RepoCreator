@@ -12,3 +12,13 @@ playwright-report/
 .vscode/
 /preferences.json
 /preferences.json.bak
+.env
+.env.*
+!.env.example
+!.env.sample
+/window.json
+/history.json
+*.pfx
+*.p12
+Thumbs.db
+Desktop.ini

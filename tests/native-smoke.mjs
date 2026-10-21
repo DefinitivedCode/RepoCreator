@@ -13,13 +13,13 @@ import { configureNativeStudio } from './native-studio.mjs';
 assert.equal(process.platform, 'win32', 'This smoke test requires Windows WebView2');
 const root = path.resolve(import.meta.dirname, '..');
 const temporaryRoot = path.resolve(os.tmpdir());
-const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.3.1-'));
+const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.3.2-'));
 const parent = path.join(temporary, 'Projects with spaces 日本語');
 const settingsDirectory = path.join(temporary, 'isolated-app-data');
 const executable =
   process.env.REPO_CREATOR_SMOKE_EXE ||
   path.join(root, 'src-tauri', 'target', 'release', 'repo-creator.exe');
-const screenshots = path.join(root, 'artifacts', 'native-v1.3.1');
+const screenshots = path.join(root, 'artifacts', 'native-v1.3.2');
 const names = ['preferences.json', 'preferences.json.bak', 'history.json', 'window.json'];
 const backups = new Map();
 let child,
@@ -562,7 +562,7 @@ try {
     if (error.code !== 'ENOENT') throw error;
   });
   const report = {
-    version: '1.3.1',
+    version: '1.3.2',
     checks: [
       'Production WebView2 and native IPC',
       'Simple Blank empty initial commit',
@@ -621,7 +621,7 @@ try {
   const resolved = path.resolve(temporary);
   check(
     path.dirname(resolved) === temporaryRoot &&
-      path.basename(resolved).startsWith('repo-creator-v1.3.1-'),
+      path.basename(resolved).startsWith('repo-creator-v1.3.2-'),
     'Refusing unexpected cleanup path',
   );
   await rm(resolved, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 });
