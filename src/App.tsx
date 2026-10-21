@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Icon } from './icons';
 import { AdvancedPanel, FilePreview, IgnorePanel } from './ConfigurationPanels';
 import { PresetDialog } from './PresetDialog';
+import { AgentStudio } from './AgentStudio';
 import { useCreator, type Creator } from './useCreator';
 import { displayPath, formError, nameError, optionsError } from './validation';
 import { stages, type Appearance, type Readme } from './types';
@@ -305,8 +306,10 @@ export default function App() {
                     creator={creator}
                     recommendation={selectedPreset?.configuration.options.ignorePresets}
                   />
+                  <AgentStudio creator={creator} />
                   <AdvancedPanel creator={creator} />
                   <FilePreview
+                    name={form.name || 'project-name'}
                     files={creator.files}
                     loading={creator.previewing}
                     error={creator.previewError}

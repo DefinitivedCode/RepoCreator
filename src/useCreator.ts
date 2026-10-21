@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { appError, blankForm, formError, nameError, optionsError } from './validation';
+import {
+  appError,
+  blankForm,
+  configurationOf,
+  formError,
+  nameError,
+  optionsError,
+} from './validation';
 import type {
   AppError,
   Appearance,
@@ -74,6 +81,7 @@ export function useCreator() {
         if (!active) return;
         setCatalog(catalog);
         setPreferences(preferences);
+        if (preferences.recoveryNotice) setNotice(preferences.recoveryNotice);
         setForm(
           blankForm(preferences.defaults ?? catalog.defaultConfiguration, preferences.destination),
         );
@@ -121,14 +129,22 @@ export function useCreator() {
   }, [form, busy, state.kind]);
 
   useEffect(() => {
-    if (!form || busy || optionsError(form.options)) return;
+    if (!form || busy || previewing || previewError || optionsError(form.options)) return;
     const timer = setTimeout(() => {
       void invoke('save_configuration', {
-        configuration: { readme: form.readme, options: form.options },
+        configuration: configurationOf(form),
       }).catch((value) => setNotice(appError(value).message));
     }, 600);
     return () => clearTimeout(timer);
-  }, [form?.readme, form?.options, busy]);
+  }, [
+    form?.readme,
+    form?.options,
+    form?.destination,
+    form?.visibility,
+    busy,
+    previewing,
+    previewError,
+  ]);
 
   const update = <K extends keyof RepositoryForm>(key: K, value: RepositoryForm[K]) => {
     setForm((form) => (form ? { ...form, [key]: value } : form));
@@ -139,6 +155,12 @@ export function useCreator() {
     if (!copy.options.copyrightName && environment?.identityName)
       copy.options.copyrightName = environment.identityName;
     setForm((form) => (form ? { ...form, ...copy } : form));
+    if (copy.destination) {
+      void invoke('set_destination', { destination: copy.destination }).catch((value) =>
+        setNotice(appError(value).message),
+      );
+      void refresh(copy.destination === 'github');
+    }
     setError(null);
   };
   async function destination(value: RepositoryForm['destination']) {
@@ -187,7 +209,14 @@ export function useCreator() {
     environment.identityReady &&
     (form?.destination !== 'github' || (!!environment.ghInstalled && !!environment.githubUser));
   const ready =
-    !!form && !formError(form) && !!preferences?.parentPath && setupReady && !picking && !busy;
+    !!form &&
+    !formError(form) &&
+    !previewError &&
+    !previewing &&
+    !!preferences?.parentPath &&
+    setupReady &&
+    !picking &&
+    !busy;
   async function execute(retry = false) {
     if (locked.current || (!retry && !ready)) return;
     locked.current = true;
@@ -242,6 +271,26 @@ export function useCreator() {
     );
     return customPresets;
   }
+  async function studioAction<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+    setPicking(true);
+    try {
+      const result = await invoke<T>(command, args);
+      if (
+        [
+          'save_instruction_preset',
+          'delete_instruction_preset',
+          'save_specialist',
+          'delete_specialist',
+          'import_instruction_preset',
+        ].includes(command)
+      ) {
+        setPreferences(await invoke<Preferences>('get_preferences'));
+      }
+      return result;
+    } finally {
+      setPicking(false);
+    }
+  }
   function reset() {
     setState({ kind: 'form' });
     setError(null);
@@ -285,6 +334,7 @@ export function useCreator() {
     action,
     connect,
     managePreset,
+    studioAction,
     reset,
     copy,
     refresh,

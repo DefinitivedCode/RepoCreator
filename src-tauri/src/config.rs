@@ -66,6 +66,7 @@ pub struct PostActions {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectOptions {
+    pub ai: crate::ai::AiStudio,
     pub readme_sections: Vec<String>,
     pub section_content: BTreeMap<String, String>,
     pub ignore_presets: Vec<String>,
@@ -82,6 +83,7 @@ pub struct ProjectOptions {
 impl Default for ProjectOptions {
     fn default() -> Self {
         Self {
+            ai: crate::ai::AiStudio::default(),
             readme_sections: vec![
                 "overview".into(),
                 "usage".into(),
@@ -108,6 +110,10 @@ impl Default for ProjectOptions {
 pub struct Configuration {
     pub readme: Readme,
     pub options: ProjectOptions,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination: Option<crate::model::Destination>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<crate::model::Visibility>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -176,7 +182,7 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
     definitions
         .iter()
         .map(|(id, name, ignores, editorconfig, attributes)| {
-            let options = ProjectOptions {
+            let mut options = ProjectOptions {
                 ignore_presets: ignores.iter().map(|s| (*s).into()).collect(),
                 editorconfig: *editorconfig,
                 gitattributes: *attributes,
@@ -193,6 +199,12 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
                 },
                 ..Default::default()
             };
+            options.ai.instructions.technologies = crate::ai::catalog()
+                .technologies
+                .iter()
+                .filter(|t| t.project_presets.iter().any(|p| p == id))
+                .map(|t| t.id.clone())
+                .collect();
             ProjectPreset {
                 id: (*id).into(),
                 name: (*name).into(),
@@ -203,6 +215,7 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
                         Readme::General
                     },
                     options,
+                    ..Default::default()
                 },
             }
         })
@@ -232,6 +245,7 @@ pub fn validate_branch(branch: &str) -> Result<(), AppError> {
 }
 
 pub fn validate_options(options: &ProjectOptions) -> Result<(), AppError> {
+    crate::ai::validate(&options.ai)?;
     let fail = |message| {
         AppError::new(
             message,

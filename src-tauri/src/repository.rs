@@ -68,6 +68,8 @@ pub fn begin(
     request: CreateRequest,
 ) -> Result<PendingRepo, AppError> {
     validate_request(&request)?;
+    // Validate the complete file tree and configuration formats before creating a folder.
+    generate_files(&request)?;
     let parent = parent.canonicalize().map_err(|_| {
         AppError::new(
             "The project location is unavailable.",
@@ -174,7 +176,49 @@ pub fn create_local(
     progress: &dyn Fn(&str),
 ) -> Result<(), AppError> {
     progress("readme");
-    for generated in generate_files(&pending.request)? {
+    let generated_files = generate_files(&pending.request)?;
+    for generated in &generated_files {
+        let relative = Path::new(&generated.path);
+        let mut directory = pending.path.clone();
+        if let Some(parent) = relative.parent() {
+            for component in parent.components() {
+                directory.push(component);
+                match fs::create_dir(&directory) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+                    Err(_) => {
+                        return Err(AppError::new(
+                            "Could not create a generated-file directory.",
+                            "Check permissions and available disk space.",
+                        ))
+                    }
+                }
+                let metadata = fs::symlink_metadata(&directory).map_err(|_| {
+                    AppError::new(
+                        "Could not inspect the generated directory.",
+                        "The new project is preserved.",
+                    )
+                })?;
+                #[cfg(windows)]
+                let reparse = {
+                    use std::os::windows::fs::MetadataExt;
+                    metadata.file_attributes() & 0x400 != 0
+                };
+                #[cfg(not(windows))]
+                let reparse = metadata.file_type().is_symlink();
+                if !metadata.is_dir()
+                    || reparse
+                    || !directory
+                        .canonicalize()
+                        .is_ok_and(|p| p.starts_with(&pending.path))
+                {
+                    return Err(AppError::new(
+                        "A generated-file directory changed unexpectedly.",
+                        "No existing files will be overwritten. Inspect the preserved project.",
+                    ));
+                }
+            }
+        }
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -219,12 +263,18 @@ pub fn create_local(
         )?;
     }
     git(runner, &pending.path, &["var", "GIT_AUTHOR_IDENT"], "Git could not resolve your commit identity. Set user.name and user.email for this location.")?;
-    git(
-        runner,
-        &pending.path,
-        &["add", "--all", "--", "."],
-        "Could not stage the project files.",
-    )?;
+    if !generated_files.is_empty() {
+        // Stage only explicitly selected generated files, including project configs that a
+        // broad global ignore might otherwise hide. Never stage unrelated runtime files.
+        let mut values = vec!["add", "--force", "--"];
+        values.extend(generated_files.iter().map(|f| f.path.as_str()));
+        git(
+            runner,
+            &pending.path,
+            &values,
+            "Could not stage the selected project files.",
+        )?;
+    }
     progress("commit");
     git(
         runner,

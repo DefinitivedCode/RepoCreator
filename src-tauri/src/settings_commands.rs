@@ -14,6 +14,7 @@ use tauri::{Manager, State};
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Catalog {
+    studio: crate::ai::StudioCatalog,
     ignore_presets: Vec<IgnorePreset>,
     built_in_presets: Vec<ProjectPreset>,
     default_configuration: Configuration,
@@ -21,6 +22,7 @@ pub struct Catalog {
 #[tauri::command]
 pub fn get_catalog() -> Catalog {
     Catalog {
+        studio: crate::ai::catalog().clone(),
         ignore_presets: generation::ignore_catalog(),
         built_in_presets: config::built_in_presets(),
         default_configuration: Configuration::default(),

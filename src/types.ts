@@ -1,3 +1,4 @@
+import type { AIStudio, SavedInstructions, Specialist, StudioCatalog } from './aiTypes';
 export type Destination = 'local' | 'github';
 export type Readme = 'general' | 'minimal' | 'none' | 'custom';
 export type Visibility = 'private' | 'public';
@@ -14,6 +15,7 @@ export const readmeSections = [
 ] as const;
 export type ReadmeSection = (typeof readmeSections)[number];
 export interface ProjectOptions {
+  ai: AIStudio;
   readmeSections: ReadmeSection[];
   sectionContent: Partial<Record<ReadmeSection, string>>;
   ignorePresets: string[];
@@ -28,6 +30,8 @@ export interface ProjectOptions {
   postActions: { folder: boolean; vscode: boolean; github: boolean };
 }
 export interface Configuration {
+  destination?: Destination;
+  visibility?: Visibility;
   readme: Readme;
   options: ProjectOptions;
 }
@@ -54,6 +58,7 @@ export interface IgnorePreset {
   patterns: string[];
 }
 export interface Catalog {
+  studio: StudioCatalog;
   ignorePresets: IgnorePreset[];
   builtInPresets: ProjectPreset[];
   defaultConfiguration: Configuration;
@@ -63,6 +68,9 @@ export interface GeneratedFile {
   content: string;
 }
 export interface Preferences {
+  instructionPresets: SavedInstructions[];
+  specialistLibrary: Specialist[];
+  recoveryNotice: string | null;
   schemaVersion: number;
   parentPath: string;
   destination: Destination;

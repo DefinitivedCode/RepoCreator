@@ -185,5 +185,7 @@ pub fn generate_files(request: &CreateRequest) -> Result<Vec<GeneratedFile>, App
     if request.options.gitattributes {
         add(".gitattributes", Some("* text=auto\n\n*.png binary\n*.jpg binary\n*.jpeg binary\n*.gif binary\n*.ico binary\n*.pdf binary\n".into()));
     }
+    files.extend(crate::ai::generator::generate(request)?);
+    crate::ai::generator::validate_files(&files)?;
     Ok(files)
 }

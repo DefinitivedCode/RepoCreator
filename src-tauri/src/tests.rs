@@ -22,7 +22,7 @@ fn request(readme: Readme) -> CreateRequest {
     request
 }
 
-struct IsolatedGit;
+pub(crate) struct IsolatedGit;
 impl Runner for IsolatedGit {
     fn run(&self, program: Program, values: &[String], cwd: &Path) -> Result<Output, String> {
         assert_eq!(program, Program::Git, "Local mode must never invoke GitHub");
@@ -684,6 +684,7 @@ fn presets_can_be_saved_loaded_renamed_and_deleted_with_atomic_persistence() {
             ignore_presets: args(&["python", "secrets"]),
             ..Default::default()
         },
+        ..Default::default()
     };
     let id = preferences
         .save_preset("Python tools".into(), configuration)
@@ -776,7 +777,7 @@ fn settings_migrate_v1_and_survive_malformed_fields_and_future_versions() {
     let legacy = Preferences::load(&file, temp.path().into());
     assert_eq!(legacy.destination, Destination::Github);
     assert_eq!(legacy.parent_path, temp.path().canonicalize().unwrap());
-    assert_eq!(legacy.schema_version, 2);
+    assert_eq!(legacy.schema_version, 3);
     assert_eq!(legacy.defaults.options.initial_branch, "main");
     fs::write(&file, serde_json::json!({ "schemaVersion": 2, "parentPath": temp.path(), "destination": "github", "appearance": 50, "customPresets": [ {"id":"bad"} ], "defaults": { "options": {"initialBranch":"-unsafe"} } }).to_string()).unwrap();
     let partial = Preferences::load(&file, temp.path().into());

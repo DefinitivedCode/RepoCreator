@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './icons';
-import { appError } from './validation';
+import { appError, configurationOf } from './validation';
 import type { Creator } from './useCreator';
 
 export function PresetDialog({
@@ -28,9 +28,7 @@ export function PresetDialog({
     try {
       const presets = await creator.managePreset(
         editing ? 'rename_custom_preset' : 'save_custom_preset',
-        editing
-          ? { id: editing, name }
-          : { name, configuration: { readme: creator.form.readme, options: creator.form.options } },
+        editing ? { id: editing, name } : { name, configuration: configurationOf(creator.form) },
       );
       if (!editing) {
         onSaved(presets[presets.length - 1].id);
@@ -79,8 +77,8 @@ export function PresetDialog({
       </div>
       <div className="dialog-content">
         <p className="help">
-          Save file and Git settings. Project names, descriptions and GitHub credentials are not
-          saved.
+          Save destination, visibility, files, Git settings and AI Agents together. Project names,
+          descriptions and GitHub credentials are not saved.
         </p>
         <div className="field">
           <label htmlFor="preset-name">

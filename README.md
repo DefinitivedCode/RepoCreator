@@ -1,6 +1,6 @@
-# Repo Creator 1.1
+# Repo Creator 1.2.0
 
-A Windows desktop utility for creating and configuring local Git repositories, with optional GitHub publishing. Built with Tauri 2, React, TypeScript and Rust.
+A Windows desktop utility for creating local or GitHub repositories with configurable project files and AI coding-agent instructions. Built with Tauri 2, React, TypeScript and Rust. AI Agent Studio generates project-local configuration; it does not run agents or require AI credentials.
 
 ## Create a repository
 
@@ -31,6 +31,33 @@ Choose **Default**, **Blank repository**, **Web application**, **React / Vite**,
 
 All options remain editable after selection. **Manage…** lets you save the current configuration as a named preset, load it, rename it, or delete it after confirmation. **Reset configuration** restores the default configuration while retaining the project identity and location. Names, descriptions, GitHub owner details and credentials are not included in custom presets.
 
+Saved project presets now include destination, visibility and the complete AI Studio configuration alongside existing file/Git/action settings. Older v1.1 presets remain loadable and start with AI disabled. Built-in project presets recommend intended technologies without claiming to scaffold or inspect an implementation.
+
+### AI Agent Studio
+
+Expand **AI Agents**, enable **Generate AI agent files**, and select one or more tools. AI is off by default. The existing workflow remains available without generating any AI files.
+
+| Tool | Generated integration |
+| --- | --- |
+| OpenAI Codex | Shared `AGENTS.md`; optional `.codex/config.toml` and `.codex/agents/*.toml` |
+| Claude Code | `CLAUDE.md` importing `AGENTS.md`; scoped `.claude/rules/*.md`, specialist `.claude/agents/*.md`, optional settings |
+| GitHub Copilot | `.github/copilot-instructions.md`, scoped `.github/instructions/*.instructions.md`, specialist `.github/agents/*.agent.md` |
+| Cursor | Current `.cursor/rules/*.mdc`, with always-applied, file-pattern or agent-requested metadata |
+| Gemini CLI | `GEMINI.md` importing shared instructions, or optional `.gemini/settings.json` selecting `AGENTS.md` directly |
+| OpenCode | Shared `AGENTS.md`; optional `opencode.json` and `.opencode/agents/*.md` |
+
+Choose **Minimal**, **Practical**, **Strict**, **Autonomous**, **Review First**, or **Custom** as an editable starting point. Individual implementation, verification, Git, documentation, safety and communication rules each affect the generated instructions. Advanced controls edit their wording, intended technology guidance, project context and working approach. Presets select rules rather than layering contradictory fixed prompts. User-authored wording remains the user's responsibility.
+
+**Additional project instructions** accepts multiline Markdown. Save and load reusable instruction presets independently of project presets. Resetting preset rules preserves additional text. Importing UTF-8 Markdown (up to 64 KiB) asks whether to append or replace when text already exists. Import/export of portable JSON instruction presets uses native file dialogs; no remote skills or configuration are installed.
+
+Optional specialists are **Code Reviewer**, **Debugger**, **Test Engineer**, **Documentation Writer**, **Architecture Reviewer**, **Security Reviewer** and **Implementation Assistant**. Edit a copy or create a custom role with its own ID, purpose, instructions, supported targets and review-only intent. Save definitions in the local library and reuse them in configurations. Project presets embed their definitions, so deleting a library entry does not break saved configurations. Specialist output targets Codex, Claude, Copilot and OpenCode; models are inherited.
+
+Four optional task skills—**Focused Code Review**, **Debugging Workflow**, **Documentation Maintenance** and **Release Verification**—share one `.agents/skills` directory. This version limits skill generation to the verified Codex/OpenCode discovery paths. It does not generate specialist equivalents for Cursor or Gemini.
+
+Optional settings are off until selected: Codex uses on-request approval with read-only or network-disabled workspace access; Claude uses standard prompts or plan mode; Gemini can load the shared context directly; OpenCode can ask before edits and shell commands. No settings select a model, add authentication, configure an MCP server or alter home-directory agent preferences. Codex specialist permission boundaries remain inherited; its review-only role wording and disabled shell capability do not create a separate read-only sandbox.
+
+See [verified agent formats and compatibility decisions](docs/agent-formats.md) for official sources and supported boundaries.
+
 ### .gitignore
 
 Expand **.gitignore** to search and combine 18 curated presets:
@@ -52,7 +79,7 @@ README modes are **None**, **Minimal**, **General**, and **Custom**. General and
 
 License choices are **None** (default), **MIT**, **Apache-2.0**, **GPL-3.0**, **BSD-3-Clause**, and **Unlicense**. Texts are bundled from the official [SPDX License List Data v3.29.0](https://github.com/spdx/license-list-data/tree/v3.29.0/text) for offline generation. GPL-3.0 uses GPL-3.0-only. Applicable licenses require an editable copyright holder and year; the holder is initially suggested from Git identity. MIT/BSD fields are substituted; Apache/GPL retain the complete canonical text and instructional appendices, with a separate project copyright notice. Unlicense remains unchanged.
 
-Expand **File preview** to inspect the exact files that will be written, including the README, license and optional configuration files. Invalid configuration must be corrected before creation.
+Expand **File preview** to inspect a searchable file tree, generated-file count and syntax-highlighted Markdown, TOML, JSON, MDC and YAML metadata. It uses the same Rust generator as repository creation. Invalid configuration must be corrected before creation. The initial commit stages exactly the selected generated files, even if a broad local/global ignore rule matches them; unrelated runtime files are not staged.
 
 ### Advanced Git settings and actions
 
@@ -82,7 +109,7 @@ Only harmless preferences and custom configurations are stored in:
 %APPDATA%/com.definitivedcode.repocreator/preferences.json
 ```
 
-The versioned v2 settings format migrates the old location/destination format. It remembers appearance, file/Git/action preferences, custom presets and up to five native-picked recent locations. Invalid fields fall back individually. Syntactically damaged settings are backed up as `preferences.json.bak` on the next save. Settings from an unsupported future version are not overwritten. Writes use a temporary file and replacement.
+The versioned v3 settings format migrates v1 location/destination settings and v2 project presets. It remembers appearance, file/Git/action preferences, AI Studio configuration, instruction presets, specialist definitions and up to five native-picked recent locations. AI configuration has its own versioned structure. Malformed AI fields can fall back without discarding valid v1.1 file/Git settings, with a visible recovery notice. Original damaged settings are backed up before replacement; existing backups are retained. Settings from an unsupported future version are not overwritten. Writes and recovery backups use temporary files and replacement.
 
 The frontend cannot supply arbitrary output paths or executable commands. All inputs are revalidated in Rust. Git and GitHub CLI receive structured arguments with bounded output and per-command timeouts. Raw command diagnostics are not displayed or logged because they can contain credentials. A backend operation guard prevents duplicate creation, and the window refuses normal closure during an operation. Files already created are preserved after a failure or forced termination.
 
@@ -106,8 +133,8 @@ npm run desktop:build
 | Artifact | Path relative to repository root |
 | --- | --- |
 | Standalone executable | `src-tauri/target/release/repo-creator.exe` |
-| Per-user NSIS installer | `src-tauri/target/release/bundle/nsis/Repo Creator_1.1.0_x64-setup.exe` |
-| MSI installer | `src-tauri/target/release/bundle/msi/Repo Creator_1.1.0_x64_en-US.msi` |
+| Per-user NSIS installer | `src-tauri/target/release/bundle/nsis/Repo Creator_1.2.0_x64-setup.exe` |
+| MSI installer | `src-tauri/target/release/bundle/msi/Repo Creator_1.2.0_x64_en-US.msi` |
 
 The first build downloads official NSIS/WiX tools. `npm run build` checks and builds the frontend only. Generated binaries, settings and test output are excluded from source control. Windows CI runs checks and uploads the executable and installer artifacts. Builds are unsigned; code signing requires a signing certificate.
 
@@ -125,6 +152,8 @@ cargo test --manifest-path src-tauri/Cargo.toml --locked
 
 Native tests create actual temporary Git repositories and verify generation, custom branches and commits, real ignore behaviour, canonical license content, migration/persistence, preset lifecycle, existing-directory protection, safe GitHub command construction and simulated partial failures. Browser tests use Tauri's official IPC mock and installed Edge to check light/dark layout, resizing, accessible controls, advanced settings, presets and recovery. Automated tests never create real GitHub repositories.
 
+AI coverage includes all six adapters, all instruction presets and rule toggles, custom wording and Unicode, native specialist formats, scoped metadata, optional configuration, shared skill paths, deterministic previews, v1.1 migration, invalid paths/contents, and exact initial-commit contents with AI on/off. UI tests cover complete preset restore, instruction libraries, import/export calls, specialist reuse, escaped syntax previews and expanded Studio scrolling. Provider model sessions and native file-dialog interaction are not automated; import/export parsing and size limits are tested separately.
+
 Scrolling regressions expand all configuration panels at 540×780 (default), 440×560 (minimum), 900×620 and 640×1000. They check wheel input, fractional pixel deltas representing touchpad input, keyboard navigation, native scrollbar dragging, disclosure changes, unclipped controls and the fixed Create Repository bar. Settings share one main scrollbar; code previews retain independent scrolling. Fresh OS/environment ignore defaults and explicit saved selections are covered separately.
 
 After building, an opt-in smoke test exercises the production executable through its real WebView2 and Rust commands:
@@ -137,16 +166,22 @@ Close other Repo Creator instances first. The test backs up/restores the actual 
 
 The smoke test also runs the scrolling regressions in the production WebView2, resizing its owned native window to each supported test size through `tests/resize-window.ps1`.
 
+It then configures all six integrations through the real Studio, saves custom instructions and a specialist, verifies syntax preview text, creates a local repository and checks every generated file against its preview and initial commit. Existing user settings are restored afterward.
+
 ### Code layout
 
 ```text
 src/                         React interface, state, styles and inline validation
 src-tauri/src/config.rs       Configuration types, built-in presets and validation
 src-tauri/src/generation.rs   Shared preview/output generation
+src-tauri/src/ai/             AI data model, validation, adapters, library/file-dialog commands and tests
 src-tauri/src/repository.rs   Exclusive local creation and verified publication
 src-tauri/src/github.rs       GitHub CLI arguments and account/URL validation
 src-tauri/src/preferences.rs  Versioned settings and custom preset persistence
 src-tauri/src/desktop.rs      Narrow native launchers and post-creation actions
 src-tauri/resources/          Curated ignore patterns and canonical license texts
+src/AgentStudio.tsx           Studio workflow, editable instructions and reusable presets
+src/SpecialistEditor.tsx      Specialist selection, editor and local library
+src/StudioAdvanced.tsx        Context, wording, scoped rules and optional settings
 tests/                       Interface tests and production smoke test
 ```

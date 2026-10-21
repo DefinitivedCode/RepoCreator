@@ -7,10 +7,11 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { verifyExpandedScrolling, scrollSizes } from './scrolling.mjs';
+import { verifyNativeStudio } from './native-studio.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const temporaryRoot = path.resolve(os.tmpdir());
-const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.1-'));
+const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.2-'));
 const parent = path.join(temporary, 'projects');
 const config = path.join(
   process.env.APPDATA,
@@ -70,7 +71,8 @@ try {
       args,
     });
   let preferences = await invoke('get_preferences');
-  assert.equal(preferences.schemaVersion, 2);
+  assert.equal(preferences.schemaVersion, 3);
+  assert.equal(preferences.defaults.options.ai.enabled, false);
   assert.equal(preferences.parentPath.replace(/^\\\\\?\\/, ''), parent);
 
   assert.deepEqual(preferences.defaults.options.ignorePresets, ['os', 'secrets']);
@@ -100,8 +102,8 @@ try {
     );
   };
   await verifyExpandedScrolling(page, resize);
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.1-scroll-bottom.png') });
-  for (const selector of ['.ignore-panel', '.advanced-panel', '.file-preview']) {
+  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-scroll-bottom.png') });
+  for (const selector of ['.ignore-panel', '.agent-panel', '.advanced-panel', '.file-preview']) {
     await page.locator(`${selector} > summary`).click();
   }
   await resize(scrollSizes[0]);
@@ -111,9 +113,9 @@ try {
     .getByRole('textbox', { name: 'Description', exact: true })
     .fill('Verified through the production Windows application.');
   await page.getByLabel('Appearance').selectOption('dark');
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.1-dark.png') });
+  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-dark.png') });
   await page.getByLabel('Appearance').selectOption('light');
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.1-light.png') });
+  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-light.png') });
 
   await page.getByLabel('Project preset').selectOption('tauri');
   await page.getByLabel('README', { exact: true }).selectOption('custom');
@@ -126,7 +128,7 @@ try {
   await page.getByLabel('Initial branch').fill('work/start');
   await page.getByLabel('Initial commit message').fill('Start configured repository');
   await page.getByLabel('Initial branch').scrollIntoViewIfNeeded();
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.1-advanced.png') });
+  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-advanced.png') });
   await page.locator('.advanced-panel > summary').click();
   await page.locator('.ignore-panel > summary').click();
   for (const rule of ['scratch/*', '!scratch/keep.txt']) {
@@ -135,7 +137,7 @@ try {
   }
   await expect(page.getByLabel('.gitignore live preview')).toContainText('!scratch/keep.txt');
   await page.getByLabel('.gitignore live preview').scrollIntoViewIfNeeded();
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.1-gitignore.png') });
+  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-gitignore.png') });
 
   await page.getByRole('button', { name: 'Manage…' }).click();
   await page.getByLabel('Save current configuration as').fill('Smoke test preset');
@@ -190,7 +192,7 @@ try {
     );
   assert.ok(preview.some((f) => f.path === '.editorconfig'));
   assert.ok(preview.some((f) => f.path === '.gitattributes'));
-  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.1-success.png') });
+  await page.screenshot({ path: path.join(root, 'artifacts', 'native-v1.2-success.png') });
 
   await page.getByRole('button', { name: 'Create Another' }).click();
   assert.equal(await page.getByLabel('Project name').inputValue(), '');
@@ -214,15 +216,16 @@ try {
   assert.equal(git(['rev-list', '--count', 'HEAD'], emptyProject), '1');
   assert.equal(git(['branch', '--show-current'], emptyProject), 'main');
   const persisted = JSON.parse(await readFile(config, 'utf8'));
-  assert.equal(persisted.schemaVersion, 2);
+  assert.equal(persisted.schemaVersion, 3);
   assert.equal(persisted.defaults.readme, 'none');
   assert.equal(persisted.appearance, 'light');
   assert.ok(
     !JSON.stringify(persisted).includes('Verified through the production Windows application.'),
   );
+  const studio = await verifyNativeStudio({ page, invoke, git, parent, root, resize });
   assert.deepEqual(errors, []);
   const report = {
-    version: '1.1.0',
+    version: '1.2.0',
     checks: [
       'Production WebView and native IPC',
       'Legacy settings migration',
@@ -239,8 +242,14 @@ try {
       'Blank preset and empty initial commit',
       'Versioned settings persistence',
       'No JavaScript errors',
+      'Six-agent Studio, shared imports, scoped rules, specialists and skills',
+      'Instruction library and complete project-preset persistence',
+      'Expanded Studio scrolling and frame stability in the production WebView',
+      'Syntax previews equal actual generated files and all files in the initial commit',
     ],
     commit,
+    studio,
+    scrollSizes,
   };
   await writeFile(
     path.join(root, 'artifacts', 'native-smoke.json'),
@@ -258,7 +267,7 @@ try {
   const resolved = path.resolve(temporary);
   if (
     !resolved.startsWith(temporaryRoot + path.sep) ||
-    !path.basename(resolved).startsWith('repo-creator-v1.1-')
+    !path.basename(resolved).startsWith('repo-creator-v1.2-')
   )
     throw new Error('Refusing unexpected cleanup path');
   await rm(resolved, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 });

@@ -5,11 +5,11 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 
-pub const SETTINGS_VERSION: u32 = 2;
+pub const SETTINGS_VERSION: u32 = 3;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preferences {
@@ -20,10 +20,18 @@ pub struct Preferences {
     pub recent_locations: Vec<PathBuf>,
     pub defaults: Configuration,
     pub custom_presets: Vec<ProjectPreset>,
+    #[serde(default)]
+    pub instruction_presets: Vec<crate::ai::SavedInstructions>,
+    #[serde(default)]
+    pub specialist_library: Vec<crate::ai::Specialist>,
+    #[serde(default, skip_deserializing)]
+    pub recovery_notice: Option<String>,
     #[serde(skip)]
     pub future_version: bool,
     #[serde(skip)]
     pub needs_backup: bool,
+    #[serde(skip)]
+    pub(crate) backup_file: Option<PathBuf>,
 }
 impl Preferences {
     pub fn new(parent_path: PathBuf) -> Self {
@@ -35,20 +43,38 @@ impl Preferences {
             recent_locations: Vec::new(),
             defaults: Configuration::default(),
             custom_presets: Vec::new(),
+            instruction_presets: Vec::new(),
+            specialist_library: Vec::new(),
+            recovery_notice: None,
             future_version: false,
             needs_backup: false,
+            backup_file: None,
         }
     }
     pub fn load(file: &Path, fallback: PathBuf) -> Self {
         let mut result = Self::new(fallback);
-        let bytes = match fs::read(file) {
-            Ok(bytes) if bytes.len() <= 8 * 1024 * 1024 => bytes,
+        let original_backup = file.with_extension("json.bak");
+        result.backup_file = Some(if original_backup.exists() {
+            file.with_extension(format!(
+                "json.{}.bak",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            ))
+        } else {
+            original_backup
+        });
+        let mut bytes = Vec::new();
+        match fs::File::open(file).and_then(|f| f.take(8 * 1024 * 1024 + 1).read_to_end(&mut bytes))
+        {
+            Ok(_) if bytes.len() <= 8 * 1024 * 1024 => {}
             Ok(_) => {
                 result.needs_backup = true;
                 return result;
             }
             Err(_) => return result,
-        };
+        }
         let value = match serde_json::from_slice::<serde_json::Value>(&bytes) {
             Ok(value) if value.is_object() => value,
             _ => {
@@ -69,10 +95,8 @@ impl Preferences {
         result.destination =
             serde_json::from_value(value["destination"].clone()).unwrap_or_default();
         result.appearance = serde_json::from_value(value["appearance"].clone()).unwrap_or_default();
-        if let Ok(defaults) = serde_json::from_value::<Configuration>(value["defaults"].clone()) {
-            if validate_options(&defaults.options).is_ok() {
-                result.defaults = defaults;
-            }
+        if let Some(defaults) = result.read_configuration(&value["defaults"]) {
+            result.defaults = defaults;
         }
         if let Some(locations) = value["recentLocations"].as_array() {
             for location in locations.iter().take(20) {
@@ -90,19 +114,82 @@ impl Preferences {
         }
         if let Some(presets) = value["customPresets"].as_array() {
             for preset in presets.iter().take(50) {
-                if let Ok(preset) = serde_json::from_value::<ProjectPreset>(preset.clone()) {
-                    if preset.id.starts_with("custom-")
-                        && preset.id.len() < 80
-                        && valid_preset_name(&preset.name)
-                        && validate_options(&preset.configuration.options).is_ok()
-                        && !result.custom_presets.iter().any(|p| p.id == preset.id)
+                if let Some(configuration) = result.read_configuration(&preset["configuration"]) {
+                    if let (Some(id), Some(name)) = (preset["id"].as_str(), preset["name"].as_str())
                     {
-                        result.custom_presets.push(preset);
+                        if id.starts_with("custom-")
+                            && id.len() < 80
+                            && valid_preset_name(name)
+                            && !result.custom_presets.iter().any(|p| p.id == id)
+                        {
+                            result.custom_presets.push(ProjectPreset {
+                                id: id.into(),
+                                name: name.into(),
+                                configuration,
+                            });
+                        }
                     }
                 }
             }
         }
+        if let Some(presets) = value["instructionPresets"].as_array() {
+            for value in presets.iter().take(50) {
+                if let Ok(preset) =
+                    serde_json::from_value::<crate::ai::SavedInstructions>(value.clone())
+                {
+                    if preset.id.starts_with("instructions-")
+                        && preset.id.len() < 80
+                        && valid_preset_name(&preset.name)
+                        && crate::ai::validate_profile(&preset.profile).is_ok()
+                        && !result
+                            .instruction_presets
+                            .iter()
+                            .any(|p| p.id == preset.id || p.name.eq_ignore_ascii_case(&preset.name))
+                    {
+                        result.instruction_presets.push(preset);
+                        continue;
+                    }
+                }
+                result.recover_notice();
+            }
+        }
+        if let Some(roles) = value["specialistLibrary"].as_array() {
+            for value in roles.iter().take(50) {
+                if let Ok(role) = serde_json::from_value::<crate::ai::Specialist>(value.clone()) {
+                    if role.id.starts_with("custom-")
+                        && crate::ai::validate_specialist(&role).is_ok()
+                        && !result.specialist_library.iter().any(|r| r.id == role.id)
+                    {
+                        result.specialist_library.push(role);
+                        continue;
+                    }
+                }
+                result.recover_notice();
+            }
+        }
         result
+    }
+    fn recover_notice(&mut self) {
+        self.needs_backup = true;
+        self.recovery_notice = Some("Some saved AI settings could not be loaded. Existing file and Git settings were kept; the original settings will be backed up before saving.".into());
+    }
+    fn read_configuration(&mut self, value: &serde_json::Value) -> Option<Configuration> {
+        if let Ok(configuration) = serde_json::from_value::<Configuration>(value.clone()) {
+            if validate_options(&configuration.options).is_ok() {
+                return Some(configuration);
+            }
+        }
+        let mut legacy = value.clone();
+        if legacy["options"].get("ai").is_some() {
+            legacy["options"].as_object_mut()?.remove("ai");
+            if let Ok(configuration) = serde_json::from_value::<Configuration>(legacy) {
+                if validate_options(&configuration.options).is_ok() {
+                    self.recover_notice();
+                    return Some(configuration);
+                }
+            }
+        }
+        None
     }
     pub fn remember_location(&mut self, path: PathBuf) {
         self.recent_locations.retain(|p| p != &path);
@@ -118,17 +205,30 @@ impl Preferences {
         fs::create_dir_all(parent)
             .map_err(|_| "Could not save preferences. Check app data permissions.")?;
         if self.needs_backup && file.exists() {
-            if let Ok(mut backup) = fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(file.with_extension("json.bak"))
-            {
-                if let Ok(bytes) = fs::read(file) {
-                    let _ = backup.write_all(&bytes);
-                }
+            let backup_path = self
+                .backup_file
+                .clone()
+                .unwrap_or_else(|| file.with_extension("json.bak"));
+            if !backup_path.exists() {
+                let mut backup = tempfile::NamedTempFile::new_in(parent).map_err(|_| {
+                    "Could not back up the original settings; they have not been replaced."
+                })?;
+                let mut original = fs::File::open(file)
+                    .map_err(|_| "Could not read the original settings for backup.")?;
+                std::io::copy(&mut original, &mut backup)
+                    .and_then(|_| backup.as_file().sync_all())
+                    .map_err(|_| "Could not finish the settings backup.")?;
+                backup
+                    .persist_noclobber(backup_path)
+                    .map_err(|_| "Could not preserve the original settings backup.")?;
             }
         }
         let bytes = serde_json::to_vec_pretty(self).map_err(|_| "Could not encode preferences.")?;
+        if bytes.len() > 8 * 1024 * 1024 {
+            return Err(
+                "Saved settings exceed 8 MiB. Remove unused large presets before saving.".into(),
+            );
+        }
         let mut temporary = tempfile::NamedTempFile::new_in(parent)
             .map_err(|_| "Could not create a settings file.")?;
         temporary
@@ -190,6 +290,35 @@ impl Preferences {
             .ok_or_else(|| preset_error("This custom preset is unavailable."))?;
         preset.name = name.trim().into();
         Ok(())
+    }
+    pub fn save_instructions(
+        &mut self,
+        name: String,
+        profile: crate::ai::InstructionProfile,
+    ) -> Result<String, AppError> {
+        crate::ai::validate_profile(&profile)?;
+        if !valid_preset_name(&name)
+            || self.instruction_presets.len() >= 50
+            || self
+                .instruction_presets
+                .iter()
+                .any(|p| p.name.eq_ignore_ascii_case(name.trim()))
+        {
+            return Err(preset_error("Choose a unique instruction preset name of 1–60 characters. Up to 50 can be saved."));
+        }
+        let id = format!(
+            "instructions-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
+        self.instruction_presets.push(crate::ai::SavedInstructions {
+            id: id.clone(),
+            name: name.trim().into(),
+            profile,
+        });
+        Ok(id)
     }
     pub fn delete_preset(&mut self, id: &str) -> Result<(), AppError> {
         let index = self

@@ -1,3 +1,4 @@
+mod ai;
 mod config;
 mod desktop;
 mod generation;
@@ -211,6 +212,8 @@ async fn create_repository(
         session.preferences.defaults = config::Configuration {
             readme: pending.request.readme,
             options: pending.request.options.clone(),
+            destination: Some(pending.request.destination),
+            visibility: Some(pending.request.visibility),
         };
         let preference_warning = session.preferences.save(&session.preference_file).err();
         let outcome =
@@ -428,6 +431,13 @@ pub fn run() {
             settings_commands::save_custom_preset,
             settings_commands::rename_custom_preset,
             settings_commands::delete_custom_preset,
+            ai::commands::save_instruction_preset,
+            ai::commands::delete_instruction_preset,
+            ai::commands::save_specialist,
+            ai::commands::delete_specialist,
+            ai::commands::import_instructions,
+            ai::commands::import_instruction_preset,
+            ai::commands::export_instruction_preset,
             settings_commands::open_vscode
         ])
         .run(tauri::generate_context!())

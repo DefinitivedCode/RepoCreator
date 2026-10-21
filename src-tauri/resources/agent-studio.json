@@ -1,0 +1,586 @@
+{
+  "schemaVersion": 1,
+  "agents": [
+    {
+      "id": "codex",
+      "name": "OpenAI Codex",
+      "specialists": true,
+      "description": "AGENTS.md · optional project TOML and specialist profiles"
+    },
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "specialists": true,
+      "description": "CLAUDE.md import · scoped rules and specialist profiles"
+    },
+    {
+      "id": "copilot",
+      "name": "GitHub Copilot",
+      "specialists": true,
+      "description": "Repository and path instructions · specialist profiles"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "specialists": false,
+      "description": "MDC rules · shared AGENTS.md"
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini CLI",
+      "specialists": false,
+      "description": "GEMINI.md import · optional direct shared context"
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "specialists": true,
+      "description": "AGENTS.md · optional permission settings and specialist profiles"
+    }
+  ],
+  "rules": [
+    {
+      "id": "inspect",
+      "group": "Implementation",
+      "label": "Inspect before editing",
+      "text": "Read the relevant code and trace the existing behaviour before editing."
+    },
+    {
+      "id": "architecture",
+      "group": "Implementation",
+      "label": "Preserve architecture and conventions",
+      "text": "Follow established conventions and module boundaries; preserve the existing architecture."
+    },
+    {
+      "id": "focused",
+      "group": "Implementation",
+      "label": "Avoid unrelated refactoring",
+      "text": "Keep unrelated components and refactoring outside the requested change."
+    },
+    {
+      "id": "minimal",
+      "group": "Implementation",
+      "label": "Prefer minimal changes",
+      "text": "Choose the smallest change that fully resolves the requested behaviour."
+    },
+    {
+      "id": "dependencies",
+      "group": "Implementation",
+      "label": "Prefer existing dependencies",
+      "text": "Prefer existing dependencies; justify any new dependency before adding it."
+    },
+    {
+      "id": "typing",
+      "group": "Implementation",
+      "label": "Use strict typing",
+      "text": "Use the project’s existing strict typing and validation conventions where applicable."
+    },
+    {
+      "id": "tests",
+      "group": "Verification",
+      "label": "Run relevant tests",
+      "text": "Run tests that exercise the changed behaviour."
+    },
+    {
+      "id": "lint",
+      "group": "Verification",
+      "label": "Run lint and type checks",
+      "text": "Run the relevant lint and type checks available in the repository."
+    },
+    {
+      "id": "build",
+      "group": "Verification",
+      "label": "Verify the build",
+      "text": "Verify the affected build before reporting completion."
+    },
+    {
+      "id": "workflows",
+      "group": "Verification",
+      "label": "Check affected workflows",
+      "text": "Check affected user-facing workflows, including accessibility where applicable."
+    },
+    {
+      "id": "targeted",
+      "group": "Verification",
+      "label": "Keep verification focused",
+      "text": "Avoid redundant large test suites unless failures or the change’s scope justify them."
+    },
+    {
+      "id": "honest",
+      "group": "Verification",
+      "label": "Report unsuccessful checks",
+      "text": "Report failed or unavailable checks accurately; distinguish verified results from assumptions."
+    },
+    {
+      "id": "commits",
+      "group": "Git",
+      "label": "Write descriptive commits",
+      "text": "Use descriptive commit messages that explain the completed change."
+    },
+    {
+      "id": "commit-requested",
+      "group": "Git",
+      "label": "Commit when requested",
+      "text": "Commit completed changes when the user explicitly requests it."
+    },
+    {
+      "id": "push-requested",
+      "group": "Git",
+      "label": "Push when requested",
+      "text": "Push to the configured remote when the user explicitly requests it."
+    },
+    {
+      "id": "no-force",
+      "group": "Git",
+      "label": "No unapproved force-push",
+      "text": "Never force-push without explicit user permission."
+    },
+    {
+      "id": "history",
+      "group": "Git",
+      "label": "Preserve shared history",
+      "text": "Never rewrite shared history without explicit user permission."
+    },
+    {
+      "id": "readme",
+      "group": "Documentation",
+      "label": "Update relevant README sections",
+      "text": "Update relevant README sections when the requested change affects them."
+    },
+    {
+      "id": "behaviour-docs",
+      "group": "Documentation",
+      "label": "Document meaningful changes",
+      "text": "Document meaningful changes to behaviour, configuration or public interfaces."
+    },
+    {
+      "id": "concise-docs",
+      "group": "Documentation",
+      "label": "Avoid excessive documentation",
+      "text": "Keep documentation proportionate; avoid generating unrelated or repetitive documents."
+    },
+    {
+      "id": "credentials",
+      "group": "Safety",
+      "label": "Keep credentials out of Git",
+      "text": "Never commit credentials, access tokens or private keys."
+    },
+    {
+      "id": "secrets",
+      "group": "Safety",
+      "label": "Protect environment secrets",
+      "text": "Do not expose environment secrets in output, logs or generated files."
+    },
+    {
+      "id": "destructive",
+      "group": "Safety",
+      "label": "Authorize destructive operations",
+      "text": "Obtain appropriate explicit authorization before destructive repository operations."
+    },
+    {
+      "id": "data",
+      "group": "Safety",
+      "label": "Preserve user data",
+      "text": "Preserve existing user data and unrelated local changes."
+    },
+    {
+      "id": "concise",
+      "group": "Communication",
+      "label": "Keep reports concise",
+      "text": "Keep implementation reports concise and relevant to the requested outcome."
+    },
+    {
+      "id": "blockers",
+      "group": "Communication",
+      "label": "Explain genuine blockers",
+      "text": "Explain genuine blockers and the concrete information or action needed to resolve them."
+    },
+    {
+      "id": "evidence",
+      "group": "Communication",
+      "label": "Separate evidence from assumptions",
+      "text": "Distinguish tested behaviour from assumptions and disclose material verification limitations."
+    },
+    {
+      "id": "updates",
+      "group": "Communication",
+      "label": "Avoid excessive narration",
+      "text": "Give useful progress updates without narrating every routine operation."
+    }
+  ],
+  "presets": [
+    {
+      "id": "minimal",
+      "name": "Minimal",
+      "description": "Four practical rules for focused changes.",
+      "workflow": "balanced",
+      "rules": [
+        "inspect",
+        "architecture",
+        "minimal",
+        "tests"
+      ]
+    },
+    {
+      "id": "practical",
+      "name": "Practical",
+      "description": "Balanced development guidance with focused verification.",
+      "workflow": "balanced",
+      "rules": [
+        "inspect",
+        "architecture",
+        "focused",
+        "minimal",
+        "dependencies",
+        "tests",
+        "lint",
+        "workflows",
+        "targeted",
+        "honest",
+        "commits",
+        "commit-requested",
+        "push-requested",
+        "no-force",
+        "history",
+        "readme",
+        "behaviour-docs",
+        "concise-docs",
+        "credentials",
+        "secrets",
+        "destructive",
+        "data",
+        "concise",
+        "blockers",
+        "evidence",
+        "updates"
+      ]
+    },
+    {
+      "id": "strict",
+      "name": "Strict",
+      "description": "Controlled changes, explicit destructive-action approval and complete verification.",
+      "workflow": "balanced",
+      "rules": [
+        "inspect",
+        "architecture",
+        "focused",
+        "minimal",
+        "dependencies",
+        "typing",
+        "tests",
+        "lint",
+        "build",
+        "workflows",
+        "targeted",
+        "honest",
+        "commits",
+        "commit-requested",
+        "push-requested",
+        "no-force",
+        "history",
+        "readme",
+        "behaviour-docs",
+        "concise-docs",
+        "credentials",
+        "secrets",
+        "destructive",
+        "data",
+        "concise",
+        "blockers",
+        "evidence",
+        "updates"
+      ]
+    },
+    {
+      "id": "autonomous",
+      "name": "Autonomous",
+      "description": "Complete authorized work independently and recover from ordinary errors.",
+      "workflow": "autonomous",
+      "rules": [
+        "inspect",
+        "architecture",
+        "focused",
+        "minimal",
+        "dependencies",
+        "tests",
+        "lint",
+        "workflows",
+        "targeted",
+        "honest",
+        "commits",
+        "commit-requested",
+        "push-requested",
+        "no-force",
+        "history",
+        "readme",
+        "behaviour-docs",
+        "concise-docs",
+        "credentials",
+        "secrets",
+        "destructive",
+        "data",
+        "concise",
+        "blockers",
+        "evidence",
+        "updates",
+        "build"
+      ]
+    },
+    {
+      "id": "review-first",
+      "name": "Review First",
+      "description": "Inspect affected components and propose an approach before substantial changes.",
+      "workflow": "review-first",
+      "rules": [
+        "inspect",
+        "architecture",
+        "focused",
+        "minimal",
+        "dependencies",
+        "tests",
+        "lint",
+        "workflows",
+        "targeted",
+        "honest",
+        "commits",
+        "commit-requested",
+        "push-requested",
+        "no-force",
+        "history",
+        "readme",
+        "behaviour-docs",
+        "concise-docs",
+        "credentials",
+        "secrets",
+        "destructive",
+        "data",
+        "concise",
+        "blockers",
+        "evidence",
+        "updates"
+      ]
+    },
+    {
+      "id": "custom",
+      "name": "Custom",
+      "description": "Start with no built-in rules and choose your own.",
+      "workflow": "balanced",
+      "rules": []
+    }
+  ],
+  "specialists": [
+    {
+      "id": "code-reviewer",
+      "name": "Code Reviewer",
+      "description": "Find defects and regressions before changes are merged.",
+      "purpose": "Review correctness, regressions and maintainability.",
+      "instructions": "Inspect the diff and its callers. Prioritize actionable defects, missing coverage and compatibility risks. Cite files and evidence. Do not implement fixes or make style-only changes.",
+      "readOnly": true,
+      "agents": [
+        "codex",
+        "claude",
+        "copilot",
+        "opencode"
+      ]
+    },
+    {
+      "id": "debugger",
+      "name": "Debugger",
+      "description": "Investigate and resolve a reproduced failure.",
+      "purpose": "Find the cause of an observed defect.",
+      "instructions": "Reproduce the failure, trace the execution path and test a concrete hypothesis. Make a focused fix only within the assigned scope, then verify the original failure and nearby behaviour.",
+      "readOnly": false,
+      "agents": [
+        "codex",
+        "claude",
+        "copilot",
+        "opencode"
+      ]
+    },
+    {
+      "id": "test-engineer",
+      "name": "Test Engineer",
+      "description": "Verify changed behaviour with meaningful tests.",
+      "purpose": "Design focused regression coverage.",
+      "instructions": "Inspect existing test conventions. Cover the changed contract, boundary cases and realistic failures. Avoid tests that merely mirror implementation details. Report what was and was not executed.",
+      "readOnly": false,
+      "agents": [
+        "codex",
+        "claude",
+        "copilot",
+        "opencode"
+      ]
+    },
+    {
+      "id": "documentation-writer",
+      "name": "Documentation Writer",
+      "description": "Maintain accurate documentation for actual behaviour.",
+      "purpose": "Explain established interfaces and workflows.",
+      "instructions": "Read the implementation and existing documentation. Update only relevant material. Do not invent commands, dependencies, features or outcomes. Keep examples accurate and prose concise.",
+      "readOnly": false,
+      "agents": [
+        "codex",
+        "claude",
+        "copilot",
+        "opencode"
+      ]
+    },
+    {
+      "id": "architecture-reviewer",
+      "name": "Architecture Reviewer",
+      "description": "Review boundaries, coupling and compatibility.",
+      "purpose": "Assess a proposed change against the established architecture.",
+      "instructions": "Trace affected boundaries and data flow. Identify concrete coupling, migration or compatibility risks and practical alternatives. Do not restructure or edit the project during a review.",
+      "readOnly": true,
+      "agents": [
+        "codex",
+        "claude",
+        "copilot",
+        "opencode"
+      ]
+    },
+    {
+      "id": "security-reviewer",
+      "name": "Security Reviewer",
+      "description": "Inspect trust boundaries and actionable security risks.",
+      "purpose": "Review input handling, permissions and sensitive data.",
+      "instructions": "Trace untrusted input and secret handling through actual code. Assess exploit conditions and evidence. Report actionable findings with affected paths; do not expose secrets or exploit external services.",
+      "readOnly": true,
+      "agents": [
+        "codex",
+        "claude",
+        "copilot",
+        "opencode"
+      ]
+    },
+    {
+      "id": "implementation-assistant",
+      "name": "Implementation Assistant",
+      "description": "Complete a scoped implementation and verify it.",
+      "purpose": "Implement a well-defined requested change.",
+      "instructions": "Understand the requirements and relevant code, preserve existing conventions, implement the complete scoped change and run focused checks. Resolve ordinary decisions through evidence and report blockers accurately.",
+      "readOnly": false,
+      "agents": [
+        "codex",
+        "claude",
+        "copilot",
+        "opencode"
+      ]
+    }
+  ],
+  "technologies": [
+    {
+      "id": "react",
+      "name": "React",
+      "projectPresets": [
+        "react-vite",
+        "tauri"
+      ],
+      "instructions": "Follow established component patterns. Avoid duplicated state, preserve accessibility and verify affected component behaviour."
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "projectPresets": [
+        "react-vite",
+        "tauri"
+      ],
+      "instructions": "Respect the configured strictness. Prefer explicit domain types and validate untrusted values at runtime."
+    },
+    {
+      "id": "vite",
+      "name": "Vite",
+      "projectPresets": [
+        "react-vite",
+        "tauri"
+      ],
+      "instructions": "Inspect the actual Vite configuration and package scripts before changing build behaviour. Keep client environment values distinct from secrets."
+    },
+    {
+      "id": "node",
+      "name": "Node.js",
+      "projectPresets": [
+        "web",
+        "react-vite",
+        "tauri"
+      ],
+      "instructions": "Respect the chosen package manager and lockfile. Inspect supported runtimes and existing scripts rather than inventing commands."
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "projectPresets": [
+        "python"
+      ],
+      "instructions": "Follow the selected environment, packaging and typing conventions once established; keep generated caches out of Git."
+    },
+    {
+      "id": "rust",
+      "name": "Rust",
+      "projectPresets": [
+        "rust",
+        "tauri"
+      ],
+      "instructions": "Follow existing ownership, error-handling and formatting conventions. Validate affected Rust compilation and tests when available."
+    },
+    {
+      "id": "tauri",
+      "name": "Tauri",
+      "projectPresets": [
+        "tauri"
+      ],
+      "instructions": "Respect the frontend/native boundary. Validate native command inputs, preserve capabilities and security boundaries, and verify both frontend and Rust builds when applicable."
+    },
+    {
+      "id": "unity",
+      "name": "Unity",
+      "projectPresets": [
+        "unity"
+      ],
+      "instructions": "Preserve asset metadata, scene references and project settings. Avoid unnecessary scene rewrites and keep generated caches out of Git."
+    },
+    {
+      "id": "csharp",
+      "name": "C#",
+      "projectPresets": [
+        "unity"
+      ],
+      "instructions": "Follow the established solution and naming conventions. Preserve public API and serialization compatibility where applicable."
+    },
+    {
+      "id": "web",
+      "name": "General web development",
+      "projectPresets": [
+        "web",
+        "react-vite"
+      ],
+      "instructions": "Preserve semantic markup, keyboard access and responsive behaviour. Validate user input and avoid exposing secrets in browser bundles."
+    }
+  ],
+  "skills": [
+    {
+      "id": "focused-code-review",
+      "name": "Focused Code Review",
+      "description": "Use when reviewing a scoped change for defects and regressions.",
+      "instructions": "1. Read the requested scope, diff and relevant callers.\n2. Check correctness, compatibility, input boundaries and missing tests.\n3. Report actionable findings with evidence and file locations.\n4. State verification limits. Do not edit files during the review."
+    },
+    {
+      "id": "debugging-workflow",
+      "name": "Debugging Workflow",
+      "description": "Use when investigating a reproducible defect or failing check.",
+      "instructions": "1. Reproduce the reported failure and record the trigger.\n2. Trace the actual execution path and test a specific hypothesis.\n3. Apply a focused fix within the requested scope.\n4. Re-run the reproduction and relevant regression checks."
+    },
+    {
+      "id": "documentation-maintenance",
+      "name": "Documentation Maintenance",
+      "description": "Use when updating documentation for an implemented behaviour change.",
+      "instructions": "1. Inspect the implementation and existing documentation.\n2. Identify the affected user workflow or public interface.\n3. Update only relevant sections and verify examples against actual files.\n4. Remove obsolete claims without inventing new commands or features."
+    },
+    {
+      "id": "release-verification",
+      "name": "Release Verification",
+      "description": "Use when verifying a requested release or production build.",
+      "instructions": "1. Confirm the requested version, scope and working-tree state.\n2. Run the repository’s relevant checks and actual production build.\n3. Verify expected artifacts and affected workflows.\n4. Report results and blockers. Publish or push only when explicitly authorized."
+    }
+  ]
+}

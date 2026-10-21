@@ -19,9 +19,9 @@ export function blankForm(
   return {
     name: '',
     description: '',
-    destination,
-    visibility: 'private',
     ...structuredClone(configuration),
+    destination,
+    visibility: configuration.visibility ?? 'private',
     githubOwner: '',
     topics: [],
     homepage: '',
@@ -43,6 +43,8 @@ export function branchError(branch: string): string | null {
 }
 
 export function optionsError(options: ProjectOptions): string | null {
+  if (options.ai?.enabled && !options.ai.agents.length)
+    return 'Select at least one coding agent, or disable AI Agents.';
   const branch = branchError(options.initialBranch);
   if (branch) return branch;
   if (
@@ -74,6 +76,15 @@ export function optionsError(options: ProjectOptions): string | null {
   )
     return 'Enter a copyright holder and a four-digit year from 1900 onward.';
   return null;
+}
+
+export function configurationOf(form: RepositoryForm): Configuration {
+  return {
+    readme: form.readme,
+    options: form.options,
+    destination: form.destination,
+    visibility: form.visibility,
+  };
 }
 
 export function formError(form: RepositoryForm): string | null {

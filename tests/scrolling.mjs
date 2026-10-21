@@ -29,7 +29,7 @@ export async function verifyExpandedScrolling(page, resize = (size) => page.setV
       }),
     ).toBe(true);
   };
-  for (const selector of ['.ignore-panel', '.advanced-panel', '.file-preview']) {
+  for (const selector of ['.ignore-panel', '.agent-panel', '.advanced-panel', '.file-preview']) {
     if (!(await page.locator(selector).evaluate((el) => el.open))) {
       await page.locator(`${selector} > summary`).click();
     }
@@ -111,7 +111,7 @@ export async function verifyExpandedScrolling(page, resize = (size) => page.setV
     await expect(page.locator('.file-preview > summary')).toBeFocused();
 
     // Changing disclosure heights clamps the existing scrollbar and still permits reaching the end.
-    for (const selector of ['.ignore-panel', '.advanced-panel', '.file-preview']) {
+    for (const selector of ['.ignore-panel', '.agent-panel', '.advanced-panel', '.file-preview']) {
       await page.locator(`${selector} > summary`).click();
       expect(await atBottom()).toBeGreaterThanOrEqual(-1);
       await page.locator(`${selector} > summary`).click();

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Icon } from './icons';
+import { SyntaxPreview, fileLanguage } from './SyntaxPreview';
 import type { Creator } from './useCreator';
 import { branchError } from './validation';
 import {
@@ -11,25 +12,83 @@ import {
 } from './types';
 
 export function FilePreview({
+  name,
   files,
   loading,
   error,
 }: {
+  name: string;
   files: GeneratedFile[];
   loading: boolean;
   error: string;
 }) {
   const [selected, setSelected] = useState('README.md');
+  const [search, setSearch] = useState('');
   const file = files.find((file) => file.path === selected) ?? files[0];
+  interface TreeNode {
+    path: string;
+    name: string;
+    file?: GeneratedFile;
+    children: TreeNode[];
+  }
+  const roots: TreeNode[] = [];
+  for (const item of files.filter((f) => f.path.toLowerCase().includes(search.toLowerCase()))) {
+    let nodes = roots;
+    let prefix = '';
+    const parts = item.path.split('/');
+    parts.forEach((part, index) => {
+      prefix += `${prefix ? '/' : ''}${part}`;
+      let node = nodes.find((n) => n.path === prefix);
+      if (!node) {
+        node = { path: prefix, name: part, children: [] };
+        nodes.push(node);
+      }
+      if (index === parts.length - 1) node.file = item;
+      nodes = node.children;
+    });
+  }
+  const renderNodes = (nodes: TreeNode[]): React.ReactNode => (
+    <ul>
+      {nodes.map((node) => (
+        <li key={node.path}>
+          {node.file ? (
+            <button
+              type="button"
+              className="tree-file"
+              aria-label={node.path}
+              title={node.path}
+              aria-pressed={file?.path === node.path}
+              onClick={() => setSelected(node.path)}
+            >
+              <Icon name="file" size={12} />
+              <span>{node.name}</span>
+            </button>
+          ) : (
+            <>
+              <span className="tree-folder">
+                <Icon name="folder" size={12} />
+                {node.name}/
+              </span>
+              {renderNodes(node.children)}
+            </>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
   return (
     <details className="disclosure file-preview">
       <summary>
         <Icon name="file" size={15} />
         <span>File preview</span>
-        <span className="summary-meta">{files.length ? `${files.length} files` : ''}</span>
+        <span className="summary-meta">{loading ? 'Updating…' : `${files.length} files`}</span>
         <Icon name="chevron" size={14} />
       </summary>
       <div className="disclosure-body">
+        <p className="help">
+          Selected generated files are included in the initial commit, even when a broad ignore rule
+          matches them.
+        </p>
         {loading ? (
           <p className="help" role="status">
             Updating preview…
@@ -42,24 +101,24 @@ export function FilePreview({
           </p>
         ) : (
           <>
-            <div className="file-tabs" role="group" aria-label="Preview file">
-              {files.map((file) => (
-                <button
-                  type="button"
-                  key={file.path}
-                  aria-pressed={
-                    file.path ===
-                    (files.find((f) => f.path === selected) ? selected : files[0]?.path)
-                  }
-                  onClick={() => setSelected(file.path)}
-                >
-                  {file.path}
-                </button>
-              ))}
+            <label className="field">
+              <span className="control-label">Find generated files</span>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Filter file paths…"
+              />
+            </label>
+            <div className="file-tabs file-tree" role="group" aria-label="Preview file">
+              <div className="tree-root mono">{name}/</div>
+              {roots.length ? renderNodes(roots) : <p className="help">No matching files.</p>}
             </div>
-            <pre className="preview" tabIndex={0} aria-label={`${file.path} preview`}>
-              {file.content}
-            </pre>
+            <div className="preview-caption">
+              <code>{file.path}</code>
+              <span className="help">{fileLanguage(file.path)}</span>
+            </div>
+            <SyntaxPreview path={file.path} content={file.content} />
           </>
         )}
       </div>
