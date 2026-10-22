@@ -1,8 +1,98 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { prepare } from './fixtures';
+import { navigate, prepare } from './fixtures';
 
 const output = 'artifacts/refinement-creation-tests';
+test('stack switching preserves manual choices through picker remounts, undo and saved settings', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    (window as any).testPersistPreferences = true;
+  });
+  await prepare(page, false, 'advanced');
+  await page.getByLabel('Project name').fill('Stack switches');
+  await page.getByRole('combobox', { name: 'Technologies', exact: true }).selectOption('sqlite');
+  const browse = page.getByRole('button', { name: 'Browse technologies' });
+  const picker = page.getByRole('dialog', { name: 'Choose technologies' });
+  await browse.click();
+  const stack = picker.getByRole('combobox', { name: 'Technology stack preset' });
+  for (let i = 0; i < 2; i++) {
+    await stack.selectOption('unity');
+    await expect(picker.getByRole('button', { name: 'Remove Unity', exact: true })).toBeVisible();
+    await stack.selectOption('tauri');
+    await expect(picker.getByRole('button', { name: 'Remove Unity', exact: true })).toHaveCount(0);
+    await expect(picker.getByRole('button', { name: 'Remove C#', exact: true })).toHaveCount(0);
+    await expect(picker.getByRole('button', { name: 'Remove SQLite', exact: true })).toBeVisible();
+  }
+  await stack.selectOption('unity');
+  await picker.getByRole('button', { name: 'Remove C#', exact: true }).click();
+  await picker.getByRole('button', { name: 'C#', exact: true }).click();
+  await picker.getByLabel('Custom technology').fill('Team toolkit');
+  await picker.getByRole('button', { name: 'Add custom' }).click();
+  await picker.getByRole('button', { name: 'Done', exact: true }).click();
+  await navigate(page, 'Project Files');
+  await navigate(page, 'Overview');
+  await page.getByLabel('Project preset').selectOption('python');
+  await page.getByRole('button', { name: 'Undo preset change' }).click();
+  await browse.click();
+  await stack.selectOption('tauri');
+  await expect(picker.getByRole('button', { name: 'Remove C#', exact: true })).toBeVisible();
+  await expect(picker.getByRole('button', { name: 'Remove Unity', exact: true })).toHaveCount(0);
+  await picker.getByRole('button', { name: 'Done', exact: true }).click();
+  const expected = {
+    ids: ['sqlite', 'csharp', 'typescript', 'react', 'vite', 'rust', 'tauri'],
+    custom: ['Team toolkit'],
+    presetIds: ['typescript', 'react', 'vite', 'rust', 'tauri'],
+  };
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => JSON.parse(sessionStorage.getItem('testPreferences')!).defaults.options.technologies,
+      ),
+    )
+    .toEqual(expected);
+  await page.reload();
+  await browse.click();
+  await stack.selectOption('unity');
+  await expect(picker.getByRole('button', { name: 'Remove Tauri', exact: true })).toHaveCount(0);
+  await expect(picker.getByRole('button', { name: 'Remove Rust', exact: true })).toHaveCount(0);
+  await expect(picker.getByRole('button', { name: 'Remove SQLite', exact: true })).toBeVisible();
+  await expect(picker.getByRole('button', { name: 'Remove C#', exact: true })).toBeVisible();
+  await expect(
+    picker.getByRole('button', { name: 'Remove Team toolkit', exact: true }),
+  ).toBeVisible();
+});
+
+test('natural project names show the final slug and preserve the README title in creation requests', async ({
+  page,
+}) => {
+  await prepare(page, false, 'simple');
+  await page.getByLabel('Project name').fill('  My   Amazing Project  ');
+  await expect(
+    page.getByText('Repository name: my-amazing-project', { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('.context-code')).toContainText('# My Amazing Project');
+  await page.getByRole('button', { name: 'Review project', exact: true }).click();
+  await expect(page.locator('.project-summary')).toContainText('my-amazing-project');
+  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
+  const requests = await page.evaluate(() => {
+    const calls = (window as any).testCalls;
+    return {
+      preview: calls.filter((call: any) => call.command === 'preview_files').at(-1).payload.request,
+      created: calls.find((call: any) => call.command === 'create_repository').payload.request,
+    };
+  });
+  expect(requests.created).toMatchObject({
+    name: 'my-amazing-project',
+    title: 'My Amazing Project',
+  });
+  expect(requests.preview).toMatchObject({
+    name: requests.created.name,
+    title: requests.created.title,
+  });
+});
+
 test('technology picker retains multi-selection, stacks, custom context and focus without growing the form', async ({
   page,
 }) => {
@@ -63,6 +153,7 @@ test('technology picker retains multi-selection, stacks, custom context and focu
     .toEqual({
       ids: ['typescript', 'rust', 'sqlite', 'cloudflare-workers', 'react', 'vite', 'node'],
       custom: ['Internal toolkit'],
+      presetIds: ['react', 'vite', 'node'],
     });
   await browse.click();
   await picker.getByRole('searchbox').fill('rust');

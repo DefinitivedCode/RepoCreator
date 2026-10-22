@@ -1,5 +1,6 @@
 import type { CreatedRepo, GeneratedFile, ProjectBrief, RepositoryForm } from './types';
 import { technologiesFor, technologySummary } from './technologies';
+import { normalizeProjectName } from './projectName';
 
 export type HandoffStyle = 'beginner' | 'rapid' | 'architecture' | 'production' | 'implementation';
 export interface PromptTemplate {
@@ -118,7 +119,7 @@ export function contextForProject(
   const selectedTechnologies = technologySummary(technologiesFor(form));
   const brief = { ...emptyBrief, ...form.brief, technologies: selectedTechnologies };
   return {
-    projectName: result?.name ?? form.name,
+    projectName: result?.name ?? normalizeProjectName(form.name),
     description: form.description,
     projectType: presetName === 'Last used settings' ? '' : presetName,
     language: selectedTechnologies || form.options.ai.instructions.stack,
@@ -126,7 +127,7 @@ export function contextForProject(
     localPath:
       result?.path ??
       (parentPath && form.name
-        ? `${parentPath.replace(/[\\/]$/, '')}${parentPath.includes('\\') ? '\\' : '/'}${form.name}`
+        ? `${parentPath.replace(/[\\/]$/, '')}${parentPath.includes('\\') ? '\\' : '/'}${normalizeProjectName(form.name)}`
         : ''),
     repositoryUrl: result?.githubUrl ?? null,
     branch: result?.branch ?? form.options.initialBranch,

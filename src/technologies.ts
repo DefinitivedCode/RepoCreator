@@ -53,12 +53,41 @@ export function normalizeTechnologies(
   if (value) {
     value.ids.forEach(add);
     value.custom.forEach(add);
+    if (value.presetIds?.length) {
+      result.presetIds = [...new Set(value.presetIds)].filter((id) => result.ids.includes(id));
+    }
   } else {
     legacyBrief.split(/[,;\n/]+/).forEach((label) => add(label.replace(/\p{Cc}/gu, ' ')));
     legacyAi.forEach(add);
     if (result.custom.length > 30) result.custom = [legacyBrief.replace(/\p{Cc}/gu, ' ').trim()];
   }
   return result;
+}
+
+/** Replace only preset contributions. Legacy selections without provenance are manual. */
+export function switchTechnologyStack(
+  value: ProjectTechnologies,
+  stackIds: readonly string[],
+): ProjectTechnologies {
+  const manual = value.ids.filter((id) => !value.presetIds?.includes(id));
+  return normalizeTechnologies({
+    ids: [...manual, ...stackIds],
+    custom: value.custom,
+    presetIds: stackIds.filter((id) => !manual.includes(id)),
+  });
+}
+
+export function toggleManualTechnology(
+  value: ProjectTechnologies,
+  id: string,
+): ProjectTechnologies {
+  return normalizeTechnologies({
+    ...value,
+    ids: value.ids.includes(id)
+      ? value.ids.filter((selected) => selected !== id)
+      : [...value.ids, id],
+    presetIds: value.presetIds?.filter((selected) => selected !== id),
+  });
 }
 
 export function technologiesFor(
@@ -96,6 +125,10 @@ export function technologiesError(value?: ProjectTechnologies): string | null {
     value.custom.length > 30 ||
     value.ids.some((id) => typeof id !== 'string' || !entries.some((t) => t.id === id)) ||
     new Set(value.ids).size !== value.ids.length ||
+    (value.presetIds !== undefined &&
+      (!Array.isArray(value.presetIds) ||
+        new Set(value.presetIds).size !== value.presetIds.length ||
+        value.presetIds.some((id) => !value.ids.includes(id)))) ||
     value.custom.some(
       (label) =>
         typeof label !== 'string' ||

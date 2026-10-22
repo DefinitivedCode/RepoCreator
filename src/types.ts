@@ -15,6 +15,7 @@ export interface ProjectBrief {
 export type License = 'none' | 'MIT' | 'Apache-2.0' | 'GPL-3.0' | 'BSD-3-Clause' | 'Unlicense';
 export const readmeSections = [
   'overview',
+  'technologies',
   'features',
   'installation',
   'usage',
@@ -26,6 +27,8 @@ export type ReadmeSection = (typeof readmeSections)[number];
 export interface ProjectTechnologies {
   ids: string[];
   custom: string[];
+  /** Only selections contributed by the current preset; other selections are manual. */
+  presetIds?: string[];
 }
 export interface ProjectOptions {
   technologies?: ProjectTechnologies;
@@ -35,6 +38,7 @@ export interface ProjectOptions {
   ai: AIStudio;
   readmeSections: ReadmeSection[];
   sectionContent: Partial<Record<ReadmeSection, string>>;
+  readmeFooter?: boolean;
   ignorePresets: string[];
   customPatterns: string[];
   license: License;

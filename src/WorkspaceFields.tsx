@@ -9,6 +9,7 @@ import type { Configuration, Environment } from './types';
 import type { Agent } from './aiTypes';
 import type { Section } from './App';
 import { displayPath, nameError } from './validation';
+import { normalizeProjectName } from './projectName';
 import { TechnologySelector } from './TechnologySelector';
 import { technologiesFor, technologySummary } from './technologies';
 import './creation-fields.css';
@@ -45,12 +46,15 @@ export function Overview({
             autoFocus
             value={form.name}
             placeholder="my-project"
-            maxLength={101}
+            maxLength={350}
             autoComplete="off"
             spellCheck={false}
             aria-invalid={!!form.name && !!nameError(form.name)}
             onChange={(e) => creator.update('name', e.target.value)}
           />
+          <span className="help" aria-live="polite">
+            Repository name: {normalizeProjectName(form.name) || 'Enter a project name'}
+          </span>
           {form.name && nameError(form.name) && (
             <span className="inline-error">{nameError(form.name)}</span>
           )}
@@ -364,12 +368,12 @@ export function ProjectSummary({ creator, presetName }: { creator: Creator; pres
   return (
     <dl className="project-summary">
       <dt>Project</dt>
-      <dd>{form.name || 'Name needed'}</dd>
+      <dd>{normalizeProjectName(form.name) || 'Name needed'}</dd>
       <dt>Destination folder</dt>
       <dd className="mono">
         {path.replace(/[\\/]$/, '')}
         {slash}
-        {form.name || 'my-project'}
+        {normalizeProjectName(form.name) || 'my-project'}
       </dd>
       <dt>Publishing</dt>
       <dd>

@@ -1,6 +1,7 @@
 import { Icon } from './icons';
 import type { Creator } from './useCreator';
 import { displayPath } from './validation';
+import { normalizeProjectName } from './projectName';
 import { stages } from './types';
 import { HandoffPanel } from './HandoffPanel';
 import { FilePreview } from './ConfigurationPanels';
@@ -31,7 +32,7 @@ export function RepositoryState({
       <main className="content">
         <div className="state-content" aria-live="polite" aria-busy="true">
           <h2>Creating repository</h2>
-          <p className="state-project">{form.name}</p>
+          <p className="state-project">{normalizeProjectName(form.name)}</p>
           <ol className="progress-list">
             {applicable.map(([key, label], index) => (
               <li
@@ -77,7 +78,7 @@ export function RepositoryState({
                   : 'Creation incomplete'}
             </h2>
           </div>
-          <p className="state-project">{result?.name ?? form.name}</p>
+          <p className="state-project">{result?.name ?? normalizeProjectName(form.name)}</p>
           {error && (
             <div className="error-banner" role="alert">
               <strong>{error.message}</strong>

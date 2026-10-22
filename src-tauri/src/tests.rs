@@ -109,7 +109,13 @@ fn built_in_readmes_omit_unwritten_sections_without_inventing_project_details() 
                 assert!(readme.contains("This is an experimental project"));
                 assert_eq!(readme.matches("\n## ").count(), 1);
             } else if description.is_empty() {
-                assert_eq!(readme, "# test-project\n");
+                assert!(!readme.contains("## Overview"));
+                assert_eq!(
+                    readme.contains("## Technologies"),
+                    !crate::technologies::effective(&value.options, &value.brief)
+                        .ids
+                        .is_empty()
+                );
             }
         }
     }
@@ -124,9 +130,7 @@ fn readme_keeps_explicit_sections_and_authored_text_but_omits_empty_expanded_con
         "Keep café and 日本語 exact.\n\n```text\nuser-provided-command\n```".into(),
     );
     let readme = render_readme(&value).unwrap();
-    assert!(readme.contains(
-        "## Installation\n\n<!-- Add the prerequisites and actual installation steps. -->"
-    ));
+    assert!(!readme.contains("## Installation"));
     assert!(readme.contains(
         "## Usage\n\nKeep café and 日本語 exact.\n\n```text\nuser-provided-command\n```"
     ));
@@ -141,19 +145,128 @@ fn readme_keeps_explicit_sections_and_authored_text_but_omits_empty_expanded_con
     let readme = render_readme(&value).unwrap();
     assert!(!readme.contains("## Overview"));
     assert!(!readme.contains("## Usage"));
-    assert!(readme.contains("## Installation"));
+    assert!(!readme.contains("## Installation"));
+}
+
+#[test]
+fn natural_names_normalize_consistently_before_native_validation() {
+    let cases: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/fixtures/project-names.json")).unwrap();
+    for case in cases.as_array().unwrap() {
+        let input = case["input"].as_str().unwrap();
+        let slug = normalize_project_name(input);
+        assert_eq!(slug, case["slug"].as_str().unwrap());
+        assert_eq!(normalize_project_name(&slug), slug);
+        let mut value = request(Readme::General);
+        value.name = input.into();
+        assert_eq!(
+            generate_files(&value).is_ok(),
+            case["valid"].as_bool().unwrap(),
+            "{input:?}"
+        );
+    }
+}
+
+#[test]
+fn empty_readmes_remain_minimal_even_with_all_sections_selected() {
+    let mut value = request(Readme::General);
+    value.description.clear();
+    value.options.readme_sections = crate::config::SECTION_IDS
+        .iter()
+        .map(|s| (*s).into())
+        .collect();
+    for template in [Readme::General, Readme::Custom, Readme::Minimal] {
+        value.readme = template;
+        assert_eq!(render_readme(&value).unwrap(), "# test-project\n");
+    }
+    value.readme = Readme::Custom;
+    value.options.section_content.insert(
+        "usage".into(),
+        "<!-- Old placeholder -->\n <!-- Another -->".into(),
+    );
+    value
+        .options
+        .section_content
+        .insert("features".into(), " {{description}} ".into());
+    value
+        .options
+        .section_content
+        .insert("installation".into(), " \n ".into());
+    assert_eq!(render_readme(&value).unwrap(), "# test-project\n");
+}
+
+#[test]
+fn readme_uses_known_details_and_custom_markdown_without_assuming_a_scaffold() {
+    let mut value = request(Readme::Custom);
+    value.name = "  My   Amazing Project  ".into();
+    value.options.readme_sections = crate::config::SECTION_IDS
+        .iter()
+        .map(|s| (*s).into())
+        .collect();
+    value.options.technologies = crate::technologies::ProjectTechnologies::new(
+        vec!["rust".into(), "tauri".into()],
+        vec!["Team toolkit".into()],
+    );
+    value.options.license = License::Mit;
+    value.options.copyright_name = "Project author".into();
+    value.options.section_content.insert(
+        "usage".into(),
+        "Use {{project_title}} ({{project_name}}).\n\n```text\nauthored example\n```".into(),
+    );
+    let readme = render_readme(&value).unwrap();
+    assert!(readme.starts_with("# My Amazing Project\n"));
+    assert!(readme.contains(value.description.trim()));
+    assert!(
+        readme.contains("## Technologies\n\nSelected for this project: Rust, Tauri, Team toolkit.")
+    );
+    assert!(readme.contains(
+        "Use My Amazing Project (my-amazing-project).\n\n```text\nauthored example\n```"
+    ));
+    assert!(readme.contains("## License\n\nLicensed under MIT. See [LICENSE](LICENSE)."));
+    for absent in [
+        "## Features",
+        "## Installation",
+        "## Development",
+        "## Contributing",
+        "<!--",
+        "npm",
+        "cargo",
+        "src/",
+        "Created with",
+    ] {
+        assert!(!readme.contains(absent), "{absent}");
+    }
+    value.options.readme_footer = true;
+    for template in [Readme::General, Readme::Custom, Readme::Minimal] {
+        value.readme = template;
+        assert!(render_readme(&value).unwrap().ends_with(
+            "---\n\nCreated with [Repo Creator](https://github.com/DefinitivedCode/RepoCreator)\n"
+        ));
+    }
+    value.readme = Readme::None;
+    assert!(render_readme(&value).is_none());
 }
 
 #[test]
 fn creates_real_local_repositories_for_all_templates() {
     for template in [Readme::General, Readme::Minimal, Readme::None] {
         let temp = tempfile::tempdir().unwrap();
-        let mut pending = repository::begin(&IsolatedGit, temp.path(), request(template)).unwrap();
+        let value = request(template);
+        let preview =
+            tauri::async_runtime::block_on(crate::settings_commands::preview_files(value.clone()))
+                .unwrap();
+        let mut pending = repository::begin(&IsolatedGit, temp.path(), value).unwrap();
         let stages = Mutex::new(Vec::new());
         repository::create_local(&IsolatedGit, &mut pending, &|stage| {
             stages.lock().unwrap().push(stage.to_string())
         })
         .unwrap();
+        for file in preview {
+            assert_eq!(
+                fs::read_to_string(pending.path.join(file.path)).unwrap(),
+                file.content
+            );
+        }
         let output = |values: &[&str]| {
             let result = IsolatedGit
                 .run(Program::Git, &args(values), &pending.path)
@@ -557,6 +670,7 @@ fn github_initial_commit_uses_verified_noreply_address_without_global_changes() 
 fn generated_files_match_preview_with_custom_readme_license_branch_and_commit() {
     let temp = tempfile::tempdir().unwrap();
     let mut value = request(Readme::Custom);
+    value.name = "  My   Amazing Project  ".into();
     value.options = ProjectOptions {
         initial_branch: "feature/start".into(),
         commit_message: "Start the configured project".into(),
@@ -565,6 +679,7 @@ fn generated_files_match_preview_with_custom_readme_license_branch_and_commit() 
         copyright_year: "2026".into(),
         editorconfig: true,
         gitattributes: true,
+        readme_footer: true,
         ..Default::default()
     };
     value.options.readme_sections.push("usage".into());
@@ -572,9 +687,19 @@ fn generated_files_match_preview_with_custom_readme_license_branch_and_commit() 
         "usage".into(),
         "Actual usage goes here.\n\n```text\nexample\n```".into(),
     );
-    let expected = generate_files(&value).unwrap();
+    let expected =
+        tauri::async_runtime::block_on(crate::settings_commands::preview_files(value.clone()))
+            .unwrap();
     let mut pending = repository::begin(&IsolatedGit, temp.path(), value).unwrap();
     repository::create_local(&IsolatedGit, &mut pending, &|_| {}).unwrap();
+    assert_eq!(pending.request.name, "my-amazing-project");
+    assert_eq!(pending.result().name, "my-amazing-project");
+    assert_eq!(pending.path.file_name().unwrap(), "my-amazing-project");
+    assert!(
+        github::create_args(&pending.request, "sample-owner", &pending.path)
+            .iter()
+            .any(|arg| arg == "sample-owner/my-amazing-project")
+    );
     for file in expected {
         assert_eq!(
             fs::read_to_string(pending.path.join(file.path)).unwrap(),

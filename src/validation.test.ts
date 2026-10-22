@@ -4,12 +4,15 @@ import {
   branchError,
   configurationError,
   configurationForPreset,
+  creationRequestOf,
   displayPath,
   nameError,
   optionsError,
   previewRequestOf,
 } from './validation';
 import type { Configuration, ProjectOptions } from './types';
+import { normalizeProjectName, projectTitle } from './projectName';
+import nameCases from '../tests/fixtures/project-names.json';
 
 describe('project path presentation', () => {
   it('presents drive and UNC canonical paths without changing their contents', () => {
@@ -96,12 +99,32 @@ describe('repository names', () => {
     'CON',
     'nul.txt',
     'LPT9.data',
-    'name with spaces',
     'x;echo',
     'é',
     'a'.repeat(101),
   ])('rejects unsafe or incompatible name %s', (name) => {
     expect(nameError(name)).toBeTruthy();
+  });
+  it.each(nameCases)(
+    'normalises and validates $input consistently with native creation',
+    ({ input, slug, valid }) => {
+      expect(normalizeProjectName(input)).toBe(slug);
+      expect(normalizeProjectName(slug)).toBe(slug);
+      expect(nameError(input) === null).toBe(valid);
+    },
+  );
+  it('uses the same title, slug and generation options for preview and creation', () => {
+    const form = { ...blankForm(configuration()), name: '  My   Amazing Project  ' };
+    form.options.technologies = { ids: ['rust'], custom: ['Internal toolkit'] };
+    form.options.readmeFooter = true;
+    const preview = previewRequestOf(form);
+    const created = creationRequestOf(form);
+    expect(preview.name).toBe('my-amazing-project');
+    expect(created.name).toBe(preview.name);
+    expect(created.title).toBe('My Amazing Project');
+    expect(projectTitle(form.name)).toBe(created.title);
+    expect(preview).toMatchObject({ title: created.title, options: created.options });
+    expect(previewRequestOf({ ...form, name: '   ' }).name).toBe('');
   });
 });
 

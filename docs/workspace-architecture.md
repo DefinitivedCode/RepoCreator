@@ -3,7 +3,7 @@
 Version 1.4 extends the existing generator, preferences and history. It does not
 write source files when opening a project.
 
-- `ProjectOptions.technologies`: `{ ids: string[], custom: string[] }`; known
+- `ProjectOptions.technologies`: `{ ids: string[], custom: string[], presetIds?: string[] }`; optional `presetIds` tracks only selections contributed by a stack or built-in project preset and is a unique subset of `ids`. Missing provenance preserves existing selections as manual. Known
   catalogue IDs are stable. Missing legacy values migrate from the project brief.
 - `RecentProject` retains `id`, `createdAt`, `context`, and `handoffTemplate` and
   adds `lastOpenedAt`, `pinned`, `technologies`, `commands`, and `launcher`.
