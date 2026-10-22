@@ -27,7 +27,18 @@ Resolve the exact next version and Stable/Beta intent from the owner's request a
 - Beta: GitHub's **Set as a pre-release** must be on; either a normal version or a SemVer prerelease is supported. Do not assume a suffix sets the GitHub flag automatically.
 - Feeds select by SemVer, not publication date. Stable considers only stable releases; Beta considers both. Explain if an existing higher eligible version will still win, or an equal-version promotion will not update already installed copies. Never retag to solve this.
 
-Generate notes from `git log` and `git diff` between the previous published tag and the candidate SHA; inspect relevant PRs/source to confirm claims. Use the actual release bodies as style references: a short title/introduction, a few user-facing change bullets, brief installation guidance and current known limitations. Avoid commit dumps, internal CI detail unless useful to users, unsupported testing claims, and stale limitations copied from older releases. Distinguish cryptographic updater signing from unsigned Windows installers / ad-hoc signed, unnotarized Macs. Keep relevant manual-upgrade and portable ZIP limitations from the current docs. Save proposed notes for owner review; the workflow's generated `RELEASE_NOTES.md` is only a generic starting point.
+The GitHub Release title (`name`) must always be exactly `Repo Creator <version>`, for example `Repo Creator 1.4.2`, `Repo Creator 1.4.3` or `Repo Creator 1.5.0`. Use the confirmed application version without a leading `v`. Never append `Beta`, `Stable`, feature names, subtitles or other descriptions. Distinguish Beta from Stable using GitHub's prerelease flag, never the title. Preserve this exact title when creating or editing an authorized draft; do not copy the descriptive notes heading into the title.
+
+Generate notes from `git log` and `git diff` between the previous published tag and the candidate SHA; inspect relevant PRs/source to confirm claims. Read the published v1.4.0 and v1.4.1 bodies as the formatting references, then fill [the release-notes template](assets/release-notes.md) in this exact order:
+
+1. A descriptive Markdown heading, such as `# Repo Creator 1.4.2 — README & Project Setup Improvements`. This is the notes heading, not the GitHub Release title.
+2. One concise introductory sentence.
+3. `### What's New` with 3–6 short, source-supported feature bullets. Do not invent changes or pad the list.
+4. `### Installation` with brief guidance relevant to this release, retaining applicable manual-upgrade and portable ZIP instructions.
+5. `**Known limitations:**` with only verified, relevant limitations. Recheck each against current source and testing; do not carry forward stale claims or remove important security warnings without evidence they no longer apply. Distinguish cryptographic updater signing from unsigned Windows installers and ad-hoc signed, unnotarized Macs.
+6. `### Feedback` with a clean link to [GitHub Issues](https://github.com/DefinitivedCode/RepoCreator/issues).
+
+Keep the notes concise and user-facing. Put commit SHAs, CI runs, asset inventories, checksums, signature-verification details and test logs in the separate release review report. Include only the brief confirmed testing limitations relevant to users in the notes. Remove all template placeholders before owner review. Save the proposed notes for review; the workflow's generated `RELEASE_NOTES.md` remains generic preparation boilerplate and must be replaced with the completed notes when draft editing is authorized. Never treat that boilerplate as publication-ready notes.
 
 ## Validate main and prepare exact PowerShell commands
 
@@ -93,10 +104,25 @@ Download the run's assembled release-assets artifact into a fresh temporary dire
 
 ## Owner review, publication and feeds
 
-Present the concrete draft URL, proposed final notes, version/channel flag, artifact/checksum evidence and known limitations before requesting publication approval. Replace the generic draft notes only when authorized. The owner reviews the actual uploaded assets, installation guidance and privacy/licensing findings, selects the agreed prerelease flag and publishes manually. Never interpret skill invocation or preparation approval as publication approval.
+Before requesting owner publication approval, read back the actual GitHub draft, including its title, body and prerelease flag. Use the confirmed `$version`, `$tag` and `$channel` (`beta` or `stable`) for this read-only check:
 
-After owner publication, confirm the release is published (not draft), the tag/SHA and prerelease flag are correct, and **Refresh published update channels** completed successfully for that event using reviewed `main`. Read the current feed script/docs for paths and validation behavior. Currently `update-feeds/stable.json` and `update-feeds/beta.json` are generated atomically on the `update-feeds` branch. Inspect both manifests and compare the eligible winning version, all target URLs/signatures, publication date and notes with the verified published release. A lower version may legitimately not become the winner. Beta publication must leave Stable pointing to its eligible stable release (or its valid empty manifest).
+```powershell
+if ($channel -notin @('beta', 'stable')) { throw 'Confirm the release channel first.' }
+$releaseJson = gh release view $tag --repo DefinitivedCode/RepoCreator --json name,tagName,isDraft,isPrerelease,body,url
+if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the release draft.' }
+$release = $releaseJson | ConvertFrom-Json
+$expectedTitle = "Repo Creator $version"
+if ($release.name -cne $expectedTitle) { throw "Release title must be exactly: $expectedTitle" }
+if ($release.tagName -cne $tag -or -not $release.isDraft) { throw 'Expected the matching unpublished draft.' }
+if ($release.isPrerelease -ne ($channel -eq 'beta')) { throw 'Release prerelease flag does not match the agreed channel.' }
+```
 
-Finish with a short checklist recording: clean merged SHA and green CI; confirmed version/channel; approved immutable remote tag; successful signed three-platform preparation; verified assets/signatures/checksums/notices; reviewed notes/warnings and installation tests/limitations; owner publication; successful feed refresh and correct winning Stable/Beta versions. Mark incomplete items as pending, never as passed.
+Check the returned `body` against all six notes-format requirements above and the approved notes file, not just the local proposal. A title mismatch, unfinished boilerplate/placeholders, unsupported claim, missing security warning or wrong channel flag blocks publication approval. Report the mismatch; correct only an explicitly authorized unpublished draft and read it back again. Do not automatically change a published release, tag, binary or feed to enforce formatting.
+
+Present the concrete draft URL, exact verified GitHub Release title, proposed final notes, version/channel flag, artifact/checksum evidence and known limitations before requesting publication approval. Replace the generic draft notes only when authorized, keeping the exact `Repo Creator <version>` title. The owner reviews the actual uploaded assets, installation guidance and privacy/licensing findings, selects the agreed prerelease flag and publishes manually. Never interpret skill invocation or preparation approval as publication approval.
+
+After owner publication, confirm the release is published (not draft), its title is still exactly `Repo Creator <version>`, the tag/SHA and prerelease flag are correct, and **Refresh published update channels** completed successfully for that event using reviewed `main`. Read the current feed script/docs for paths and validation behavior. Currently `update-feeds/stable.json` and `update-feeds/beta.json` are generated atomically on the `update-feeds` branch. Inspect both manifests and compare the eligible winning version, all target URLs/signatures, publication date and notes with the verified published release. A lower version may legitimately not become the winner. Beta publication must leave Stable pointing to its eligible stable release (or its valid empty manifest).
+
+Finish with a short checklist recording: clean merged SHA and green CI; confirmed version/channel; exact verified release title; approved immutable remote tag; successful signed three-platform preparation; verified assets/signatures/checksums/notices; reviewed six-part notes/warnings and installation tests/limitations; owner publication; successful feed refresh and correct winning Stable/Beta versions. Mark incomplete items as pending, never as passed.
 
 For failures, inspect the specific job/log and stop before dependent mutations. Version mismatch: fix manifests through a reviewed PR. Existing tag/release: inspect and preserve it. Build/signature/inventory failure: do not publish or weaken validation; check documented key configuration without exposing values. Draft permission failure: report the required token policy from `docs/releases.md`. Missing/stale feed: inspect refresh logs and eligible-release validation (a successful refresh may exclude an invalid release), then request authorization for a manual `update-feeds.yml` dispatch on `main` if needed. Refer to `docs/updates.md` for branch-write policy; never edit manifests by hand, replace trust keys or weaken `main` protection to recover.

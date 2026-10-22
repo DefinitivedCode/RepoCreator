@@ -64,6 +64,12 @@ With **create_draft** enabled, the final job refuses an existing draft or publis
 
 ## Review and publish separately
 
+The GitHub Release title must be exactly `Repo Creator <version>`, such as `Repo Creator 1.4.2`, with no `Beta`, `Stable`, feature name or subtitle. Use GitHub's prerelease flag for Beta releases. The notes may have a descriptive Markdown heading, such as `# Repo Creator 1.4.2 — README & Project Setup Improvements`; keep that heading separate from the release title.
+
+Use the published v1.4.0 and v1.4.1 notes as formatting references and fill the [release-notes template](../.agents/skills/repo-creator-release/assets/release-notes.md). Follow this order: descriptive heading, one concise introductory sentence, `### What's New` with 3–6 short feature bullets, `### Installation`, `**Known limitations:**` with only verified relevant limitations, and `### Feedback` linking to GitHub Issues. Keep notes concise and user-facing, retain important security warnings, and put technical verification in the separate release review report. The workflow's generic generated notes are preparation boilerplate, not final release notes.
+
+Before requesting publication approval, read back the actual draft title, body and prerelease flag using the release skill's read-only check. Stop if the title differs from `Repo Creator <version>`, the channel flag is wrong or the notes do not meet this format. Correct only an authorized unpublished draft and recheck it; do not modify existing published releases, tags, binaries or updater feeds to enforce these conventions.
+
 Inspect the draft, download and test the actual uploaded assets, verify checksums and review the release notes. Confirm installation instructions and known signing warnings are visible. Make the repository public only if the owner has explicitly approved the visibility change and all privacy blockers are resolved. Publish the draft only after separate owner approval.
 
 For Mac checksum verification, place the downloaded assets and checksum file in the same directory. A signed release's platform checksum file covers its DMG, app archive and detached `.sig` file, so download all three or compare a single file's hash with its line in the manifest:
