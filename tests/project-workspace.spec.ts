@@ -14,7 +14,7 @@ const project: RecentProject = {
     projectType: 'Desktop',
     language: 'TypeScript',
     brief: { idea: '', audience: '', firstVersion: '', technologies: 'TypeScript', context: '' },
-    localPath: 'C:\\Projects\\River Workbench',
+    localPath: '\\\\?\\C:\\Projects\\River Workbench',
     repositoryUrl: 'https://github.com/example/river-workbench',
     branch: 'main',
     agents: ['codex'],
@@ -75,7 +75,8 @@ async function workspaceFixture(page: Page, missing = false) {
           return {
             project: structuredClone(current),
             exists: state.exists,
-            gitStatus: 'Clean working tree',
+            gitStatus: 'clean',
+            platform: (window as any).workspacePlatform ?? 'windows',
             branch: 'main',
           };
         if (command === 'save_project_settings') {
@@ -149,7 +150,23 @@ async function workspaceFixture(page: Page, missing = false) {
               path: null,
               documentation: 'https://antigravity.google/docs',
             },
-          ];
+          ].map((tool) => ({
+            ...tool,
+            platform: (window as any).workspacePlatform ?? 'windows',
+            status: tool.available
+              ? 'available'
+              : tool.id === 'agy'
+                ? 'unknown'
+                : tool.id === 'antigravity-ide'
+                  ? 'invalid'
+                  : 'missing',
+            detail:
+              tool.id === 'agy'
+                ? 'Could not confirm a CLI installation.'
+                : tool.id === 'antigravity-ide'
+                  ? 'The configured executable is not accessible.'
+                  : '',
+          }));
         if (command === 'launch_project_tool') return;
         if (command === 'save_project_commands') {
           current.commands = structuredClone(payload.commands);
@@ -223,10 +240,10 @@ test('project library searches, pins, imports, removes history and locates missi
   await page.getByRole('button', { name: 'Locate folder', exact: true }).click();
   await expect(page.getByText('C:\\Projects\\Moved River', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Open in VS Code/ })).toBeEnabled();
-  await page.getByRole('button', { name: '← All projects', exact: true }).click();
+  await page.getByRole('button', { name: 'All projects', exact: true }).click();
   await page.getByRole('button', { name: 'Add existing project', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'added-repository', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '← All projects', exact: true }).click();
+  await page.getByRole('button', { name: 'All projects', exact: true }).click();
   await page
     .locator('.project-card')
     .filter({ hasText: 'added-repository' })
@@ -246,18 +263,53 @@ test('tool launcher honors unavailable tools and persists project preferences', 
   await workspaceFixture(page);
   await openWorkspace(page);
   await section(page, 'Open');
-  await expect(page.getByRole('button', { name: /Claude Code CLI/ })).toBeDisabled();
+  await expect(page.locator('.other-tools')).not.toHaveAttribute('open');
+  await expect(page.getByRole('button', { name: /Claude Code CLI/ })).toHaveCount(0);
+  await page.locator('.other-tools > summary').click();
+  await expect(page.locator('.other-tool').filter({ hasText: 'Claude Code CLI' })).toContainText(
+    'Not installed',
+  );
+  await expect(page.locator('.other-tool').filter({ hasText: 'Antigravity CLI' })).toContainText(
+    'Not confirmed',
+  );
+  await expect(page.locator('.other-tool').filter({ hasText: 'Antigravity IDE' })).toContainText(
+    'Configured path invalid',
+  );
   await expect(
     page.locator('.tool-item').filter({ hasText: 'Claude Code CLI' }).getByRole('link'),
   ).toHaveAttribute('href', 'https://code.claude.com/docs/en/setup');
+  expect(
+    await page.evaluate(() =>
+      (window as any).testCalls.filter((call: any) => call.command === 'launch_project_tool'),
+    ),
+  ).toHaveLength(0);
+  await page.getByRole('button', { name: 'Refresh tool detection', exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as any).testCalls
+            .filter((call: any) => call.command === 'get_project_tools')
+            .at(-1)?.payload.refresh,
+      ),
+    )
+    .toBe(true);
   await page.getByRole('button', { name: /Codex CLI/ }).click();
   await section(page, 'Project Settings');
+  await expect(
+    page
+      .getByLabel('Preferred terminal')
+      .getByRole('option', { name: 'macOS Terminal', exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel('Codex CLI executable')).not.toBeVisible();
+  await page.locator('.advanced-executables > summary').click();
   await page.getByLabel('Preferred terminal').selectOption('powershell');
   await page.getByLabel('Codex CLI executable').fill('C:\\Tools with spaces\\codex.cmd');
   await page.getByRole('button', { name: 'Save project settings', exact: true }).click();
   await expect(page.getByText('Project preferences saved.', { exact: true })).toBeVisible();
   await section(page, 'Overview');
   await section(page, 'Project Settings');
+  await page.locator('.advanced-executables > summary').click();
   await expect(page.getByLabel('Preferred terminal')).toHaveValue('powershell');
   await expect(page.getByLabel('Codex CLI executable')).toHaveValue(
     'C:\\Tools with spaces\\codex.cmd',
@@ -268,6 +320,49 @@ test('tool launcher honors unavailable tools and persists project preferences', 
     tool: 'codex',
   });
   expect(calls.some((call: any) => call.command === 'run_project_command')).toBe(false);
+});
+
+test('workspace presents canonical paths conventionally and keeps terminal preferences platform specific', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await expect(page.locator('.project-card .path')).toHaveText('C:\\Projects\\River Workbench');
+  await page.evaluate(() => {
+    (window as any).workspacePlatform = 'macos';
+    (window as any).workspaceState.projects[0].launcher.executables.codex =
+      '\\\\?\\C:\\Tool Folder\\codex.cmd';
+  });
+  await openWorkspace(page);
+  await expect(page.locator('.project-workspace-heading .path')).toHaveText(
+    'C:\\Projects\\River Workbench',
+  );
+  await expect(page.getByText('Working tree clean', { exact: true }).first()).toBeVisible();
+  await section(page, 'Project Settings');
+  await expect(
+    page
+      .getByLabel('Preferred terminal')
+      .getByRole('option', { name: 'macOS Terminal', exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    page
+      .getByLabel('Preferred terminal')
+      .getByRole('option', { name: 'Windows Terminal', exact: true }),
+  ).toHaveCount(0);
+  await page.locator('.advanced-executables > summary').click();
+  await expect(page.getByLabel('Codex CLI executable')).toHaveValue('C:\\Tool Folder\\codex.cmd');
+  await expect(page.getByLabel('Windows Terminal executable')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Save project settings', exact: true }).click();
+  await expect(page.getByText('Project preferences saved.', { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => (window as any).workspaceState.projects[0].launcher.executables.codex,
+    ),
+  ).toBe('\\\\?\\C:\\Tool Folder\\codex.cmd');
+  expect(
+    await page.evaluate(() =>
+      (window as any).testCalls.filter((call: any) => call.command === 'launch_project_tool'),
+    ),
+  ).toHaveLength(0);
 });
 
 test('discovery requires command and directory review, streams output and stops an active run', async ({
@@ -424,7 +519,7 @@ test('success launcher keeps base actions unique and handoff fully visible at th
   await page.getByLabel('AI coding assistant').selectOption('claude');
   await createProject(page);
   await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
-  await expect(page.locator('.completion-launcher .tool-item')).toHaveCount(5);
+  await expect(page.locator('.completion-launcher .available-tool')).toHaveCount(2);
   await expect(page.getByRole('button', { name: 'Open Folder', exact: true })).toHaveCount(1);
   await expect(
     page
@@ -437,9 +532,10 @@ test('success launcher keeps base actions unique and handoff fully visible at th
   await expect(
     page.locator('.completion-launcher').getByRole('button', { name: /Codex CLI/ }),
   ).toBeEnabled();
+  await expect(page.locator('.completion-launcher .other-tools')).not.toHaveAttribute('open');
   await expect(
-    page.locator('.completion-launcher').getByRole('button', { name: /Claude Code CLI/ }),
-  ).toBeDisabled();
+    page.locator('.completion-launcher').getByText('Claude Code CLI', { exact: true }),
+  ).not.toBeVisible();
   await expect(page.locator('.completion-handoff > summary')).toBeInViewport({ ratio: 1 });
   expect(
     await page
@@ -473,4 +569,85 @@ test('workspace layout keeps the default Simple creation screen contained and fi
   await expect(page.getByRole('button', { name: 'Add command', exact: true })).toBeVisible();
   expect(await page.locator('body').evaluate((element) => element.scrollWidth)).toBe(820);
   await page.screenshot({ path: `artifacts/workspace-ui/minimum-${testInfo.project.name}.png` });
+});
+
+test('refined workspace screens remain readable at default, minimum and wide dimensions', async ({
+  page,
+}, testInfo) => {
+  mkdirSync('artifacts/refinement-workspace', { recursive: true });
+  await workspaceFixture(page);
+  await page.screenshot({
+    path: `artifacts/refinement-workspace/library-${testInfo.project.name}.png`,
+  });
+  await openWorkspace(page);
+  await page.screenshot({
+    path: `artifacts/refinement-workspace/overview-${testInfo.project.name}.png`,
+  });
+  await section(page, 'Open');
+  await expect(page.locator('.available-tool')).toHaveCount(4);
+  await page.screenshot({
+    path: `artifacts/refinement-workspace/open-${testInfo.project.name}.png`,
+  });
+  await section(page, 'Commands');
+  await page.getByRole('button', { name: 'Discover commands', exact: true }).click();
+  await page.getByRole('button', { name: 'Import selected commands', exact: true }).click();
+  await expect(page.locator('.command-working-directory')).toContainText(
+    'C:\\Projects\\River Workbench',
+  );
+  await page.screenshot({
+    path: `artifacts/refinement-workspace/commands-${testInfo.project.name}.png`,
+  });
+  await section(page, 'Project Settings');
+  await expect(page.locator('.advanced-executables > summary')).toBeInViewport({ ratio: 1 });
+  await page.screenshot({
+    path: `artifacts/refinement-workspace/settings-${testInfo.project.name}.png`,
+  });
+  await page.locator('.advanced-executables > summary').click();
+  await page.getByLabel('VS Code executable').scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: `artifacts/refinement-workspace/advanced-${testInfo.project.name}.png`,
+  });
+  for (const size of [
+    { width: 820, height: 580 },
+    { width: 1500, height: 900 },
+  ]) {
+    await page.setViewportSize(size);
+    await section(page, 'Commands');
+    await expect(page.getByRole('button', { name: 'Add command', exact: true })).toBeInViewport({
+      ratio: 1,
+    });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+    ).toBeLessThanOrEqual(0);
+    expect(
+      await page
+        .getByRole('main', { name: 'Project workspace' })
+        .evaluate((element) => element.scrollWidth - element.clientWidth),
+    ).toBeLessThanOrEqual(0);
+    await section(page, 'Project Settings');
+    await expect(
+      page.getByRole('button', { name: 'Save project settings', exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+    ).toBeLessThanOrEqual(0);
+    expect(
+      await page
+        .getByRole('main', { name: 'Project workspace' })
+        .evaluate((element) => element.scrollWidth - element.clientWidth),
+    ).toBeLessThanOrEqual(0);
+  }
+  await page.setViewportSize({ width: 1100, height: 740 });
+  await page
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('button', { name: 'New Project', exact: true })
+    .click();
+  await page.getByLabel('Project name').fill('river-workbench');
+  await createProject(page);
+  await expect(
+    page.getByRole('button', { name: 'Open project workspace', exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: `artifacts/refinement-workspace/success-${testInfo.project.name}.png`,
+  });
 });

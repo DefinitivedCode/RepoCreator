@@ -37,6 +37,7 @@ export interface ProjectWorkspaceState {
   exists: boolean;
   gitStatus: string;
   branch: string;
+  platform?: 'windows' | 'macos' | 'other';
 }
 export interface ProjectTool {
   id: string;
@@ -44,6 +45,9 @@ export interface ProjectTool {
   available: boolean;
   path: string | null;
   documentation: string;
+  status?: 'available' | 'missing' | 'invalid' | 'unknown';
+  detail?: string;
+  platform?: 'windows' | 'macos' | 'other';
 }
 export interface CommandRun {
   id: string;

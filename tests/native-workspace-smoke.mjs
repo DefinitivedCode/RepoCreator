@@ -341,15 +341,92 @@ try {
   await expect(
     workspacePage.getByRole('heading', { name: added.context.projectName, exact: true }),
   ).toBeVisible();
+  // Exercise the real installed IDE's passive discovery without launching it.
+  const antigravityProcesses = () =>
+    JSON.parse(
+      execFileSync(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-Command',
+          'ConvertTo-Json -Compress -InputObject @(Get-Process -Name Antigravity -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)',
+        ],
+        { encoding: 'utf8', windowsHide: true },
+      ),
+    );
+  const beforeIde = antigravityProcesses();
+  const detected = await invoke('get_project_tools', { id: added.id, refresh: true });
+  await workspacePage.getByRole('button', { name: 'Open', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Refresh tool detection', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Refresh tool detection', exact: true }).click();
+  assert.deepEqual(antigravityProcesses(), beforeIde);
   for (const appearance of ['light', 'dark']) {
     await page.getByRole('combobox', { name: /Appearance/ }).selectOption(appearance);
-    await page.screenshot({ path: path.join(artifacts, `workspace-${appearance}.png`) });
+    await page.screenshot({
+      path: path.join(artifacts, `open-${appearance}.png`),
+      animations: 'disabled',
+    });
+  }
+  checks.push(
+    `Passive real-world Antigravity discovery and Open navigation create no IDE process (${detected.find((t) => t.id === 'antigravity-ide')?.status ?? 'unreported'})`,
+  );
+
+  const marker = path.join(project, 'launcher-marker.txt');
+  await rm(marker, { force: true });
+  await invoke('save_project_settings', {
+    ...settings,
+    launcher: {
+      terminal: 'auto',
+      executables: { 'antigravity-ide': fixtureExecutable },
+    },
+  });
+  await invoke('get_project_tools', { id: added.id, refresh: true });
+  await assert.rejects(readFile(marker));
+  // The explicit action must still launch the verified fixture with folder argv.
+  await invoke('launch_project_tool', { id: added.id, tool: 'antigravity-ide' });
+  let ideFixture;
+  await expect
+    .poll(async () => {
+      ideFixture = await readFile(marker, 'utf8').catch(() => '');
+      return ideFixture.includes('\n');
+    })
+    .toBe(true);
+  const [ideDirectory, idePid, ideArguments] = ideFixture.split('\n');
+  assert.equal(ideDirectory.replace(/^\\\\\?\\/, ''), project);
+  assert.ok(ideArguments.includes('--new-window'));
+  assert.ok(ideArguments.includes('Project with spaces 日本語'));
+  ownedProcesses.add(Number(idePid));
+  process.kill(Number(idePid));
+  await invoke('save_project_settings', settings);
+  checks.push(
+    'Passive executable marker stays absent; explicit IDE launch receives exact folder arguments',
+  );
+  await workspacePage.getByRole('button', { name: 'Overview', exact: true }).click();
+  for (const appearance of ['light', 'dark']) {
+    await page.getByRole('combobox', { name: /Appearance/ }).selectOption(appearance);
+    await page.screenshot({
+      path: path.join(artifacts, `workspace-${appearance}.png`),
+      animations: 'disabled',
+    });
   }
   await workspacePage.getByRole('button', { name: 'Commands', exact: true }).click();
   await expect(page.getByLabel('long output', { exact: true })).toContainText('stream-start');
   for (const appearance of ['light', 'dark']) {
     await page.getByRole('combobox', { name: /Appearance/ }).selectOption(appearance);
-    await page.screenshot({ path: path.join(artifacts, `commands-${appearance}.png`) });
+    await page.screenshot({
+      path: path.join(artifacts, `commands-${appearance}.png`),
+      animations: 'disabled',
+    });
+  }
+  await workspacePage.getByRole('button', { name: 'Project Settings', exact: true }).click();
+  for (const appearance of ['light', 'dark']) {
+    await page.getByRole('combobox', { name: /Appearance/ }).selectOption(appearance);
+    await page.screenshot({
+      path: path.join(artifacts, `settings-${appearance}.png`),
+      animations: 'disabled',
+    });
   }
   assert.deepEqual(pageErrors, []);
   checks.push('Production workspace rendered in dark and light modes without JavaScript errors');

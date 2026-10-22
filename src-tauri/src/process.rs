@@ -20,6 +20,25 @@ impl Program {
         }
     }
 }
+#[cfg(windows)]
+pub(crate) fn windows_install_roots() -> Vec<PathBuf> {
+    let mut roots = ["LOCALAPPDATA", "ProgramFiles", "ProgramFiles(x86)"]
+        .into_iter()
+        .filter_map(std::env::var_os)
+        .map(PathBuf::from)
+        .collect::<Vec<_>>();
+    if let Some(home) = std::env::var_os("USERPROFILE") {
+        roots.push(PathBuf::from(home).join("AppData/Local"));
+    }
+    roots.retain(|root| root.is_absolute());
+    let mut unique = Vec::new();
+    for root in roots {
+        if !unique.contains(&root) {
+            unique.push(root);
+        }
+    }
+    unique
+}
 
 /// Finder does not inherit a user's interactive shell PATH. Add documented common
 /// install locations to this child process only; never source a shell profile.
@@ -29,17 +48,20 @@ pub fn executable_directories() -> Vec<PathBuf> {
         .unwrap_or_default();
     #[cfg(windows)]
     {
-        for key in ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"] {
-            if let Some(root) = std::env::var_os(key) {
-                let root = PathBuf::from(root);
-                directories.extend([
-                    root.join("Git/cmd"),
-                    root.join("Git/bin"),
-                    root.join("GitHub CLI"),
-                    root.join("Programs/Git/cmd"),
-                    root.join("Programs/GitHub CLI"),
-                ]);
-            }
+        for root in windows_install_roots() {
+            directories.extend([
+                root.join("Git/cmd"),
+                root.join("Git/bin"),
+                root.join("GitHub CLI"),
+                root.join("Programs/Git/cmd"),
+                root.join("Programs/GitHub CLI"),
+                root.join("agy/bin"),
+                root.join("Microsoft/WindowsApps"),
+                root.join("Microsoft/WinGet/Links"),
+                root.join("Programs/claude-code"),
+                root.join("Programs/Microsoft VS Code/bin"),
+                root.join("Microsoft VS Code/bin"),
+            ]);
         }
         if let Some(root) = std::env::var_os("APPDATA") {
             directories.push(PathBuf::from(root).join("npm"));
@@ -67,6 +89,8 @@ pub fn executable_directories() -> Vec<PathBuf> {
             ".claude/local",
             ".npm-global/bin",
             ".volta/bin",
+            ".bun/bin",
+            "scoop/shims",
         ] {
             directories.push(home.join(relative));
         }
@@ -127,11 +151,7 @@ pub fn optional_tools() -> Vec<ToolStatus> {
     ]
     .into_iter()
     .map(|(id, name)| {
-        let mut available = resolve_executable(id).is_some()
-            || (cfg!(windows)
-                && executable_directories()
-                    .iter()
-                    .any(|directory| directory.join(format!("{id}.cmd")).is_file()));
+        let mut available = crate::launcher::find_executable(id).is_some();
         if id == "cursor" {
             #[cfg(windows)]
             if let Some(root) = std::env::var_os("LOCALAPPDATA") {

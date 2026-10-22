@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Icon } from './icons';
 import { ProjectBrief } from './ProjectBrief';
 import type { Creator } from './useCreator';
@@ -7,6 +8,7 @@ import type { Section } from './App';
 import { displayPath, nameError } from './validation';
 import { TechnologySelector } from './TechnologySelector';
 import { technologiesFor, technologySummary } from './technologies';
+import './creation-fields.css';
 export { TechnologySelector } from './TechnologySelector';
 
 export function Overview({
@@ -32,7 +34,7 @@ export function Overview({
   if (!form || !catalog || !preferences) return null;
   const presets = [...catalog.builtInPresets, ...preferences.customPresets];
   return (
-    <div className="overview-layout">
+    <div className="overview-layout creation-overview">
       <div className="overview-identity two-columns">
         <label className="field">
           <span className="control-label">Project name</span>
@@ -99,12 +101,14 @@ export function Overview({
           </button>
         </div>
       </div>
-      <div className="overview-assistants two-columns">
+      <div className="overview-assistants two-columns creation-development">
         <Technology creator={creator} simple={simple} />
         <Assistant creator={creator} simple={simple} onAdvanced={onAgents} />
       </div>
-      <Location creator={creator} />
-      <Destination creator={creator} simple={simple} />
+      <div className="creation-location-group">
+        <Location creator={creator} />
+        <Destination creator={creator} simple={simple} />
+      </div>
       <div className="overview-tools">
         <details className="brief-details">
           <summary>
@@ -391,7 +395,6 @@ export function Context({
   creator,
   section,
   presetName,
-  presetDescription,
   fileSection,
 }: {
   creator: Creator;
@@ -400,256 +403,376 @@ export function Context({
   presetDescription?: string;
   fileSection?: string;
 }) {
-  const files = creator.files,
-    preview = files.find((f) =>
-      section === 'agents'
-        ? f.path === 'AGENTS.md'
-        : section === 'files'
-          ? f.path ===
-            ({
-              ignore: '.gitignore',
-              license: 'LICENSE',
-              additional: '.editorconfig',
-              readme: 'README.md',
-            }[fileSection ?? 'readme'] ?? 'README.md')
-          : false,
+  const form = creator.form!;
+  const files = creator.files;
+  const [selectedFile, setSelectedFile] = useState('README.md');
+  const preferred =
+    section === 'agents'
+      ? 'AGENTS.md'
+      : section === 'files'
+        ? ({
+            ignore: '.gitignore',
+            license: 'LICENSE',
+            additional: '.editorconfig',
+            readme: 'README.md',
+          }[fileSection ?? 'readme'] ?? 'README.md')
+        : selectedFile;
+  const preview = files.find((file) => file.path === preferred) ?? files[0];
+  if (section === 'handoff')
+    return (
+      <div className="creation-context">
+        <div className="context-heading">
+          <Icon name="lock" size={16} />
+          <h3>Local project context</h3>
+        </div>
+        <p className="help">Review your prompt before copying or exporting it.</p>
+        <div className="context-note">
+          <Icon name="check" size={14} />
+          <span>Assembled on this computer. Nothing is sent to an AI service.</span>
+        </div>
+      </div>
     );
   return (
-    <>
-      <p className="eyebrow">
-        {section === 'agents'
-          ? 'AI INSTRUCTIONS'
-          : section === 'files'
-            ? 'GENERATED FILES'
-            : section === 'handoff'
-              ? 'LOCAL & PRIVATE'
-              : 'PROJECT DETAILS'}
+    <div className="creation-context">
+      <div className="context-heading">
+        <Icon name="file" size={16} />
+        <h3>Generated files</h3>
+        <span className="context-count">{files.length}</span>
+      </div>
+      <p className="context-destination">
+        <Icon name={form.destination === 'github' ? 'github' : 'folder'} size={14} />
+        {form.destination === 'github'
+          ? `${form.visibility === 'private' ? 'Private' : 'Public'} GitHub repository`
+          : 'Local Git repository'}
       </p>
-      <h3>
-        {section === 'handoff'
-          ? 'Ready for your next conversation'
-          : creator.form!.name || 'Your next project'}
-      </h3>
-      {section === 'handoff' ? (
-        <p className="help">
-          Your prompt is assembled on this computer. Nothing is sent to an AI service. Review it
-          before sharing.
+      {creator.previewing && (
+        <p className="help" role="status">
+          Updating preview…
         </p>
-      ) : (
-        <>
-          <p className="help">{presetName}</p>
-          {section === 'overview' && (
-            <p className="context-description help">
-              {presetDescription ||
-                'Choose a starting point, then adjust any setting. Existing folders are never overwritten.'}
-            </p>
-          )}
-          <div className="context-facts">
-            <span>
-              {creator.form!.destination === 'github'
-                ? `${creator.form!.visibility === 'private' ? 'Private' : 'Public'} on GitHub`
-                : 'On this computer'}
-            </span>
-            <span>
-              {creator.form!.options.ai.enabled
-                ? creator
-                    .catalog!.studio.agents.filter((agent) =>
-                      creator.form!.options.ai.agents.includes(agent.id),
-                    )
-                    .map((agent) => agent.name)
-                    .join(', ')
-                : 'No AI instructions'}
-            </span>
-          </div>
-          {section === 'overview' && (
-            <p className="help context-description">
-              No tools are installed. AI assistants are optional; choosing one adds project
-              instructions.
-            </p>
-          )}
-          <h4>{creator.previewing ? 'Updating files…' : `${files.length} planned files`}</h4>
-          <ul className="context-files" tabIndex={0} aria-label="Planned generated files">
-            {files.map((f) => (
-              <li key={f.path}>
-                <Icon name="file" size={12} />
-                <code>{f.path}</code>
-              </li>
-            ))}
-          </ul>
-          {!files.length && !creator.previewing && (
-            <p className="help">An empty initial commit will be created.</p>
-          )}
-          {preview && (
-            <>
-              <h4>{preview.path}</h4>
-              <pre className="context-code" tabIndex={0}>
-                {preview.content}
-              </pre>
-            </>
-          )}
-          {creator.previewError && <p className="inline-error">{creator.previewError}</p>}
-        </>
       )}
-      <p className="context-bottom help">
-        {section === 'setup'
-          ? 'Optional coding assistants never block project creation.'
-          : 'Review the complete file contents in Review.'}
-      </p>
-    </>
+      {creator.previewError && (
+        <p className="inline-error" role="alert">
+          {creator.previewError}
+        </p>
+      )}
+      <ul className="context-files" tabIndex={0} aria-label="Planned generated files">
+        {files.map((file) => (
+          <li key={file.path}>
+            <button
+              type="button"
+              aria-pressed={preview?.path === file.path}
+              onClick={() => setSelectedFile(file.path)}
+              title={file.path}
+            >
+              <Icon name="file" size={13} />
+              <code>{file.path}</code>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {!files.length && !creator.previewing && (
+        <p className="help">Empty repository · the first commit will contain no files.</p>
+      )}
+      {preview && (
+        <div className="context-live-preview">
+          <h4>
+            {preview.path}
+            <span>Preview</span>
+          </h4>
+          <pre className="context-code" tabIndex={0} aria-label={`${preview.path} preview`}>
+            {preview.content}
+          </pre>
+        </div>
+      )}
+      {technologySummary(technologiesFor(form)) && (
+        <div className="context-stack">
+          <h4>Technology context</h4>
+          <p>{technologySummary(technologiesFor(form))}</p>
+        </div>
+      )}
+      <div className="context-footnote">
+        <span>{presetName}</span>
+        <span>{form.options.initialBranch}</span>
+      </div>
+    </div>
   );
 }
 export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: () => void }) {
-  const env = creator.environment,
-    form = creator.form!;
+  const env = creator.environment;
+  const form = creator.form!;
+  const [tab, setTab] = useState<'git' | 'github' | 'tools'>('git');
+  const option = (key: 'commitAuthorName' | 'commitAuthorEmail', value: string) =>
+    creator.update('options', { ...form.options, [key]: value });
   if (!env)
     return (
-      <div className="setup-checklist">
+      <div className="setup-settings">
         <p role="status">
           {creator.checking ? 'Checking your computer…' : 'Computer checks are unavailable.'}
         </p>
-        {!creator.checking && (
-          <div className="inline-actions">
-            <button
-              type="button"
-              onClick={() => void creator.refresh(form.destination === 'github')}
-            >
-              Recheck
-            </button>
-            <button type="button" onClick={onReturn}>
-              Return to project
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  const github = form.destination === 'github',
-    option = (key: 'commitAuthorName' | 'commitAuthorEmail', value: string) =>
-      creator.update('options', { ...form.options, [key]: value });
-  return (
-    <div className="setup-checklist">
-      <p className="section-intro">
-        Only Git is needed for a local project. GitHub and coding assistants are optional.
-      </p>
-      <section className="settings-section">
-        <h3>Git · {env.gitInstalled ? 'Installed' : 'Required'}</h3>
-        <p>Git keeps a history of your project’s changes.</p>
-        {!env.gitInstalled && (
+        <div className="inline-actions">
           <button
             type="button"
-            onClick={() => void creator.action('open_setup_resource', { resource: 'git' })}
+            disabled={creator.checking}
+            onClick={() => void creator.refresh(form.destination === 'github')}
           >
-            Open Git installation instructions
+            Recheck
           </button>
-        )}
-        <p className="help">
-          Commit identity:{' '}
-          {env.identityReady
-            ? 'Ready'
-            : 'Enter a name and email below, or configure Git with its official guide.'}
-        </p>
-        {!env.identityReady && (
-          <>
-            <div className="two-columns">
-              <label className="field">
-                <span className="control-label">Your name for this project</span>
-                <input
-                  value={form.options.commitAuthorName ?? ''}
-                  onChange={(e) => option('commitAuthorName', e.target.value)}
-                />
-              </label>
-              <label className="field">
-                <span className="control-label">Email for this project</span>
-                <input
-                  type="email"
-                  value={form.options.commitAuthorEmail ?? ''}
-                  onChange={(e) => option('commitAuthorEmail', e.target.value)}
-                />
-              </label>
-            </div>
-            <p className="help">
-              This identity is set only in the new project. Use an email you are comfortable
-              recording in Git history.
-            </p>
-            <button
-              type="button"
-              className="text-button"
-              onClick={() =>
-                void creator.action('open_setup_resource', { resource: 'git-identity' })
+          <button type="button" onClick={onReturn}>
+            Return to project setup
+          </button>
+        </div>
+      </div>
+    );
+  const hasProjectIdentity = !!(
+    form.options.commitAuthorName?.trim() && form.options.commitAuthorEmail?.trim()
+  );
+  return (
+    <div className="setup-settings">
+      <div className="setup-summary">
+        <div>
+          <Icon name="settings" size={20} />
+          <div>
+            <strong>Development environment</strong>
+            <span>
+              {env.gitInstalled && (env.identityReady || hasProjectIdentity)
+                ? 'Ready for local projects'
+                : 'Complete Git setup to create a project'}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => void creator.refresh(tab === 'github' || form.destination === 'github')}
+          disabled={creator.checking}
+        >
+          <Icon name="refresh" size={14} />
+          {creator.checking ? 'Checking…' : 'Recheck'}
+        </button>
+      </div>
+      <div className="setup-tabs" role="tablist" aria-label="Environment settings">
+        {(
+          [
+            ['git', 'Git & identity'],
+            ['github', 'GitHub'],
+            ['tools', 'Development tools'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            type="button"
+            key={id}
+            role="tab"
+            id={`environment-tab-${id}`}
+            aria-controls={`environment-panel-${id}`}
+            aria-selected={tab === id}
+            tabIndex={tab === id ? 0 : -1}
+            onClick={() => setTab(id)}
+            onKeyDown={(event) => {
+              if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                event.preventDefault();
+                const tabs = ['git', 'github', 'tools'] as const;
+                const index =
+                  event.key === 'Home'
+                    ? 0
+                    : event.key === 'End'
+                      ? 2
+                      : (tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+                setTab(tabs[index]);
+                document.getElementById(`environment-tab-${tabs[index]}`)?.focus();
               }
-            >
-              Git identity help
-            </button>
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <section
+        className="setup-settings-panel"
+        role="tabpanel"
+        id={`environment-panel-${tab}`}
+        aria-labelledby={`environment-tab-${tab}`}
+      >
+        {tab === 'git' && (
+          <>
+            <div className="setup-status-row">
+              <div className="setup-tool-name">
+                <Icon name="repo" size={18} />
+                <div>
+                  <strong>Git</strong>
+                  <span>Version control · required for new projects</span>
+                </div>
+              </div>
+              <span className="setup-status" data-ready={env.gitInstalled}>
+                {env.gitInstalled ? 'Installed' : 'Not detected'}
+              </span>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => void creator.action('open_setup_resource', { resource: 'git' })}
+              >
+                {env.gitInstalled ? 'Official guide' : 'Install Git'}
+                <Icon name="external" size={12} />
+              </button>
+            </div>
+            <div className="setup-identity">
+              <div className="setup-section-heading">
+                <h3>Commit identity</h3>
+                <span className="setup-status" data-ready={env.identityReady || hasProjectIdentity}>
+                  {env.identityReady
+                    ? 'Git identity ready'
+                    : hasProjectIdentity
+                      ? 'Project identity set'
+                      : 'Needs a name & email'}
+                </span>
+              </div>
+              <p className="help">
+                {env.identityReady
+                  ? `${env.identityName || 'Your Git identity'} is used by default. A project override is optional.`
+                  : 'Set the author recorded in this project’s Git history.'}
+              </p>
+              <div className="two-columns">
+                <label className="field">
+                  <span>Your name for this project</span>
+                  <input
+                    value={form.options.commitAuthorName ?? ''}
+                    placeholder={env.identityName || 'Commit author name'}
+                    onChange={(event) => option('commitAuthorName', event.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Email for this project</span>
+                  <input
+                    type="email"
+                    value={form.options.commitAuthorEmail ?? ''}
+                    placeholder="author@example.com"
+                    onChange={(event) => option('commitAuthorEmail', event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="setup-identity-note">
+                <span>Overrides apply only to the new repository.</span>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() =>
+                    void creator.action('open_setup_resource', { resource: 'git-identity' })
+                  }
+                >
+                  Git identity help
+                  <Icon name="external" size={12} />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+        {tab === 'github' && (
+          <>
+            <div className="setup-status-row">
+              <div className="setup-tool-name">
+                <Icon name="github" size={18} />
+                <div>
+                  <strong>GitHub CLI</strong>
+                  <span>Optional · publish repositories to GitHub</span>
+                </div>
+              </div>
+              <span className="setup-status" data-ready={env.ghInstalled}>
+                {env.ghInstalled ? 'Installed' : 'Not detected'}
+              </span>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => void creator.action('open_setup_resource', { resource: 'gh' })}
+              >
+                {env.ghInstalled ? 'Official guide' : 'Install GitHub CLI'}
+                <Icon name="external" size={12} />
+              </button>
+            </div>
+            <div className="setup-account">
+              <h3>GitHub account</h3>
+              <p>
+                {env.githubUser
+                  ? `Connected as ${env.githubUser}`
+                  : form.destination === 'github'
+                    ? 'Connect an account to publish your project.'
+                    : 'Not checked for this local project.'}
+              </p>
+              <div className="inline-actions">
+                {env.ghInstalled && (
+                  <button type="button" className="primary" onClick={() => void creator.connect()}>
+                    {env.githubUser ? 'Connect another account' : 'Connect to GitHub'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={creator.checking}
+                  onClick={() => void creator.refresh(true)}
+                >
+                  Check GitHub connection
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+        {tab === 'tools' && (
+          <>
+            <div className="setup-section-heading">
+              <h3>Editors & coding assistants</h3>
+              <span className="help">Optional</span>
+            </div>
+            <p className="help setup-tools-note">
+              Generate AI instructions with or without installing an assistant.
+            </p>
+            <div className="setup-tools-list">
+              <div className="setup-status-row">
+                <div className="setup-tool-name">
+                  <Icon name="code" size={16} />
+                  <strong>VS Code</strong>
+                </div>
+                <span className="setup-status" data-ready={env.vscodeAvailable}>
+                  {env.vscodeAvailable ? 'Available' : 'Not detected'}
+                </span>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => void creator.action('open_setup_resource', { resource: 'vscode' })}
+                >
+                  Official guide
+                  <Icon name="external" size={12} />
+                </button>
+              </div>
+              {env.optionalTools?.map((tool) => (
+                <div className="setup-status-row" key={tool.id}>
+                  <div className="setup-tool-name">
+                    <Icon name="code" size={16} />
+                    <strong>{tool.name}</strong>
+                  </div>
+                  <span className="setup-status" data-ready={tool.status === 'available'}>
+                    {tool.status === 'available'
+                      ? 'Available'
+                      : tool.status === 'not-checked'
+                        ? 'Not checked'
+                        : 'Not detected'}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() =>
+                      void creator.action('open_setup_resource', { resource: tool.id })
+                    }
+                  >
+                    Official guide
+                    <Icon name="external" size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </>
         )}
       </section>
-      <section className="settings-section">
-        <h3>GitHub · {github ? 'Selected' : 'Optional'}</h3>
-        <p>GitHub lets you store and share your project online.</p>
-        <p className="help">
-          {!env.ghInstalled
-            ? 'GitHub CLI is unavailable.'
-            : env.githubUser
-              ? `Connected as ${env.githubUser}`
-              : github
-                ? 'GitHub CLI is installed; connect your account.'
-                : 'Connection has not been checked for this local project.'}
-        </p>
-        <div className="inline-actions">
-          {!env.ghInstalled ? (
-            <button
-              type="button"
-              onClick={() => void creator.action('open_setup_resource', { resource: 'gh' })}
-            >
-              Install GitHub CLI
-            </button>
-          ) : (
-            <button type="button" onClick={() => void creator.connect()}>
-              Connect to GitHub
-            </button>
-          )}
-          <button type="button" onClick={() => void creator.refresh(true)}>
-            Check GitHub connection
-          </button>
-        </div>
-      </section>
-      <section className="settings-section">
-        <h3>Coding assistants & editor · Optional</h3>
-        <p className="help">
-          Claude Code and other assistants can help develop your project. You can generate
-          instructions and handoff prompts without installing them.
-        </p>
-        {env.optionalTools?.map((tool) => (
-          <div className="tool-status" key={tool.id}>
-            <span>{tool.name}</span>
-            <span className="help">
-              {tool.status === 'available'
-                ? 'Available'
-                : tool.status === 'not-checked'
-                  ? 'Not checked'
-                  : 'Unavailable'}
-            </span>
-            {tool.status !== 'available' && (
-              <button
-                className="text-button"
-                type="button"
-                onClick={() => void creator.action('open_setup_resource', { resource: tool.id })}
-              >
-                Official guide
-              </button>
-            )}
-          </div>
-        )) ?? <p className="help">VS Code: {env.vscodeAvailable ? 'Available' : 'Unavailable'}</p>}
-      </section>
-      <div className="inline-actions">
-        <button
-          type="button"
-          disabled={creator.checking}
-          onClick={() => void creator.refresh(github)}
-        >
-          {creator.checking ? 'Checking…' : 'Recheck'}
-        </button>
-        <button type="button" className="primary" onClick={onReturn}>
+      <div className="setup-settings-footer">
+        <span>Local settings · no tools are installed automatically</span>
+        <button type="button" onClick={onReturn}>
           Return to project setup
+          <Icon name="arrow" size={14} />
         </button>
       </div>
     </div>

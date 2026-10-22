@@ -285,6 +285,7 @@ test('optional tools and disconnected GitHub never block a local project or hand
   await page.getByLabel('Project name').fill('offline-project');
   await navigate(page, 'Setup & status');
   await page.getByRole('button', { name: 'Recheck', exact: true }).click();
+  await page.getByRole('tab', { name: 'Development tools', exact: true }).click();
   await expect(page.getByText('Claude Code', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Return to project setup', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();

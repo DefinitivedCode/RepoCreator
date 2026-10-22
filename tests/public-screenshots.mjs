@@ -101,7 +101,7 @@ try {
     assert(!/[/\\]Users[/\\]|[/\\]home[/\\]|@|https:\/\/github\.com\//i.test(text));
     assert(text.includes('C:\\Projects'));
     await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
-    await page.screenshot({ path: path.join(output, name) });
+    await page.screenshot({ path: path.join(output, name), animations: 'disabled' });
   };
   await capture('simple-mode.png');
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();

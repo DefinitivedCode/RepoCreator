@@ -102,6 +102,7 @@ export interface Preferences {
   customPresets: ProjectPreset[];
 }
 export interface Environment {
+  platform?: 'windows' | 'macos' | 'other';
   optionalTools?: {
     id: string;
     name: string;

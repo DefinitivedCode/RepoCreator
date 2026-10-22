@@ -31,7 +31,6 @@ export function AgentStudio({
   const selectedSaved = savedPresets.find((p) => p.id === profile.preset);
   const selectedBuiltIn = source.presets.find((p) => p.id === profile.preset);
   const selectedId = selectedSaved?.id ?? selectedBuiltIn?.id ?? 'custom';
-  const shared = creator.files.find((file) => file.path === 'AGENTS.md');
   function load(id: string, rulesOnly = false) {
     const saved = savedPresets.find((preset) => preset.id === id);
     const builtIn = source.presets.find((preset) => preset.id === id);
@@ -157,12 +156,17 @@ export function AgentStudio({
         ) : (
           <>
             <section className="settings-section" hidden={section !== 'assistants'}>
-              <h3>Coding agents</h3>
-              <div className="checkbox-grid">
+              <h3>Project instruction formats</h3>
+              <p className="help">Choose the assistants you use. No installation is needed.</p>
+              <div className="checkbox-grid assistant-options">
                 {source.agents.map((agent) => (
-                  <label className="check-label" key={agent.id} title={agent.description}>
+                  <label
+                    className={`check-label assistant-option ${studio.agents.includes(agent.id) ? 'selected' : ''}`}
+                    key={agent.id}
+                  >
                     <input
                       type="checkbox"
+                      aria-label={agent.name}
                       checked={studio.agents.includes(agent.id)}
                       onChange={() =>
                         update({
@@ -173,7 +177,10 @@ export function AgentStudio({
                         })
                       }
                     />
-                    {agent.name}
+                    <span>
+                      <strong>{agent.name}</strong>
+                      <small>{agent.description}</small>
+                    </span>
                   </label>
                 ))}
               </div>
@@ -407,22 +414,6 @@ export function AgentStudio({
                   </button>
                 </div>
               </div>
-              <details className="studio-subsection">
-                <summary>Shared Markdown preview</summary>
-                <div className="studio-section-body">
-                  {creator.previewing ? (
-                    <p className="help">Updating preview…</p>
-                  ) : shared ? (
-                    <pre className="preview" tabIndex={0} aria-label="Shared instructions preview">
-                      {shared.content}
-                    </pre>
-                  ) : (
-                    <p className="help">
-                      Complete the configuration to preview shared instructions.
-                    </p>
-                  )}
-                </div>
-              </details>
             </section>
             <div hidden={section !== 'specialists'}>
               <SpecialistEditor studio={studio} update={update} creator={creator} />

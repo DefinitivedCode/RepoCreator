@@ -183,6 +183,7 @@ pub(crate) fn command_directory(
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectWorkspace {
+    platform: &'static str,
     project: RecentProject,
     exists: bool,
     git_status: String,
@@ -262,6 +263,7 @@ pub fn get_project_workspace(
     let project = handoff::find_project(&app, &id)?;
     let Ok(path) = project_directory(&project) else {
         return Ok(ProjectWorkspace {
+            platform: crate::launcher::platform(),
             branch: project.context.branch.clone(),
             project,
             exists: false,
@@ -300,6 +302,7 @@ pub fn get_project_workspace(
         Ok(())
     })?;
     Ok(ProjectWorkspace {
+        platform: crate::launcher::platform(),
         project,
         exists: true,
         git_status,

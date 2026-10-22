@@ -73,7 +73,8 @@ async function resize(size) {
     .poll(() => page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
     .toEqual(size);
 }
-const screenshot = (name) => page.screenshot({ path: path.join(screenshots, `${name}.png`) });
+const screenshot = (name) =>
+  page.screenshot({ path: path.join(screenshots, `${name}.png`), animations: 'disabled' });
 async function verifyOverview(mode) {
   await resize(scrollSizes[0]);
   const main = page.locator('.workspace-main');
@@ -458,6 +459,12 @@ try {
   await page.getByLabel('Project name', { exact: true }).fill('native-blank');
   await identityIfNeeded();
   await verifyOverview('simple');
+  await page.getByRole('button', { name: 'Browse technologies', exact: true }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Choose technologies', exact: true }),
+  ).toBeVisible();
+  await screenshot('technology-picker-dark');
+  await page.keyboard.press('Escape');
   await verifyExpandedScrolling(page, resize);
   for (const size of scrollSizes) {
     await resize(size);
@@ -467,6 +474,9 @@ try {
   }
   await resize(scrollSizes[0]);
   await page.getByRole('combobox', { name: /Appearance/ }).selectOption('light');
+  await page.getByRole('button', { name: 'Browse technologies', exact: true }).click();
+  await screenshot('technology-picker-light');
+  await page.keyboard.press('Escape');
   await screenshot('simple-light-1100x740');
   await verifyEmulatedScales();
   assert.equal(

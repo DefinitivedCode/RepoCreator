@@ -6,6 +6,8 @@ use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
     process::Command,
+    sync::{Mutex, OnceLock},
+    time::{Duration, Instant},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -80,11 +82,16 @@ pub(crate) fn validate(preferences: &LauncherPreferences) -> Result<(), AppError
     Ok(())
 }
 pub(crate) fn find_executable(name: &str) -> Option<PathBuf> {
+    executable_candidates(name)
+        .into_iter()
+        .find(|path| executable_path(path))
+}
+fn executable_candidates(name: &str) -> Vec<PathBuf> {
     if name.is_empty()
         || Path::new(name).components().count() != 1
         || name.contains(['/', '\\', '\0'])
     {
-        return None;
+        return Vec::new();
     }
     let filenames = if cfg!(windows) {
         if Path::new(name).extension().is_some() {
@@ -103,7 +110,7 @@ pub(crate) fn find_executable(name: &str) -> Option<PathBuf> {
     process::executable_directories()
         .iter()
         .flat_map(|dir| filenames.iter().map(move |name| dir.join(name)))
-        .find(|path| process::executable_file(path))
+        .collect()
 }
 #[cfg(windows)]
 pub(crate) fn powershell_path() -> Option<PathBuf> {
@@ -124,17 +131,24 @@ fn override_path(preferences: &LauncherPreferences, tool: &str) -> Option<PathBu
         .map(PathBuf::from)
 }
 fn terminal_path(preferences: &LauncherPreferences) -> Option<PathBuf> {
+    if (cfg!(windows) && preferences.terminal == "terminal")
+        || (cfg!(target_os = "macos")
+            && ["powershell", "windows-terminal"].contains(&preferences.terminal.as_str()))
+    {
+        return None;
+    }
+    if let Some(path) = configured_path(preferences, "terminal") {
+        return executable_path(&path).then_some(path);
+    }
     #[cfg(windows)]
     {
-        let wt = || {
-            override_path(preferences, "windows-terminal")
-                .filter(|path| process::executable_file(path))
-                .or_else(|| find_executable("wt"))
+        let wt = || match override_path(preferences, "windows-terminal") {
+            Some(path) => executable_path(&path).then_some(path),
+            None => find_executable("wt"),
         };
-        let ps = || {
-            override_path(preferences, "powershell")
-                .filter(|path| process::executable_file(path))
-                .or_else(powershell_path)
+        let ps = || match override_path(preferences, "powershell") {
+            Some(path) => executable_path(&path).then_some(path),
+            None => powershell_path(),
         };
         match preferences.terminal.as_str() {
             "windows-terminal" => wt(),
@@ -166,16 +180,13 @@ fn ide_candidates() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     #[cfg(windows)]
     {
-        for key in ["LOCALAPPDATA", "ProgramFiles", "ProgramFiles(x86)"] {
-            if let Some(root) = std::env::var_os(key) {
-                let root = PathBuf::from(root);
-                candidates.extend([
-                    root.join("Programs/Antigravity/Antigravity.exe"),
-                    root.join("Antigravity/Antigravity.exe"),
-                    root.join("Programs/Antigravity IDE/Antigravity.exe"),
-                    root.join("Antigravity IDE/Antigravity.exe"),
-                ]);
-            }
+        for root in process::windows_install_roots() {
+            candidates.extend([
+                root.join("Programs/Antigravity/Antigravity.exe"),
+                root.join("Antigravity/Antigravity.exe"),
+                root.join("Programs/Antigravity IDE/Antigravity.exe"),
+                root.join("Antigravity IDE/Antigravity.exe"),
+            ]);
         }
     }
     #[cfg(target_os = "macos")]
@@ -196,10 +207,14 @@ fn ide_candidates() -> Vec<PathBuf> {
 }
 fn tool_path(preferences: &LauncherPreferences, tool: &str) -> Option<PathBuf> {
     if let Some(path) = override_path(preferences, tool) {
-        return process::executable_file(&path).then_some(path);
+        return executable_path(&path).then_some(path);
     }
     match tool {
-        "vscode" => crate::desktop::vscode_path(),
+        "vscode" => crate::desktop::vscode_path().or_else(|| {
+            editor_candidates("Microsoft VS Code", "Code")
+                .into_iter()
+                .find(|path| executable_path(path))
+        }),
         "claude" | "codex" | "agy" => find_executable(tool),
         "terminal" => terminal_path(preferences),
         "antigravity-ide" => ide_candidates()
@@ -208,7 +223,7 @@ fn tool_path(preferences: &LauncherPreferences, tool: &str) -> Option<PathBuf> {
         _ => None,
     }
 }
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectTool {
     id: &'static str,
@@ -216,6 +231,43 @@ pub struct ProjectTool {
     available: bool,
     path: Option<String>,
     documentation: &'static str,
+    status: &'static str,
+    detail: String,
+    platform: &'static str,
+}
+pub(crate) fn platform() -> &'static str {
+    if cfg!(windows) {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "macos"
+    } else {
+        "other"
+    }
+}
+fn executable_path(path: &Path) -> bool {
+    process::executable_file(path)
+        && (!cfg!(windows)
+            || path.extension().is_some_and(|ext| {
+                ["exe", "cmd", "bat", "com"]
+                    .iter()
+                    .any(|allowed| ext.eq_ignore_ascii_case(allowed))
+            }))
+}
+fn editor_candidates(folder: &str, executable: &str) -> Vec<PathBuf> {
+    #[cfg(windows)]
+    let mut candidates = Vec::new();
+    #[cfg(not(windows))]
+    let candidates = Vec::new();
+    #[cfg(windows)]
+    for root in process::windows_install_roots() {
+        candidates.extend([
+            root.join(format!("Programs/{folder}/{executable}.exe")),
+            root.join(format!("{folder}/{executable}.exe")),
+        ]);
+    }
+    #[cfg(not(windows))]
+    let _ = (folder, executable);
+    candidates
 }
 fn tool_details(tool: &str) -> Option<(&'static str, &'static str)> {
     match tool {
@@ -248,94 +300,126 @@ fn tool_details(tool: &str) -> Option<(&'static str, &'static str)> {
         _ => None,
     }
 }
-pub(crate) fn tools(preferences: &LauncherPreferences) -> Vec<ProjectTool> {
-    [
-        "folder",
-        "terminal",
-        "vscode",
-        "claude",
-        "codex",
-        "agy",
-        "antigravity-ide",
-    ]
-    .into_iter()
-    .map(|id| {
-        let (name, documentation) = tool_details(id).unwrap();
-        let path = tool_path(preferences, id);
-        // The current Google documentation distinguishes CLI and IDE, but does
-        // not promise a directory-launch flag for every desktop distribution.
-        // Enable IDE launch only when its installed help confirms the contract.
-        let available = id == "folder"
-            || path
-                .as_ref()
-                .is_some_and(|path| id != "antigravity-ide" || verified_ide(path));
-        ProjectTool {
-            id,
-            name,
-            available,
-            path: path.map(|path| path.to_string_lossy().into_owned()),
-            documentation,
-        }
-    })
-    .collect()
+// A short, bounded cache avoids repeated filesystem walks while switching pages.
+// Its key includes overrides and search directories, so changed preferences and
+// inherited PATH values invalidate naturally. Explicit refresh bypasses it.
+struct ToolCacheEntry {
+    key: String,
+    checked: Instant,
+    tools: Vec<ProjectTool>,
 }
-fn verified_ide(path: &Path) -> bool {
-    use std::{
-        io::Read,
-        sync::{Mutex, OnceLock},
-        thread,
-        time::{Duration, Instant},
+const CACHE_LIFETIME: Duration = Duration::from_secs(3);
+const MAX_CACHE_ENTRIES: usize = 16;
+static TOOL_CACHE: OnceLock<Mutex<Vec<ToolCacheEntry>>> = OnceLock::new();
+
+fn candidates_for(tool: &str) -> Vec<PathBuf> {
+    match tool {
+        "antigravity-ide" => ide_candidates(),
+        "vscode" => editor_candidates("Microsoft VS Code", "Code"),
+        "claude" | "codex" | "agy" => executable_candidates(tool),
+        "terminal" => {
+            #[cfg(windows)]
+            {
+                let mut paths = executable_candidates("wt");
+                paths.extend(executable_candidates("powershell"));
+                paths.extend(executable_candidates("pwsh"));
+                paths
+            }
+            #[cfg(target_os = "macos")]
+            {
+                vec![PathBuf::from(
+                    "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal",
+                )]
+            }
+            #[cfg(not(any(windows, target_os = "macos")))]
+            {
+                Vec::new()
+            }
+        }
+        _ => Vec::new(),
+    }
+}
+fn configured_path(preferences: &LauncherPreferences, tool: &str) -> Option<PathBuf> {
+    if tool != "terminal" {
+        return override_path(preferences, tool);
+    }
+    let selected = match preferences.terminal.as_str() {
+        "windows-terminal" => "windows-terminal",
+        "powershell" => "powershell",
+        "terminal" => "terminal",
+        _ if cfg!(windows) => {
+            if preferences
+                .executables
+                .get("windows-terminal")
+                .is_some_and(|value| !value.is_empty())
+            {
+                "windows-terminal"
+            } else {
+                "powershell"
+            }
+        }
+        _ => "terminal",
     };
-    static CACHE: OnceLock<Mutex<BTreeMap<PathBuf, bool>>> = OnceLock::new();
-    let cache = CACHE.get_or_init(Mutex::default);
-    if let Ok(cache) = cache.lock() {
-        if let Some(value) = cache.get(path) {
-            return *value;
+    override_path(preferences, selected)
+}
+fn discovery(preferences: &LauncherPreferences) -> Vec<ProjectTool> {
+    ["folder","terminal","vscode","claude","codex","agy","antigravity-ide"].into_iter().map(|id| {
+        let (name,documentation) = tool_details(id).unwrap();
+        let configured = configured_path(preferences,id);
+        let path = if configured.is_some() { configured.clone().filter(|path| executable_path(path)) } else { tool_path(preferences,id) };
+        let unsupported_terminal = id == "terminal" && ((cfg!(windows) && preferences.terminal == "terminal") || (cfg!(target_os = "macos") && ["powershell","windows-terminal"].contains(&preferences.terminal.as_str())) || !cfg!(any(windows,target_os = "macos")));
+        let inaccessible = configured.iter().chain(candidates_for(id).iter()).any(|path| path.metadata().is_err_and(|error| error.kind() == std::io::ErrorKind::PermissionDenied));
+        let (status,detail) = if id == "folder" {
+            ("available", "Open the project in your file manager.")
+        } else if unsupported_terminal {
+            ("unknown", "This terminal preference belongs to another platform. Choose Automatic or a terminal supported here.")
+        } else if path.is_some() {
+            ("available", if configured.is_some() { "Using your configured executable." } else { "Found an executable in PATH or a known installation location." })
+        } else if inaccessible {
+            ("unknown", "An executable location could not be inspected. Check its permissions or configure an accessible executable.")
+        } else if configured.is_some() {
+            ("invalid", "The configured path is missing or is not an executable. Update it or clear the override to use automatic detection.")
+        } else {
+            ("missing", "No executable was found in PATH or known locations. If installed elsewhere, configure its path in Project Settings.")
+        };
+        ProjectTool { id,name,available:status == "available",path:path.or(configured).map(|path| path.to_string_lossy().into_owned()),documentation,status,detail:detail.into(),platform:platform() }
+    }).collect()
+}
+fn cached_tools(preferences: &LauncherPreferences, refresh: bool) -> Vec<ProjectTool> {
+    let key = format!(
+        "{}|{:?}",
+        serde_json::to_string(preferences).unwrap_or_default(),
+        process::executable_directories()
+    );
+    let cache = TOOL_CACHE.get_or_init(Mutex::default);
+    if !refresh {
+        if let Ok(entries) = cache.lock() {
+            if let Some(entry) = entries
+                .iter()
+                .find(|entry| entry.key == key && entry.checked.elapsed() < CACHE_LIFETIME)
+            {
+                return entry.tools.clone();
+            }
         }
     }
-    let result = (|| {
-        let mut command = Command::new(path);
-        command
-            .arg("--help")
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null());
-        let (mut child, tree) = crate::process_tree::spawn(&mut command).ok()?;
-        let stdout = child.stdout.take()?;
-        let reader = thread::spawn(move || {
-            let mut output = String::new();
-            let _ = stdout.take(64 * 1024).read_to_string(&mut output);
-            output
+    // This call and every helper above only inspect filesystem metadata. They
+    // never run --help/--version, open a GUI, authenticate or launch a terminal.
+    let result = discovery(preferences);
+    if let Ok(mut entries) = cache.lock() {
+        entries.retain(|entry| entry.key != key && entry.checked.elapsed() < CACHE_LIFETIME);
+        if entries.len() >= MAX_CACHE_ENTRIES {
+            entries.remove(0);
+        }
+        entries.push(ToolCacheEntry {
+            key,
+            checked: Instant::now(),
+            tools: result.clone(),
         });
-        let started = Instant::now();
-        let success = loop {
-            match child.try_wait() {
-                Ok(Some(status)) => break status.success(),
-                Ok(None) if started.elapsed() < Duration::from_secs(2) => {
-                    thread::sleep(Duration::from_millis(25))
-                }
-                _ => {
-                    tree.terminate();
-                    let _ = child.wait();
-                    break false;
-                }
-            }
-        };
-        tree.terminate();
-        drop(tree);
-        let output = reader.join().ok()?;
-        Some(
-            success
-                && output.contains("Antigravity")
-                && output.contains("--new-window")
-                && (output.contains("path") || output.contains("folder")),
-        )
-    })()
-    .unwrap_or(false);
-    if let Ok(mut cache) = cache.lock() {
-        cache.insert(path.to_path_buf(), result);
     }
     result
+}
+pub(crate) fn tools(preferences: &LauncherPreferences) -> Vec<ProjectTool> {
+    cached_tools(preferences, false)
 }
 #[cfg(any(windows, test))]
 fn powershell_literal(value: &str) -> String {
@@ -494,9 +578,8 @@ pub(crate) fn launch(
     if ["claude", "codex", "agy"].contains(&tool) {
         return launch_terminal(preferences, cwd, Some(&path));
     }
-    if tool == "antigravity-ide" && !verified_ide(&path) {
-        return Err(workspace::error("This Antigravity executable does not advertise the IDE folder-launch contract. Choose a verified Antigravity IDE executable, or use Antigravity CLI."));
-    }
+    // IDE discovery is passive. Only this explicit user action starts its normal
+    // folder-opening command; no additional help/version process is launched.
     let mut command = Command::new(path);
     command.arg("--new-window").arg(cwd).current_dir(cwd);
     #[cfg(windows)]
@@ -510,9 +593,17 @@ pub(crate) fn launch(
     Ok(())
 }
 #[tauri::command(async)]
-pub fn get_project_tools(id: String, app: tauri::AppHandle) -> Result<Vec<ProjectTool>, AppError> {
+pub fn get_project_tools(
+    id: String,
+    refresh: Option<bool>,
+    app: tauri::AppHandle,
+) -> Result<Vec<ProjectTool>, AppError> {
     let project = handoff::find_project(&app, &id)?;
-    Ok(tools(&project.launcher))
+    Ok(if refresh.unwrap_or(false) {
+        cached_tools(&project.launcher, true)
+    } else {
+        tools(&project.launcher)
+    })
 }
 #[tauri::command(async)]
 pub fn launch_project_tool(
@@ -577,5 +668,171 @@ mod tests {
         assert!(tools
             .iter()
             .all(|tool| tool.documentation.starts_with("https://")));
+    }
+    fn fixture_executable(directory: &Path) -> (PathBuf, PathBuf) {
+        let marker = directory.join("unexpected-discovery-launch.txt");
+        #[cfg(windows)]
+        let path = directory.join("fake GUI 日本語.cmd");
+        #[cfg(windows)]
+        std::fs::write(
+            &path,
+            format!("@echo off\r\necho unexpected>\"{}\"\r\n", marker.display()),
+        )
+        .unwrap();
+        #[cfg(unix)]
+        let path = directory.join("fake GUI 日本語");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::write(
+                &path,
+                format!(
+                    "#!/bin/sh\nprintf unexpected > {}\n",
+                    shell_literal(&marker.to_string_lossy())
+                ),
+            )
+            .unwrap();
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        (path, marker)
+    }
+    #[test]
+    fn passive_discovery_and_refresh_never_start_gui_or_cli_executables() {
+        let directory = tempfile::tempdir().unwrap();
+        let (path, marker) = fixture_executable(directory.path());
+        let mut preferences = LauncherPreferences::default();
+        for id in ["vscode", "claude", "codex", "agy", "antigravity-ide"] {
+            preferences
+                .executables
+                .insert(id.into(), path.to_string_lossy().into_owned());
+        }
+        for refresh in [true, false, true] {
+            let tools = cached_tools(&preferences, refresh);
+            for id in ["vscode", "claude", "codex", "agy", "antigravity-ide"] {
+                let tool = tools.iter().find(|tool| tool.id == id).unwrap();
+                assert_eq!(tool.status, "available");
+                assert_eq!(tool.platform, platform());
+                assert!(tool.available);
+            }
+            assert!(
+                !marker.exists(),
+                "passive discovery started an external program"
+            );
+        }
+    }
+    #[test]
+    fn cli_and_ide_are_independent_and_invalid_overrides_never_fall_back() {
+        let directory = tempfile::tempdir().unwrap();
+        let (path, marker) = fixture_executable(directory.path());
+        let missing = directory
+            .path()
+            .join("missing.exe")
+            .to_string_lossy()
+            .into_owned();
+        let mut preferences = LauncherPreferences::default();
+        preferences.executables.insert(
+            "antigravity-ide".into(),
+            path.to_string_lossy().into_owned(),
+        );
+        preferences
+            .executables
+            .insert("agy".into(), missing.clone());
+        preferences
+            .executables
+            .insert("vscode".into(), missing.clone());
+        let tools = discovery(&preferences);
+        assert_eq!(
+            tools
+                .iter()
+                .find(|tool| tool.id == "antigravity-ide")
+                .unwrap()
+                .status,
+            "available"
+        );
+        for id in ["agy", "vscode"] {
+            let tool = tools.iter().find(|tool| tool.id == id).unwrap();
+            assert_eq!(tool.status, "invalid");
+            assert!(!tool.available);
+            assert_eq!(tool.path.as_deref(), Some(missing.as_str()));
+            assert!(tool_path(&preferences, id).is_none());
+        }
+        preferences
+            .executables
+            .insert("agy".into(), path.to_string_lossy().into_owned());
+        preferences
+            .executables
+            .insert("antigravity-ide".into(), missing.clone());
+        let tools = discovery(&preferences);
+        assert_eq!(
+            tools.iter().find(|tool| tool.id == "agy").unwrap().status,
+            "available"
+        );
+        assert_eq!(
+            tools
+                .iter()
+                .find(|tool| tool.id == "antigravity-ide")
+                .unwrap()
+                .status,
+            "invalid"
+        );
+        preferences.executables.insert(
+            if cfg!(windows) {
+                "windows-terminal"
+            } else {
+                "terminal"
+            }
+            .into(),
+            missing,
+        );
+        assert!(terminal_path(&preferences).is_none());
+        assert!(!marker.exists());
+    }
+    #[test]
+    fn availability_cache_is_short_bounded_and_explicitly_refreshable() {
+        let directory = tempfile::tempdir().unwrap();
+        let (path, marker) = fixture_executable(directory.path());
+        let mut preferences = LauncherPreferences::default();
+        preferences.executables.insert(
+            "antigravity-ide".into(),
+            path.to_string_lossy().into_owned(),
+        );
+        assert!(
+            cached_tools(&preferences, true)
+                .iter()
+                .find(|tool| tool.id == "antigravity-ide")
+                .unwrap()
+                .available
+        );
+        std::fs::remove_file(&path).unwrap();
+        assert!(
+            cached_tools(&preferences, false)
+                .iter()
+                .find(|tool| tool.id == "antigravity-ide")
+                .unwrap()
+                .available
+        );
+        assert_eq!(
+            cached_tools(&preferences, true)
+                .iter()
+                .find(|tool| tool.id == "antigravity-ide")
+                .unwrap()
+                .status,
+            "invalid"
+        );
+        let (path, _) = fixture_executable(directory.path());
+        preferences
+            .executables
+            .insert("agy".into(), path.to_string_lossy().into_owned());
+        assert!(
+            cached_tools(&preferences, false)
+                .iter()
+                .find(|tool| tool.id == "agy")
+                .unwrap()
+                .available,
+            "changed overrides must use a different cache key"
+        );
+        let cache = TOOL_CACHE.get().unwrap().lock().unwrap();
+        assert!(cache.len() <= MAX_CACHE_ENTRIES);
+        assert!(!marker.exists());
     }
 }

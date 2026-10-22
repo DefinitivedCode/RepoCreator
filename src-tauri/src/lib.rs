@@ -96,6 +96,7 @@ fn get_preferences(state: State<'_, Arc<Runtime>>) -> Result<Preferences, AppErr
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Environment {
+    platform: &'static str,
     optional_tools: Vec<process::ToolStatus>,
     git_installed: bool,
     identity_ready: bool,
@@ -152,6 +153,7 @@ async fn check_environment(
             github_owners.extend(github::organisations(&runner, &parent));
         }
         Environment {
+            platform: launcher::platform(),
             optional_tools: process::optional_tools(),
             git_installed,
             identity_ready,

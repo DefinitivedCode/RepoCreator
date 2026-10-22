@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './icons';
-import { appError } from './validation';
+import { appError, displayPath } from './validation';
 import { PromptWorkspace } from './HandoffPanel';
 import { TechnologySelector } from './WorkspaceFields';
 import { technologySummary, normalizeTechnologies } from './technologies';
@@ -17,6 +17,7 @@ import {
   type ProjectWorkspaceState,
   type RecentProject,
 } from './workspaceTypes';
+import './project-workspace.css';
 
 const categories: CommandCategory[] = [
   'setup',
@@ -28,6 +29,26 @@ const categories: CommandCategory[] = [
   'custom',
 ];
 const emptyLauncher: ProjectLauncher = { terminal: 'auto', executables: {} };
+function gitLabel(status: string): string {
+  return (
+    (
+      {
+        clean: 'Working tree clean',
+        changes: 'Uncommitted changes',
+        missing: 'Folder missing',
+        unavailable: 'Git status unavailable',
+      } as Record<string, string>
+    )[status] ??
+    (status || 'Git status unavailable')
+  );
+}
+function presentedCommand(command: ProjectCommand): string {
+  return commandText({
+    ...command,
+    executable: displayPath(command.executable),
+    args: command.args.map(displayPath),
+  });
+}
 function message(error: unknown): string {
   const detail = appError(error);
   return [detail.message, detail.guidance].filter(Boolean).join(' ');
@@ -143,12 +164,11 @@ export function Projects({
             : (b.lastOpenedAt || b.createdAt) - (a.lastOpenedAt || a.createdAt)),
     );
   return (
-    <main className="library-page" aria-label="Project library">
+    <main className="library-page rc-workspace-library" aria-label="Project library">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">YOUR WORKSPACE</p>
           <h2>Projects</h2>
-          <p className="help">Pick up where you left off.</p>
+          <p className="help">Your repositories, tools and saved commands.</p>
         </div>
         <button type="button" className="primary" onClick={() => void add()} disabled={pending}>
           {pending ? 'Choosing folder…' : 'Add existing project'} <Icon name="folder" size={15} />
@@ -214,7 +234,7 @@ export function Projects({
                     {project.context.projectName}
                     <Icon name="arrow" size={15} />
                   </button>
-                  <p className="path">{project.context.localPath}</p>
+                  <p className="path">{displayPath(project.context.localPath)}</p>
                 </div>
                 <button
                   type="button"
@@ -230,7 +250,7 @@ export function Projects({
                 {technologySummary(project.technologies) || 'No technologies selected'}
               </p>
               <div className="project-card-footer">
-                <span className="help">Opened {date(project.lastOpenedAt)}</span>
+                <span className="help">Last opened {date(project.lastOpenedAt)}</span>
                 <div className="inline-actions">
                   <button type="button" onClick={() => onSelect(project.id)}>
                     Open workspace
@@ -293,10 +313,7 @@ function ProjectWorkspace({
   }
   const project = workspace?.project;
   return (
-    <main className="project-workspace-page" aria-label="Project workspace">
-      <button type="button" className="text-button library-back" onClick={onBack}>
-        ← All projects
-      </button>
+    <main className="project-workspace-page rc-project-workspace" aria-label="Project workspace">
       {error && (
         <p role="alert" className="error-banner">
           {error}
@@ -307,13 +324,26 @@ function ProjectWorkspace({
       ) : (
         <>
           <div className="project-workspace-heading">
+            <button
+              type="button"
+              className="text-button library-back"
+              onClick={onBack}
+              aria-label="All projects"
+            >
+              <Icon name="chevron" size={17} />
+            </button>
             <div className="project-glyph">
-              <Icon name="repo" size={24} />
+              <Icon name="repo" size={20} />
             </div>
             <div>
               <h2>{project.context.projectName}</h2>
-              <p className="path">{project.context.localPath}</p>
+              <p className="path" title={displayPath(project.context.localPath)}>
+                {displayPath(project.context.localPath)}
+              </p>
             </div>
+            <span className={`project-git-state git-${workspace.gitStatus}`}>
+              {gitLabel(workspace.gitStatus)}
+            </span>
             <span className="project-branch">
               <Icon name="repo" size={13} />
               {workspace.branch || 'No branch'}
@@ -356,10 +386,10 @@ function ProjectWorkspace({
               <>
                 <div className="workspace-overview-grid">
                   <section className="workspace-card">
-                    <h3>Project details</h3>
+                    <h3>About this project</h3>
                     <dl className="workspace-facts">
                       <dt>Git status</dt>
-                      <dd>{workspace.gitStatus || 'Unavailable'}</dd>
+                      <dd>{gitLabel(workspace.gitStatus)}</dd>
                       <dt>Technologies</dt>
                       <dd>{technologySummary(project.technologies) || 'Not selected'}</dd>
                       <dt>Created</dt>
@@ -391,8 +421,7 @@ function ProjectWorkspace({
                     )}
                   </section>
                   <section className="workspace-card">
-                    <h3>Continue building</h3>
-                    <p className="help">Open your tools in this project, or run a saved command.</p>
+                    <h3>Continue working</h3>
                     <div className="workspace-quick-actions">
                       <button
                         type="button"
@@ -435,13 +464,17 @@ function ProjectWorkspace({
               <>
                 <div className="view-heading">
                   <div>
-                    <h3>Open with</h3>
+                    <h3>Open this project</h3>
                     <p className="help">
-                      Launch in the exact project directory. Interactive tools open in a terminal.
+                      Editors open the folder. Coding assistants start in your terminal.
                     </p>
                   </div>
                 </div>
-                <ToolLauncher id={id} disabled={!workspace.exists} />
+                <ToolLauncher
+                  id={id}
+                  disabled={!workspace.exists}
+                  onConfigure={() => setTab('settings')}
+                />
               </>
             )}
             {tab === 'commands' && (
@@ -457,6 +490,7 @@ function ProjectWorkspace({
             {tab === 'settings' && (
               <ProjectSettings
                 project={project}
+                platform={workspace.platform}
                 onChange={(next) => setWorkspace({ ...workspace, project: normalize(next) })}
                 onRelocate={() => void relocate()}
               />
@@ -468,99 +502,193 @@ function ProjectWorkspace({
   );
 }
 
+function toolState(tool: ProjectTool): string {
+  return tool.status ?? (tool.available ? 'available' : 'unknown');
+}
+function toolStatus(tool: ProjectTool): string {
+  return (
+    (
+      {
+        available: 'Available',
+        missing: 'Not installed',
+        invalid: 'Configured path invalid',
+        unknown: 'Not confirmed',
+      } as Record<string, string>
+    )[toolState(tool)] ?? 'Not confirmed'
+  );
+}
+function useProjectTools(id: string) {
+  const [tools, setTools] = useState<ProjectTool[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const request = useRef(0);
+  async function detect(refresh = false) {
+    const revision = ++request.current;
+    setLoading(true);
+    try {
+      const result = await invoke<ProjectTool[]>(
+        'get_project_tools',
+        refresh ? { id, refresh: true } : { id },
+      );
+      if (revision === request.current) {
+        setTools(Array.isArray(result) ? result : []);
+        setError('');
+      }
+    } catch (value) {
+      if (revision === request.current) setError(message(value));
+    } finally {
+      if (revision === request.current) setLoading(false);
+    }
+  }
+  useEffect(() => {
+    void detect();
+    return () => {
+      request.current++;
+    };
+  }, [id]);
+  return { tools, loading, error, refresh: () => void detect(true) };
+}
+
 export function ToolLauncher({
   id,
   disabled = false,
   compact = false,
+  onConfigure,
 }: {
   id: string;
   disabled?: boolean;
   compact?: boolean;
+  onConfigure?: () => void;
 }) {
-  const [tools, setTools] = useState<ProjectTool[]>([]);
+  const detection = useProjectTools(id);
   const [error, setError] = useState('');
   const [pending, setPending] = useState('');
-  useEffect(() => {
-    let active = true;
-    void invoke<ProjectTool[]>('get_project_tools', { id })
-      .then((result) => {
-        if (active) setTools(Array.isArray(result) ? result : []);
-      })
-      .catch((error) => {
-        if (active) setError(message(error));
-      });
-    return () => {
-      active = false;
-    };
-  }, [id]);
+  const visible = detection.tools.filter(
+    (tool) => !compact || !['folder', 'vscode'].includes(tool.id),
+  );
+  const available = visible.filter((tool) => toolState(tool) === 'available' && tool.available);
+  const other = visible.filter((tool) => !available.includes(tool));
   async function launch(tool: string) {
     setPending(tool);
     try {
       await invoke('launch_project_tool', { id, tool });
       setError('');
-    } catch (error) {
-      setError(message(error));
+    } catch (value) {
+      setError(message(value));
     } finally {
       setPending('');
     }
   }
+  function documentation(tool: ProjectTool) {
+    return tool.documentation ? (
+      <a
+        href={tool.documentation}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(event) => {
+          event.preventDefault();
+          void invoke('open_setup_resource', { resource: tool.id }).catch((value) =>
+            setError(message(value)),
+          );
+        }}
+      >
+        Official guide
+        <Icon name="external" size={12} />
+      </a>
+    ) : null;
+  }
   return (
     <section
-      className={`tool-launcher ${compact ? 'compact-launcher' : ''}`}
+      className={`tool-launcher rc-tool-launcher ${compact ? 'compact-launcher' : ''}`}
       aria-label="Development tools"
     >
-      <div className="tool-grid">
-        {tools
-          .filter((tool) => !compact || !['folder', 'vscode'].includes(tool.id))
-          .map((tool) => (
-            <div className="tool-item" key={tool.id}>
-              <button
-                type="button"
-                disabled={disabled || !tool.available || !!pending}
-                title={
-                  tool.available
-                    ? `Open ${tool.name} in this project`
-                    : `${tool.name} is not installed or could not be found`
-                }
-                aria-busy={pending === tool.id}
-                onClick={() => void launch(tool.id)}
-              >
-                <Icon name={tool.id === 'folder' ? 'folder' : 'code'} size={17} />
-                <span>
-                  {compact && pending === tool.id ? 'Opening…' : tool.name}
-                  <small>
-                    {pending === tool.id ? 'Opening…' : tool.available ? 'Available' : 'Not found'}
-                  </small>
-                </span>
-                <Icon name="external" size={12} />
-              </button>
-              {!tool.available && tool.documentation && (
-                <a
-                  href={tool.documentation}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    void invoke('open_setup_resource', { resource: tool.id }).catch((error) =>
-                      setError(message(error)),
-                    );
-                  }}
-                >
-                  {compact ? 'Not found · guide' : 'Official documentation'}{' '}
-                  <Icon name="external" size={11} />
-                </a>
-              )}
-            </div>
-          ))}
-      </div>
-      {error && (
-        <p role="alert" className="field-error">
-          {error}
-        </p>
+      {!compact && (
+        <div className="launcher-toolbar">
+          <span className="launcher-section-label">Available tools</span>
+          <button
+            type="button"
+            className="text-button"
+            aria-label="Refresh tool detection"
+            disabled={detection.loading}
+            onClick={detection.refresh}
+          >
+            <Icon name="refresh" size={14} />
+            {detection.loading ? 'Checking...' : 'Refresh'}
+          </button>
+        </div>
       )}
-      {!tools.length && !error && (
+      <div className="available-tool-list">
+        {available.map((tool) => (
+          <div className="tool-item available-tool" key={tool.id}>
+            <button
+              type="button"
+              disabled={disabled || !!pending}
+              aria-busy={pending === tool.id}
+              aria-label={tool.name}
+              title={tool.path ? displayPath(tool.path) : undefined}
+              onClick={() => void launch(tool.id)}
+            >
+              <Icon
+                name={
+                  tool.id === 'folder' ? 'folder' : tool.id === 'terminal' ? 'code' : 'external'
+                }
+                size={17}
+              />
+              <span>{pending === tool.id ? 'Opening...' : tool.name}</span>
+              {!compact && (
+                <small>
+                  {tool.id === 'terminal' || ['claude', 'codex', 'agy'].includes(tool.id)
+                    ? 'Terminal'
+                    : tool.id === 'folder'
+                      ? 'File browser'
+                      : 'Editor'}
+                </small>
+              )}
+              <Icon name="arrow" size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+      {detection.loading && !detection.tools.length && (
         <p className="help" role="status">
           Checking development tools…
+        </p>
+      )}
+      {!detection.loading && !available.length && (
+        <p className="help">
+          No launch actions confirmed. Review tool locations in project settings.
+        </p>
+      )}
+      {!!other.length && (
+        <details className="other-tools">
+          <summary>
+            Other tools <span>{other.length}</span>
+          </summary>
+          <div className="other-tool-list">
+            {other.map((tool) => (
+              <div className={`tool-item other-tool tool-status-${toolState(tool)}`} key={tool.id}>
+                <div className="other-tool-identity">
+                  <strong>{tool.name}</strong>
+                  <span>{toolStatus(tool)}</span>
+                  {tool.detail && <p className="help">{displayPath(tool.detail)}</p>}
+                  {tool.path && <code>{displayPath(tool.path)}</code>}
+                </div>
+                <div className="other-tool-actions">
+                  {documentation(tool)}
+                  {onConfigure && (
+                    <button type="button" className="text-button" onClick={onConfigure}>
+                      Configure
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+      {(error || detection.error) && (
+        <p role="alert" className="field-error">
+          {error || detection.error}
         </p>
       )}
     </section>
@@ -597,11 +725,11 @@ export function CreatedProjectLauncher({
     };
   }, [path]);
   return (
-    <section className="completion-launcher">
+    <section className="completion-launcher rc-completion-launcher">
       <div className="view-heading">
         <h3>Start working</h3>
         {id && (
-          <button type="button" onClick={() => onWorkspace(id)}>
+          <button type="button" className="primary" onClick={() => onWorkspace(id)}>
             Open project workspace <Icon name="arrow" size={14} />
           </button>
         )}
@@ -618,10 +746,12 @@ export function CreatedProjectLauncher({
 
 function ProjectSettings({
   project,
+  platform: workspacePlatform,
   onChange,
   onRelocate,
 }: {
   project: RecentProject;
+  platform?: ProjectWorkspaceState['platform'];
   onChange: (project: RecentProject) => void;
   onRelocate: () => void;
 }) {
@@ -631,6 +761,33 @@ function ProjectSettings({
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const detection = useProjectTools(project.id);
+  const platform =
+    workspacePlatform ?? detection.tools.find((tool) => tool.platform)?.platform ?? 'other';
+  const terminalChoices =
+    platform === 'windows'
+      ? [
+          ['windows-terminal', 'Windows Terminal'],
+          ['powershell', 'PowerShell'],
+        ]
+      : platform === 'macos'
+        ? [['terminal', 'macOS Terminal']]
+        : [];
+  const overrides = [
+    ['vscode', 'VS Code'],
+    ['claude', 'Claude Code'],
+    ['codex', 'Codex CLI'],
+    ['agy', 'Antigravity CLI'],
+    ['antigravity-ide', 'Antigravity IDE'],
+    ...terminalChoices,
+  ];
+  for (const [id, name] of [
+    ['windows-terminal', 'Windows Terminal'],
+    ['powershell', 'PowerShell'],
+    ['terminal', 'macOS Terminal'],
+  ])
+    if (launcher.executables[id] && !overrides.some(([key]) => key === id))
+      overrides.push([id, `${name} / saved override`]);
   async function save() {
     setSaving(true);
     try {
@@ -644,103 +801,148 @@ function ProjectSettings({
       );
       setStatus('Project preferences saved.');
       setError('');
-    } catch (error) {
-      setError(message(error));
+    } catch (value) {
+      setError(message(value));
     } finally {
       setSaving(false);
     }
   }
   return (
-    <section className="project-settings">
+    <section className="project-settings rc-project-settings">
       <div className="view-heading">
         <div>
-          <h3>Local project preferences</h3>
-          <p className="help">
-            These settings stay in Repo Creator and do not edit your project files.
-          </p>
+          <h3>Project settings</h3>
+          <p className="help">Local preferences. Your source files stay unchanged.</p>
         </div>
         <button type="button" className="primary" disabled={saving} onClick={() => void save()}>
-          {saving ? 'Saving…' : 'Save project settings'}
+          {saving ? 'Saving...' : 'Save project settings'}
         </button>
       </div>
-      <label className="check-label">
-        <input
-          type="checkbox"
-          checked={pinned}
-          onChange={(event) => setPinned(event.target.checked)}
-        />
-        Pin this project
-      </label>
-      <TechnologySelector
-        value={technologies}
-        onChange={setTechnologies}
-        simple
-        idPrefix="workspace-technologies"
-      />
-      <div className="workspace-card launcher-settings">
-        <h3>Terminal & executables</h3>
-        <label className="field">
-          <span>Preferred terminal</span>
-          <select
-            value={launcher.terminal}
-            onChange={(event) =>
-              setLauncher({
-                ...launcher,
-                terminal: event.target.value as ProjectLauncher['terminal'],
-              })
-            }
-          >
-            <option value="auto">Automatic for this platform</option>
-            <option value="windows-terminal">Windows Terminal</option>
-            <option value="powershell">PowerShell</option>
-            <option value="terminal">macOS Terminal</option>
-          </select>
-        </label>
-        <p className="help">
-          Use an absolute executable path to override automatic discovery. Leave blank to use PATH.
-        </p>
-        <div className="executable-grid">
-          {[
-            ['vscode', 'VS Code'],
-            ['claude', 'Claude Code'],
-            ['codex', 'Codex CLI'],
-            ['agy', 'Antigravity CLI'],
-            ['antigravity-ide', 'Antigravity IDE'],
-            ['windows-terminal', 'Windows Terminal'],
-            ['powershell', 'PowerShell'],
-            ['terminal', 'macOS Terminal'],
-          ].map(([id, name]) => (
-            <label className="field" key={id}>
-              <span>{name} executable</span>
-              <input
-                value={launcher.executables[id] ?? ''}
-                placeholder="Automatic discovery"
-                onChange={(event) => {
-                  const executables = { ...launcher.executables };
-                  if (event.target.value) executables[id] = event.target.value;
-                  else delete executables[id];
-                  setLauncher({ ...launcher, executables });
-                }}
-              />
-            </label>
-          ))}
+      <section className="project-preference-section" aria-labelledby="project-general-heading">
+        <div className="preference-section-label">
+          <h3 id="project-general-heading">General</h3>
+          <p className="help">Identity and project context</p>
         </div>
-      </div>
-      <div className="workspace-card">
-        <h3>Project location</h3>
-        <p className="path">{project.context.localPath}</p>
-        <button type="button" onClick={onRelocate}>
-          Locate moved project
-        </button>
-      </div>
+        <div className="preference-section-fields">
+          <label className="check-label">
+            <input
+              type="checkbox"
+              checked={pinned}
+              onChange={(event) => setPinned(event.target.checked)}
+            />
+            Pin this project
+          </label>
+          <TechnologySelector
+            value={technologies}
+            onChange={setTechnologies}
+            simple
+            idPrefix="workspace-technologies"
+          />
+          <div className="project-location-setting">
+            <span>Project location</span>
+            <code>{displayPath(project.context.localPath)}</code>
+            <button type="button" className="text-button" onClick={onRelocate}>
+              Locate moved project
+            </button>
+          </div>
+        </div>
+      </section>
+      <section className="project-preference-section" aria-labelledby="project-development-heading">
+        <div className="preference-section-label">
+          <h3 id="project-development-heading">Development environment</h3>
+          <p className="help">Automatic detection is the default</p>
+        </div>
+        <div className="preference-section-fields">
+          <label className="field">
+            <span>Preferred terminal</span>
+            <select
+              value={launcher.terminal}
+              onChange={(event) =>
+                setLauncher({
+                  ...launcher,
+                  terminal: event.target.value as ProjectLauncher['terminal'],
+                })
+              }
+            >
+              <option value="auto">Automatic for this platform</option>
+              {terminalChoices.map(([id, name]) => (
+                <option value={id} key={id}>
+                  {name}
+                </option>
+              ))}
+              {launcher.terminal !== 'auto' &&
+                !terminalChoices.some(([id]) => id === launcher.terminal) && (
+                  <option value={launcher.terminal}>Saved preference / {launcher.terminal}</option>
+                )}
+            </select>
+          </label>
+          <div className="environment-tool-summary">
+            {detection.tools
+              .filter((tool) => !['folder', 'terminal'].includes(tool.id))
+              .map((tool) => (
+                <span key={tool.id} className={`environment-tool tool-status-${toolState(tool)}`}>
+                  <span className="tool-state-dot" />
+                  {tool.name}
+                  <small>{toolStatus(tool)}</small>
+                </span>
+              ))}
+          </div>
+        </div>
+      </section>
+      <details className="advanced-executables">
+        <summary>
+          <span>Advanced executable configuration</span>
+          <span className="help">Manual paths & discovery details</span>
+        </summary>
+        <div className="advanced-executable-body">
+          <div className="launcher-toolbar">
+            <p className="help">
+              Absolute paths override discovery. Leave empty for automatic detection.
+            </p>
+            <button type="button" onClick={detection.refresh} disabled={detection.loading}>
+              Refresh detection
+            </button>
+          </div>
+          <div className="executable-grid">
+            {overrides.map(([id, name]) => {
+              const tool = detection.tools.find((tool) => tool.id === id);
+              return (
+                <label className="field" key={id}>
+                  <span>{name} executable</span>
+                  <input
+                    value={displayPath(launcher.executables[id] ?? '')}
+                    placeholder="Automatic discovery"
+                    onChange={(event) => {
+                      const executables = { ...launcher.executables };
+                      if (event.target.value) executables[id] = event.target.value;
+                      else delete executables[id];
+                      setLauncher({ ...launcher, executables });
+                    }}
+                  />
+                  {tool && (
+                    <span className="help">
+                      {toolStatus(tool)}
+                      {tool.path
+                        ? ` / ${displayPath(tool.path)}`
+                        : tool.detail
+                          ? ` / ${displayPath(tool.detail)}`
+                          : ''}
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </details>
       {status && (
         <p role="status" className="notice">
           {status}
         </p>
       )}
-      {error && (
+      {(error || detection.error) && (
         <p role="alert" className="field-error">
-          {error}
+          {error || detection.error}
         </p>
       )}
     </section>
@@ -988,6 +1190,7 @@ function Commands({
             const running = runs.find(
               (run) => run.commandId === command.id && run.status === 'running',
             );
+            const latest = runs.find((run) => run.commandId === command.id);
             return (
               <article
                 className={`command-card ${!command.enabled ? 'disabled-command' : ''}`}
@@ -995,25 +1198,50 @@ function Commands({
               >
                 <div className="command-card-heading">
                   <span className="command-category">{command.category}</span>
+                  {latest && (
+                    <span className={`command-last-status status-${latest.status}`}>
+                      {latest.status}
+                      {latest.exitCode !== null ? ` / exit ${latest.exitCode}` : ''}
+                    </span>
+                  )}
                   {command.imported && (
                     <span className="unreviewed-label">Review before first run</span>
                   )}
                   {!command.enabled && <span className="help">Disabled</span>}
                 </div>
                 <h4>{command.name}</h4>
-                <code className="saved-command-text">{commandText(command)}</code>
+                <code className="saved-command-text">{presentedCommand(command)}</code>
+                <p className="command-working-directory">
+                  <Icon name="folder" size={12} />
+                  <span
+                    title={displayPath(
+                      commandDirectory(project.context.localPath, command.workingDirectory),
+                    )}
+                  >
+                    {displayPath(
+                      commandDirectory(project.context.localPath, command.workingDirectory),
+                    )}
+                  </span>
+                  <span className="command-mode-label">
+                    {command.mode === 'shell' ? 'Shell' : 'Executable'}
+                  </span>
+                </p>
                 {command.description && <p className="help">{command.description}</p>}
                 <div className="command-card-actions">
                   <div className="inline-actions">
                     {running ? (
-                      <button type="button" onClick={() => void stop(running)}>
+                      <button
+                        type="button"
+                        className="command-stop"
+                        onClick={() => void stop(running)}
+                      >
                         Stop
                       </button>
                     ) : (
                       <button
                         type="button"
                         disabled={!exists || !command.enabled || pending}
-                        className="run-button"
+                        className="run-button primary"
                         onClick={() => void execute(command)}
                       >
                         Run <Icon name="arrow" size={13} />
@@ -1061,7 +1289,10 @@ function Commands({
         </div>
         <section className="command-output" aria-label="Command output">
           <div className="output-toolbar">
-            <span className="output-title">Output</span>
+            <span className="output-title">
+              <Icon name="code" size={15} />
+              Output
+            </span>
             {runs.length > 0 && (
               <select
                 aria-label="Select command run"
@@ -1170,10 +1401,12 @@ function Commands({
                 />
                 <span>
                   <strong>{command.name}</strong>
-                  <code>{commandText(command)}</code>
+                  <code>{presentedCommand(command)}</code>
                   <small>
                     Directory:{' '}
-                    {commandDirectory(project.context.localPath, command.workingDirectory)}
+                    {displayPath(
+                      commandDirectory(project.context.localPath, command.workingDirectory),
+                    )}
                   </small>
                 </span>
               </label>
@@ -1214,7 +1447,7 @@ function Commands({
           <dl className="workspace-facts command-review">
             <dt>Command</dt>
             <dd>
-              <code>{commandText(confirmation)}</code>
+              <code>{presentedCommand(confirmation)}</code>
             </dd>
             <dt>Mode</dt>
             <dd>
@@ -1225,7 +1458,9 @@ function Commands({
             <dt>Directory</dt>
             <dd>
               <code>
-                {commandDirectory(project.context.localPath, confirmation.workingDirectory)}
+                {displayPath(
+                  commandDirectory(project.context.localPath, confirmation.workingDirectory),
+                )}
               </code>
             </dd>
             <dt>Environment</dt>
@@ -1264,7 +1499,12 @@ function WorkspaceDialog({
     dialog.current?.showModal();
   }, []);
   return (
-    <dialog className="workspace-dialog" ref={dialog} onCancel={onClose} aria-label={title}>
+    <dialog
+      className="workspace-dialog rc-workspace-dialog"
+      ref={dialog}
+      onCancel={onClose}
+      aria-label={title}
+    >
       <div className="dialog-heading">
         <h2>{title}</h2>
         <button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose}>
@@ -1370,7 +1610,7 @@ function CommandEditor({
             <label className="field">
               <span>Executable</span>
               <input
-                value={draft.executable}
+                value={displayPath(draft.executable)}
                 placeholder="npm, cargo, or an executable path"
                 onChange={(event) => update('executable', event.target.value)}
               />
@@ -1408,7 +1648,7 @@ function CommandEditor({
           <span>Working directory</span>
           <input
             aria-label="Working directory"
-            value={draft.workingDirectory}
+            value={displayPath(draft.workingDirectory)}
             placeholder=". (project folder)"
             onChange={(event) => update('workingDirectory', event.target.value)}
           />

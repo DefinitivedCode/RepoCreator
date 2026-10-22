@@ -14,6 +14,10 @@ full catalogue.
 
 Technologies describe intent. Selecting React, Rust, SQLite and Cloudflare
 Workers does not install them or imply that they share an application component.
+The bounded **Browse technologies** picker stays open while you select several
+entries. Search or use its category navigation, then close it with **Done** or
+Escape; selected chips remain visible in the project form.
+
 Selections inform ignore recommendations, generated AI context, project summaries
 and handoff prompts. Review suggested ignore groups before creating the project.
 Older single-technology configuration and project presets remain supported.
@@ -42,19 +46,30 @@ Use your terminal for the full Git status when needed. The library retains up to
 ## Open development tools
 
 The workspace and creation result provide a compact launcher for the folder,
-terminal, VS Code, Claude Code CLI, Codex CLI and Antigravity CLI. Installed tools
-are enabled. Unavailable tools link to official guides without installing them.
-Antigravity IDE is a separate executable and is enabled only when its launch
-mechanism is verified.
+terminal, VS Code, Claude Code CLI, Codex CLI, Antigravity CLI and Antigravity IDE.
+Available tools appear first; expand **Other tools** for integrations that need
+attention. Status distinguishes a missing executable, an invalid configured path
+and an installation that cannot be checked. Use **Refresh** after installing or
+moving a tool, or configure its executable path manually.
+
+Passive discovery checks filesystem locations only. It never starts an editor,
+assistant, terminal, browser, authentication flow, or `--help`/`--version` probe.
+Results use a short bounded cache; explicit refresh bypasses it. Antigravity's
+`agy` CLI and IDE are detected independently. Only choosing a launch action starts
+an external application.
 
 Choose a terminal preference and, when automatic discovery cannot find a tool,
-provide an absolute executable path in project settings. Paths are validated.
+provide an absolute executable path under **Advanced Executable Configuration**
+in project settings. Manual overrides are collapsed by default. Paths are validated.
 Windows supports Windows Terminal and PowerShell; macOS supports Terminal. Tool
 discovery includes common user and Homebrew locations for Finder-launched apps.
 
 Interactive assistants open in a real terminal in the project directory. Repo
 Creator leaves their authentication, workspace trust and approval choices to
 the tools themselves. It does not add unrestricted execution flags.
+
+The workspace displays conventional Windows drive/UNC paths while retaining
+canonical paths internally. Long paths and Unicode directory names are preserved.
 
 Official launch references checked for this implementation:
 

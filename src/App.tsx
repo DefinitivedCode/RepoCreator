@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Icon } from './icons';
 import { AdvancedPanel, FilePreview, IgnorePanel, type FileSection } from './ConfigurationPanels';
 import { PresetDialog } from './PresetDialog';
+import { FocusedFilePreview } from './FocusedFilePreview';
 import { AgentStudio, type AgentSection } from './AgentStudio';
 import { HandoffPanel } from './HandoffPanel';
 import { Projects } from './ProjectWorkspace';
@@ -39,6 +40,8 @@ export default function App() {
   const [undo, setUndo] = useState<{ configuration: Configuration; id: string } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const simple = preferences?.experienceMode !== 'advanced';
+  const contextualFiles = section === 'files' || section === 'agents' || section === 'review';
+  const showContext = contextOpen && !contextualFiles;
   const allPresets = [...(catalog?.builtInPresets ?? []), ...(preferences?.customPresets ?? [])];
   const preset = allPresets.find((p) => p.id === presetId);
   const presetName = preset?.name ?? 'Last used settings';
@@ -55,6 +58,10 @@ export default function App() {
             ? 'Finish the open dialog.'
             : '');
   function navigate(next: Section) {
+    if (next === 'setup') {
+      setPage('settings');
+      return;
+    }
     setSection(next);
     requestAnimationFrame(() => {
       heading.current?.focus();
@@ -72,7 +79,7 @@ export default function App() {
     }
   }
   return (
-    <div className="app desktop-app">
+    <div className="app desktop-app" data-page={page} data-section={section}>
       <header className="app-header">
         <div className="app-title">
           <Icon name="repo" size={19} />
@@ -107,27 +114,29 @@ export default function App() {
           ))}
         </nav>
         <div className="header-actions">
-          <div className="segmented mode-switch" role="group" aria-label="Experience mode">
-            <button
-              type="button"
-              aria-pressed={simple}
-              disabled={creator.busy}
-              onClick={() => {
-                void creator.experienceMode('simple');
-                if (section === 'files' || section === 'agents') navigate('overview');
-              }}
-            >
-              Simple
-            </button>
-            <button
-              type="button"
-              aria-pressed={!simple}
-              disabled={creator.busy}
-              onClick={() => void creator.experienceMode('advanced')}
-            >
-              Advanced
-            </button>
-          </div>
+          {page === 'new' && (
+            <div className="segmented mode-switch" role="group" aria-label="Experience mode">
+              <button
+                type="button"
+                aria-pressed={simple}
+                disabled={creator.busy}
+                onClick={() => {
+                  void creator.experienceMode('simple');
+                  if (section === 'files' || section === 'agents') navigate('overview');
+                }}
+              >
+                Simple
+              </button>
+              <button
+                type="button"
+                aria-pressed={!simple}
+                disabled={creator.busy}
+                onClick={() => void creator.experienceMode('advanced')}
+              >
+                Advanced
+              </button>
+            </div>
+          )}
           <label className="appearance-control">
             <span className="sr-only">Appearance</span>
             <select
@@ -217,9 +226,7 @@ export default function App() {
         <main className="library-page settings-page" aria-label="Application settings">
           <div className="page-heading">
             <div>
-              <p className="eyebrow">APPLICATION</p>
               <h2>Settings</h2>
-              <p className="help">Local tools, Git identity and connection status.</p>
               <p className="help" role="status">
                 {creator.checking
                   ? 'Checking setup…'
@@ -270,9 +277,9 @@ export default function App() {
             else void creator.execute(false, presetName);
           }}
         >
-          <div className={`workspace ${contextOpen ? 'with-context' : ''}`}>
+          <div className={`workspace ${showContext ? 'with-context' : ''}`}>
             <nav className="navigation-rail" aria-label="Project setup">
-              <span className="nav-caption">NEW PROJECT</span>
+              <span className="nav-caption">PROJECT SETUP</span>
               {(Object.keys(labels) as Section[])
                 .filter(
                   (s) =>
@@ -318,28 +325,24 @@ export default function App() {
                       : 'Setup required'}
                 </span>
               </button>
-              <p className="help nav-note">
-                {simple
-                  ? 'Start with the essentials. Advanced keeps all your settings.'
-                  : 'Files and instructions are generated locally.'}
-              </p>
             </nav>
             <main className="workspace-main" aria-label="Repository configuration" tabIndex={0}>
               <div className="workspace-heading">
                 <div>
-                  <p className="eyebrow">{simple ? 'SIMPLE SETUP' : 'NEW PROJECT'}</p>
                   <h2 ref={heading} tabIndex={-1}>
                     {labels[section]}
                   </h2>
                 </div>
-                <button
-                  type="button"
-                  className="text-button context-toggle"
-                  aria-pressed={contextOpen}
-                  onClick={() => setContextOpen(!contextOpen)}
-                >
-                  {contextOpen ? 'Hide details' : 'Show details'}
-                </button>
+                {!contextualFiles && (
+                  <button
+                    type="button"
+                    className="text-button context-toggle"
+                    aria-pressed={contextOpen}
+                    onClick={() => setContextOpen(!contextOpen)}
+                  >
+                    {contextOpen ? 'Hide details' : 'Show details'}
+                  </button>
+                )}
               </div>
               <fieldset disabled={creator.picking || creator.busy} className="workspace-fields">
                 {section === 'overview' && (
@@ -375,29 +378,62 @@ export default function App() {
                       ]}
                       onChange={(v) => setFileSection(v as typeof fileSection)}
                     />
-                    {fileSection === 'readme' && (
-                      <label className="field">
-                        <span className="control-label">README</span>
-                        <select
-                          value={form.readme}
-                          onChange={(e) => creator.update('readme', e.target.value as Readme)}
-                        >
-                          {['none', 'minimal', 'general', 'custom'].map((r) => (
-                            <option key={r} value={r}>
-                              {r[0].toUpperCase() + r.slice(1)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                    {fileSection === 'ignore' ? (
-                      <IgnorePanel
-                        creator={creator}
-                        recommendation={preset?.configuration.options.ignorePresets}
-                      />
-                    ) : (
-                      <AdvancedPanel creator={creator} section={fileSection} />
-                    )}
+                    <div
+                      className={`file-editor-layout ${fileSection === 'git' ? 'git-configuration' : ''}`}
+                    >
+                      <div className="file-configuration">
+                        {fileSection === 'readme' && (
+                          <label className="field">
+                            <span className="control-label">README</span>
+                            <select
+                              value={form.readme}
+                              onChange={(e) => creator.update('readme', e.target.value as Readme)}
+                            >
+                              {['none', 'minimal', 'general', 'custom'].map((r) => (
+                                <option key={r} value={r}>
+                                  {r[0].toUpperCase() + r.slice(1)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                        {fileSection === 'ignore' ? (
+                          <IgnorePanel
+                            creator={creator}
+                            recommendation={preset?.configuration.options.ignorePresets}
+                          />
+                        ) : (
+                          <AdvancedPanel creator={creator} section={fileSection} />
+                        )}
+                      </div>
+                      {fileSection !== 'git' ? (
+                        <FocusedFilePreview
+                          key={fileSection}
+                          creator={creator}
+                          paths={
+                            fileSection === 'readme'
+                              ? ['README.md']
+                              : fileSection === 'ignore'
+                                ? ['.gitignore']
+                                : fileSection === 'license'
+                                  ? ['LICENSE']
+                                  : ['.editorconfig', '.gitattributes']
+                          }
+                          title="File contents"
+                        />
+                      ) : (
+                        <section className="commit-plan" aria-label="Initial commit plan">
+                          <Icon name="repo" size={22} />
+                          <h3>First commit</h3>
+                          <p className="commit-plan-branch">
+                            <code>{form.options.initialBranch}</code>
+                          </p>
+                          <strong>{form.options.commitMessage}</strong>
+                          <span className="help">{creator.files.length} generated files</span>
+                          <p className="help">These settings apply to the new repository.</p>
+                        </section>
+                      )}
+                    </div>
                   </>
                 )}
                 {section === 'agents' && (
@@ -413,23 +449,36 @@ export default function App() {
                       ]}
                       onChange={(v) => setAgentSection(v as AgentSection)}
                     />
-                    <AgentStudio creator={creator} section={agentSection} />
+                    <div
+                      className={`agent-editor-layout ${agentSection === 'instructions' ? 'with-instruction-preview' : ''}`}
+                    >
+                      <AgentStudio creator={creator} section={agentSection} />
+                      {agentSection === 'instructions' && (
+                        <FocusedFilePreview
+                          creator={creator}
+                          paths={['AGENTS.md']}
+                          title="Shared instruction preview"
+                        />
+                      )}
+                    </div>
                   </>
                 )}
                 {section === 'review' && (
                   <>
-                    <p className="section-intro">
-                      Check the destination and generated files. Creating a project makes a new
-                      folder and its first Git commit.
-                    </p>
-                    <ProjectSummary creator={creator} presetName={presetName} />
-                    <FilePreview
-                      name={form.name || 'project-name'}
-                      files={creator.files}
-                      loading={creator.previewing}
-                      error={creator.previewError}
-                      expanded
-                    />
+                    <div className="review-editor-layout">
+                      <section className="review-summary-card">
+                        <h3>Ready to create</h3>
+                        <ProjectSummary creator={creator} presetName={presetName} />
+                        <p className="help">Creates a new folder and initial commit.</p>
+                      </section>
+                      <FilePreview
+                        name={form.name || 'project-name'}
+                        files={creator.files}
+                        loading={creator.previewing}
+                        error={creator.previewError}
+                        expanded
+                      />
+                    </div>
                     {!creator.setupReady && (
                       <button type="button" onClick={() => navigate('setup')}>
                         Complete required setup
@@ -464,7 +513,7 @@ export default function App() {
                 </p>
               )}
             </main>
-            {contextOpen && (
+            {showContext && (
               <aside className="context-panel" aria-label="Project context">
                 <Context
                   creator={creator}
