@@ -45,7 +45,8 @@ export async function verifyExpandedScrolling(page, resize = (size) => page.setV
             el.checkVisibility() &&
             /auto|scroll/.test(style.overflowY) &&
             el.scrollHeight > el.clientHeight + 1 &&
-            !el.matches('pre,textarea,.preview,.file-tree')
+            // Bounded content browsers deliberately scroll within the main pane.
+            !el.matches('pre,textarea,.preview,.file-tree,.technology-results,.technology-chips')
           );
         })
         .map((el) => el.className);

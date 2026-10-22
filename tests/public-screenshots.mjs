@@ -87,7 +87,7 @@ try {
     })
     .toBe(true);
   await page.getByLabel('Project name', { exact: true }).waitFor();
-  await expect(page.locator('.version')).toHaveText('1.3.2');
+  await expect(page.locator('.version')).toHaveText('1.4.0');
   await page.getByLabel('Project name', { exact: true }).fill('weekend-notes');
   await page.getByLabel('Starting point', { exact: true }).selectOption('experiment');
   await page

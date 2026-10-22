@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub const SETTINGS_VERSION: u32 = 4;
+pub const SETTINGS_VERSION: u32 = 5;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preferences {
@@ -181,23 +181,29 @@ impl Preferences {
     }
     fn recover_notice(&mut self) {
         self.needs_backup = true;
-        self.recovery_notice = Some("Some saved AI settings could not be loaded. Existing file and Git settings were kept; the original settings will be backed up before saving.".into());
+        self.recovery_notice = Some("Some saved settings could not be loaded. Supported settings were kept; the original settings will be backed up before saving.".into());
     }
     fn read_configuration(&mut self, value: &serde_json::Value) -> Option<Configuration> {
-        if let Ok(configuration) = serde_json::from_value::<Configuration>(value.clone()) {
+        let mut migrated = value.clone();
+        crate::technologies::migrate_configuration_value(&mut migrated);
+        if let Ok(configuration) = serde_json::from_value::<Configuration>(migrated.clone()) {
             if validate_configuration(&configuration).is_ok() {
                 return Some(configuration);
             }
         }
-        let mut legacy = value.clone();
+        let mut legacy = migrated;
         if legacy["options"].get("ai").is_some() {
             legacy["options"].as_object_mut()?.remove("ai");
+            crate::technologies::migrate_configuration_value(&mut legacy);
             if let Ok(configuration) = serde_json::from_value::<Configuration>(legacy) {
                 if validate_configuration(&configuration).is_ok() {
                     self.recover_notice();
                     return Some(configuration);
                 }
             }
+        }
+        if value["options"].get("technologies").is_some() {
+            self.recover_notice();
         }
         None
     }

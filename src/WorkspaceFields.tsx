@@ -5,7 +5,9 @@ import type { Configuration } from './types';
 import type { Agent } from './aiTypes';
 import type { Section } from './App';
 import { displayPath, nameError } from './validation';
-import { emptyBrief } from './handoff';
+import { TechnologySelector } from './TechnologySelector';
+import { technologiesFor, technologySummary } from './technologies';
+export { TechnologySelector } from './TechnologySelector';
 
 export function Overview({
   creator,
@@ -98,7 +100,7 @@ export function Overview({
         </div>
       </div>
       <div className="overview-assistants two-columns">
-        <Technology creator={creator} />
+        <Technology creator={creator} simple={simple} />
         <Assistant creator={creator} simple={simple} onAdvanced={onAgents} />
       </div>
       <Location creator={creator} />
@@ -132,29 +134,18 @@ export function Overview({
     </div>
   );
 }
-function Technology({ creator }: { creator: Creator }) {
+function Technology({ creator, simple }: { creator: Creator; simple: boolean }) {
   const form = creator.form!;
-  const value = form.brief?.technologies ?? '';
   return (
-    <label className="field">
-      <span className="control-label">Language or technology</span>
-      <select
-        value={
-          ['', 'JavaScript / TypeScript', 'Python', 'Rust', 'C#', 'Other'].includes(value)
-            ? value
-            : 'Other'
-        }
-        onChange={(e) =>
-          creator.update('brief', { ...emptyBrief, ...form.brief, technologies: e.target.value })
-        }
-      >
-        <option value="">Not sure yet</option>
-        {['JavaScript / TypeScript', 'Python', 'Rust', 'C#', 'Other'].map((t) => (
-          <option key={t}>{t}</option>
-        ))}
-      </select>
-      <span className="sr-only">A planning preference; no framework is installed.</span>
-    </label>
+    <TechnologySelector
+      value={technologiesFor(form)}
+      simple={simple}
+      onChange={(technologies) => creator.update('options', { ...form.options, technologies })}
+      ignorePresets={form.options.ignorePresets}
+      onIgnorePresets={(ignorePresets) =>
+        creator.update('options', { ...form.options, ignorePresets })
+      }
+    />
   );
 }
 function Assistant({
@@ -381,6 +372,8 @@ export function ProjectSummary({ creator, presetName }: { creator: Creator; pres
       </dd>
       <dt>Starting point</dt>
       <dd>{presetName}</dd>
+      <dt>Technologies</dt>
+      <dd>{technologySummary(technologiesFor(form)) || 'Not selected'}</dd>
       <dt>AI instructions</dt>
       <dd>
         {form.options.ai.enabled

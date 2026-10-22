@@ -1,0 +1,569 @@
+[
+  {
+    "id": "javascript",
+    "name": "JavaScript",
+    "category": "languages",
+    "aliases": ["js"],
+    "ignorePresets": ["node"],
+    "related": ["node", "typescript"],
+    "guidance": "Respect the project's module format and supported runtime; validate external data at boundaries."
+  },
+  {
+    "id": "typescript",
+    "name": "TypeScript",
+    "category": "languages",
+    "aliases": ["ts"],
+    "ignorePresets": ["typescript", "node"],
+    "related": ["react", "vite"],
+    "guidance": "Keep types meaningful and check public boundaries; avoid weakening type checks to hide failures."
+  },
+  {
+    "id": "python",
+    "name": "Python",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": ["python"],
+    "related": ["fastapi", "django"],
+    "guidance": "Follow the existing Python environment and dependency conventions; isolate environments and verify changed behavior."
+  },
+  {
+    "id": "rust",
+    "name": "Rust",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": ["rust"],
+    "related": ["tauri"],
+    "guidance": "Use explicit error handling and ownership boundaries; avoid panics in normal failure paths."
+  },
+  {
+    "id": "c",
+    "name": "C",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": ["cpp"],
+    "related": [],
+    "guidance": "Make memory ownership and bounds explicit; preserve the supported compiler and platform contracts."
+  },
+  {
+    "id": "cpp",
+    "name": "C++",
+    "category": "languages",
+    "aliases": ["c++", "cplusplus"],
+    "ignorePresets": ["cpp"],
+    "related": [],
+    "guidance": "Prefer explicit ownership and existing build conventions; check lifetime and cross-platform behavior."
+  },
+  {
+    "id": "csharp",
+    "name": "C#",
+    "category": "languages",
+    "aliases": ["c#", "c sharp"],
+    "ignorePresets": ["csharp"],
+    "related": ["dotnet", "unity"],
+    "guidance": "Respect nullable annotations and the selected runtime; follow the existing solution and project structure."
+  },
+  {
+    "id": "java",
+    "name": "Java",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": ["java"],
+    "related": ["spring-boot"],
+    "guidance": "Use the established Java toolchain and dependency management; keep resource lifetimes and exceptions clear."
+  },
+  {
+    "id": "kotlin",
+    "name": "Kotlin",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": ["java"],
+    "related": ["spring-boot"],
+    "guidance": "Respect nullability and coroutine ownership; preserve target-platform compatibility."
+  },
+  {
+    "id": "swift",
+    "name": "Swift",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Preserve deployment targets and explicit concurrency ownership; verify platform availability before adopting APIs."
+  },
+  {
+    "id": "go",
+    "name": "Go",
+    "category": "languages",
+    "aliases": ["golang"],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Handle errors and cancellation explicitly; follow the module's existing conventions."
+  },
+  {
+    "id": "php",
+    "name": "PHP",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": ["laravel"],
+    "guidance": "Preserve the supported PHP runtime and dependency setup; validate request input and escape rendered output."
+  },
+  {
+    "id": "ruby",
+    "name": "Ruby",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": ["rails"],
+    "guidance": "Follow the project's dependency and test conventions; keep external input validation explicit."
+  },
+  {
+    "id": "dart",
+    "name": "Dart",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": ["flutter"],
+    "guidance": "Respect sound null safety and existing asynchronous error handling."
+  },
+  {
+    "id": "lua",
+    "name": "Lua",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Check the actual host runtime and Lua version; avoid assuming libraries available in a different embedding."
+  },
+  {
+    "id": "scala",
+    "name": "Scala",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": ["java"],
+    "related": [],
+    "guidance": "Preserve the project's Scala version and build conventions; keep effects and error handling clear."
+  },
+  {
+    "id": "r",
+    "name": "R",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Keep analyses reproducible and document data assumptions; preserve the established package environment."
+  },
+  {
+    "id": "elixir",
+    "name": "Elixir",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": ["phoenix"],
+    "guidance": "Use the existing supervision and process boundaries; test failure and recovery behavior."
+  },
+  {
+    "id": "haskell",
+    "name": "Haskell",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Follow the package's compiler and effect conventions; keep partial operations out of normal failure paths."
+  },
+  {
+    "id": "zig",
+    "name": "Zig",
+    "category": "languages",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Verify the project's Zig toolchain; make allocators, ownership and error handling explicit."
+  },
+  {
+    "id": "html",
+    "name": "HTML",
+    "category": "web",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": ["css"],
+    "guidance": "Use semantic elements and accessible names; preserve keyboard navigation."
+  },
+  {
+    "id": "css",
+    "name": "CSS",
+    "category": "web",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": ["html"],
+    "guidance": "Preserve responsive layouts, readable contrast and visible keyboard focus."
+  },
+  {
+    "id": "sass",
+    "name": "Sass",
+    "category": "web",
+    "aliases": ["scss"],
+    "ignorePresets": [],
+    "related": ["css"],
+    "guidance": "Follow existing stylesheet boundaries and compilation conventions."
+  },
+  {
+    "id": "react",
+    "name": "React",
+    "category": "web",
+    "aliases": [],
+    "ignorePresets": ["react", "node"],
+    "related": ["typescript", "vite"],
+    "guidance": "Keep state ownership clear and effects focused on synchronization; preserve accessible interaction."
+  },
+  {
+    "id": "vue",
+    "name": "Vue",
+    "category": "web",
+    "aliases": ["vue.js"],
+    "ignorePresets": ["node", "frontend"],
+    "related": ["typescript", "vite", "nuxt"],
+    "guidance": "Follow existing component and reactivity conventions; keep state and accessible interaction predictable."
+  },
+  {
+    "id": "svelte",
+    "name": "Svelte",
+    "category": "web",
+    "aliases": [],
+    "ignorePresets": ["node", "frontend"],
+    "related": ["typescript", "vite"],
+    "guidance": "Inspect the project's Svelte version and component conventions before changing reactivity."
+  },
+  {
+    "id": "angular",
+    "name": "Angular",
+    "category": "web",
+    "aliases": [],
+    "ignorePresets": ["node", "frontend"],
+    "related": ["typescript"],
+    "guidance": "Preserve the existing Angular architecture and dependency injection boundaries."
+  },
+  {
+    "id": "next",
+    "name": "Next.js",
+    "category": "web",
+    "aliases": ["nextjs", "next.js"],
+    "ignorePresets": ["node", "next"],
+    "related": ["react", "typescript"],
+    "guidance": "Inspect the router and deployment target; keep server and client boundaries explicit."
+  },
+  {
+    "id": "nuxt",
+    "name": "Nuxt",
+    "category": "web",
+    "aliases": ["nuxt.js"],
+    "ignorePresets": ["node", "frontend"],
+    "related": ["vue", "typescript"],
+    "guidance": "Inspect the rendering and deployment setup; preserve server and client boundaries."
+  },
+  {
+    "id": "astro",
+    "name": "Astro",
+    "category": "web",
+    "aliases": [],
+    "ignorePresets": ["node", "frontend"],
+    "related": ["typescript"],
+    "guidance": "Respect static and server rendering boundaries and add client-side hydration only where needed."
+  },
+  {
+    "id": "vite",
+    "name": "Vite",
+    "category": "web",
+    "aliases": [],
+    "ignorePresets": ["node", "vite"],
+    "related": ["typescript"],
+    "guidance": "Follow the existing build setup; treat client environment variables as public output."
+  },
+  {
+    "id": "web",
+    "name": "Web platform",
+    "category": "web",
+    "aliases": ["web"],
+    "ignorePresets": ["frontend"],
+    "related": ["html", "css"],
+    "guidance": "Use semantic, accessible UI and preserve responsive behavior across supported browsers."
+  },
+  {
+    "id": "tauri",
+    "name": "Tauri",
+    "category": "applications",
+    "aliases": [],
+    "ignorePresets": ["tauri", "rust"],
+    "related": ["rust", "typescript", "react"],
+    "guidance": "Keep native commands narrowly scoped and validated; preserve capability restrictions and supported desktop platforms."
+  },
+  {
+    "id": "electron",
+    "name": "Electron",
+    "category": "applications",
+    "aliases": [],
+    "ignorePresets": ["node"],
+    "related": ["typescript"],
+    "guidance": "Keep renderer privileges narrow and validate IPC at the main-process boundary."
+  },
+  {
+    "id": "dotnet",
+    "name": ".NET",
+    "category": "applications",
+    "aliases": [".net", "net"],
+    "ignorePresets": ["dotnet"],
+    "related": ["csharp", "aspnet"],
+    "guidance": "Preserve target frameworks and supported operating systems; use the established solution structure."
+  },
+  {
+    "id": "aspnet",
+    "name": "ASP.NET Core",
+    "category": "applications",
+    "aliases": ["asp.net core", "aspnetcore"],
+    "ignorePresets": ["dotnet"],
+    "related": ["csharp", "dotnet"],
+    "guidance": "Preserve middleware and authorization ordering; validate input and keep secrets outside source control."
+  },
+  {
+    "id": "flutter",
+    "name": "Flutter",
+    "category": "applications",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": ["dart"],
+    "guidance": "Preserve platform support, accessible widgets and existing state ownership."
+  },
+  {
+    "id": "react-native",
+    "name": "React Native",
+    "category": "applications",
+    "aliases": ["react native"],
+    "ignorePresets": ["node", "react"],
+    "related": ["react", "typescript"],
+    "guidance": "Verify native-platform capabilities and preserve accessible behavior on every supported target."
+  },
+  {
+    "id": "unity",
+    "name": "Unity",
+    "category": "applications",
+    "aliases": [],
+    "ignorePresets": ["unity", "csharp"],
+    "related": ["csharp"],
+    "guidance": "Preserve asset GUIDs and the selected render pipeline; verify changes in the project's Editor version."
+  },
+  {
+    "id": "godot",
+    "name": "Godot",
+    "category": "applications",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Preserve scene and resource references; inspect the engine version before adopting APIs."
+  },
+  {
+    "id": "node",
+    "name": "Node.js",
+    "category": "backends",
+    "aliases": ["node.js", "nodejs"],
+    "ignorePresets": ["node"],
+    "related": ["typescript", "express"],
+    "guidance": "Respect the project's package manager, module format and supported runtime; keep server secrets outside client bundles."
+  },
+  {
+    "id": "deno",
+    "name": "Deno",
+    "category": "backends",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": ["typescript"],
+    "guidance": "Follow the project's task and import conventions; request only the permissions the application requires."
+  },
+  {
+    "id": "bun",
+    "name": "Bun",
+    "category": "backends",
+    "aliases": [],
+    "ignorePresets": ["node"],
+    "related": ["typescript"],
+    "guidance": "Inspect the actual runtime and package scripts; verify compatibility before assuming Node.js behavior."
+  },
+  {
+    "id": "fastapi",
+    "name": "FastAPI",
+    "category": "backends",
+    "aliases": [],
+    "ignorePresets": ["python"],
+    "related": ["python"],
+    "guidance": "Validate API schemas and keep blocking work out of asynchronous request handlers."
+  },
+  {
+    "id": "django",
+    "name": "Django",
+    "category": "backends",
+    "aliases": [],
+    "ignorePresets": ["python"],
+    "related": ["python", "postgresql"],
+    "guidance": "Preserve authentication and migration conventions; test schema changes and avoid production-data assumptions."
+  },
+  {
+    "id": "flask",
+    "name": "Flask",
+    "category": "backends",
+    "aliases": [],
+    "ignorePresets": ["python"],
+    "related": ["python"],
+    "guidance": "Follow the existing application lifecycle and configuration boundaries; validate requests and protect secrets."
+  },
+  {
+    "id": "express",
+    "name": "Express",
+    "category": "backends",
+    "aliases": ["express.js"],
+    "ignorePresets": ["node"],
+    "related": ["node", "typescript"],
+    "guidance": "Keep middleware ordering, request validation and error handling explicit."
+  },
+  {
+    "id": "nestjs",
+    "name": "NestJS",
+    "category": "backends",
+    "aliases": ["nest.js"],
+    "ignorePresets": ["node", "typescript"],
+    "related": ["node", "typescript"],
+    "guidance": "Preserve module and dependency injection boundaries; validate external inputs."
+  },
+  {
+    "id": "spring-boot",
+    "name": "Spring Boot",
+    "category": "backends",
+    "aliases": ["spring boot"],
+    "ignorePresets": ["java"],
+    "related": ["java"],
+    "guidance": "Respect configuration profiles and transaction boundaries; verify database migrations and authorization."
+  },
+  {
+    "id": "laravel",
+    "name": "Laravel",
+    "category": "backends",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": ["php"],
+    "guidance": "Preserve framework conventions, authorization checks and migration history."
+  },
+  {
+    "id": "rails",
+    "name": "Ruby on Rails",
+    "category": "backends",
+    "aliases": ["rails"],
+    "ignorePresets": [],
+    "related": ["ruby"],
+    "guidance": "Preserve framework conventions and migration history; validate authorization and data boundaries."
+  },
+  {
+    "id": "phoenix",
+    "name": "Phoenix",
+    "category": "backends",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": ["elixir"],
+    "guidance": "Preserve context and supervision boundaries; verify database and real-time behavior."
+  },
+  {
+    "id": "sqlite",
+    "name": "SQLite",
+    "category": "databases",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Preserve data and migration history; account for connection lifetime, locking and backup behavior."
+  },
+  {
+    "id": "postgresql",
+    "name": "PostgreSQL",
+    "category": "databases",
+    "aliases": ["postgres"],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Use parameterized queries and explicit migrations; preserve transactional and data-integrity guarantees."
+  },
+  {
+    "id": "mysql",
+    "name": "MySQL",
+    "category": "databases",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Use parameterized queries and explicit migrations; verify collation and transaction assumptions."
+  },
+  {
+    "id": "mongodb",
+    "name": "MongoDB",
+    "category": "databases",
+    "aliases": ["mongo"],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Validate document boundaries, indexes and schema evolution against observed workloads."
+  },
+  {
+    "id": "redis",
+    "name": "Redis",
+    "category": "databases",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Make expiration, persistence and eviction expectations explicit; do not assume cached values are permanent."
+  },
+  {
+    "id": "cloudflare-workers",
+    "name": "Cloudflare Workers",
+    "category": "infrastructure",
+    "aliases": ["cloudflare workers", "workers"],
+    "ignorePresets": [],
+    "related": ["typescript"],
+    "guidance": "Inspect the project's Cloudflare configuration and bindings; distinguish local verification from deployment and preserve runtime limits."
+  },
+  {
+    "id": "cloudflare-pages",
+    "name": "Cloudflare Pages",
+    "category": "infrastructure",
+    "aliases": ["cloudflare pages"],
+    "ignorePresets": [],
+    "related": ["html", "css"],
+    "guidance": "Inspect actual build and deployment configuration; keep production deployment an explicit user action."
+  },
+  {
+    "id": "docker",
+    "name": "Docker",
+    "category": "infrastructure",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Keep credentials outside image layers and source; preserve runtime user, volume and networking assumptions."
+  },
+  {
+    "id": "github-actions",
+    "name": "GitHub Actions",
+    "category": "infrastructure",
+    "aliases": ["github actions"],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Keep workflow permissions narrow, protect secrets and distinguish verification from publishing."
+  },
+  {
+    "id": "vercel",
+    "name": "Vercel",
+    "category": "infrastructure",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Inspect deployment and environment settings; do not assume preview and production configuration are interchangeable."
+  },
+  {
+    "id": "netlify",
+    "name": "Netlify",
+    "category": "infrastructure",
+    "aliases": [],
+    "ignorePresets": [],
+    "related": [],
+    "guidance": "Inspect build, redirects and environment settings; keep production publishing an explicit action."
+  }
+]

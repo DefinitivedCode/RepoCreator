@@ -3,7 +3,10 @@ import { Icon } from './icons';
 import { AdvancedPanel, FilePreview, IgnorePanel, type FileSection } from './ConfigurationPanels';
 import { PresetDialog } from './PresetDialog';
 import { AgentStudio, type AgentSection } from './AgentStudio';
-import { HandoffPanel, RecentProjects } from './HandoffPanel';
+import { HandoffPanel } from './HandoffPanel';
+import { Projects } from './ProjectWorkspace';
+import type { ProjectCommand } from './workspaceTypes';
+import { technologySummary } from './technologies';
 import { RepositoryState } from './RepositoryState';
 import { Overview, ProjectSummary, SetupPanel, Context } from './WorkspaceFields';
 import { useCreator } from './useCreator';
@@ -25,6 +28,9 @@ export default function App() {
   const creator = useCreator();
   const { form, catalog, preferences, state } = creator;
   const [section, setSection] = useState<Section>('overview');
+  const [page, setPage] = useState<'new' | 'projects' | 'presets' | 'settings'>('new');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>();
+  const [presetOverride, setPresetOverride] = useState<Configuration>();
   const [fileSection, setFileSection] = useState<FileSection | 'ignore'>('readme');
   const [agentSection, setAgentSection] = useState<AgentSection>('assistants');
   const [presetId, setPresetId] = useState('');
@@ -57,8 +63,13 @@ export default function App() {
   }
   function apply(configuration: Configuration, id: string) {
     if (form) setUndo({ configuration: structuredClone(configurationOf(form)), id: presetId });
+    if (state.kind !== 'form') creator.reset();
     creator.configure(configuration);
     setPresetId(id);
+    if (page !== 'new') {
+      setPage('new');
+      navigate('overview');
+    }
   }
   return (
     <div className="app desktop-app">
@@ -66,8 +77,35 @@ export default function App() {
         <div className="app-title">
           <Icon name="repo" size={19} />
           <h1>Repo Creator</h1>
-          <span className="version">1.3.2</span>
+          <span className="version">1.4.0</span>
         </div>
+        <nav className="app-navigation" aria-label="Main navigation">
+          {(
+            [
+              ['new', 'New Project', 'file'],
+              ['projects', 'Projects', 'folder'],
+              ['presets', 'Presets', 'repo'],
+              ['settings', 'Settings', 'settings'],
+            ] as const
+          ).map(([id, name, icon]) => (
+            <button
+              key={id}
+              type="button"
+              aria-current={page === id ? 'page' : undefined}
+              disabled={creator.busy}
+              onClick={() => {
+                if (id === 'new' && state.kind !== 'form') {
+                  creator.reset();
+                  navigate('overview');
+                }
+                setPage(id);
+              }}
+            >
+              <Icon name={icon} size={15} />
+              {name}
+            </button>
+          ))}
+        </nav>
         <div className="header-actions">
           <div className="segmented mode-switch" role="group" aria-label="Experience mode">
             <button
@@ -116,10 +154,108 @@ export default function App() {
             </>
           )}
         </main>
+      ) : page === 'projects' ? (
+        <Projects
+          initialProjectId={selectedProjectId}
+          onSelect={setSelectedProjectId}
+          copy={creator.copy}
+          commandPresets={allPresets}
+          onSaveCommandPreset={(commands: ProjectCommand[]) => {
+            setPresetOverride({ ...configurationOf(form), options: { ...form.options, commands } });
+            setPresetsOpen(true);
+          }}
+        />
+      ) : page === 'presets' ? (
+        <main className="library-page" aria-label="Project presets">
+          <div className="page-heading">
+            <div>
+              <p className="eyebrow">REUSABLE STARTING POINTS</p>
+              <h2>Presets</h2>
+              <p className="help">
+                Keep your preferred files, technologies, assistants and commands together.
+              </p>
+            </div>
+            <button type="button" className="primary" onClick={() => setPresetsOpen(true)}>
+              Manage presets
+            </button>
+          </div>
+          <div className="preset-library">
+            {allPresets.map((item) => (
+              <article key={item.id} className="workspace-card preset-card">
+                <span className="eyebrow">
+                  {item.id.startsWith('custom-') ? 'CUSTOM' : 'BUILT-IN'}
+                </span>
+                <h3>{item.name}</h3>
+                <p className="help">{item.description || 'A reusable project configuration.'}</p>
+                <p className="preset-details">
+                  {technologySummary(
+                    item.configuration.options.technologies ?? { ids: [], custom: [] },
+                  )}
+                  <span>
+                    {item.configuration.options.commands?.length ?? 0} commands ·{' '}
+                    {item.configuration.options.ai.enabled
+                      ? item.configuration.options.ai.agents.length
+                      : 0}{' '}
+                    assistants
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    apply(item.configuration, item.id);
+                    setPage('new');
+                    navigate('overview');
+                  }}
+                >
+                  Use preset <Icon name="arrow" size={14} />
+                </button>
+              </article>
+            ))}
+          </div>
+        </main>
+      ) : page === 'settings' ? (
+        <main className="library-page settings-page" aria-label="Application settings">
+          <div className="page-heading">
+            <div>
+              <p className="eyebrow">APPLICATION</p>
+              <h2>Settings</h2>
+              <p className="help">Local tools, Git identity and connection status.</p>
+              <p className="help" role="status">
+                {creator.checking
+                  ? 'Checking setup…'
+                  : creator.setupReady
+                    ? 'Git ready'
+                    : 'Setup required'}
+              </p>
+            </div>
+          </div>
+          {creator.error && (
+            <div className="error-banner" role="alert">
+              <strong>{creator.error.message}</strong>
+              <p>{creator.error.guidance}</p>
+            </div>
+          )}
+          {creator.notice && (
+            <p className="notice" role="status">
+              {creator.notice}
+            </p>
+          )}
+          <SetupPanel
+            creator={creator}
+            onReturn={() => {
+              setPage('new');
+              navigate('overview');
+            }}
+          />
+        </main>
       ) : state.kind !== 'form' ? (
         <RepositoryState
           creator={creator}
           presetName={presetName}
+          onWorkspace={(id) => {
+            setSelectedProjectId(id);
+            setPage('projects');
+          }}
           onAnother={() => {
             creator.reset();
             navigate('overview');
@@ -138,7 +274,11 @@ export default function App() {
             <nav className="navigation-rail" aria-label="Project setup">
               <span className="nav-caption">NEW PROJECT</span>
               {(Object.keys(labels) as Section[])
-                .filter((s) => !simple || !['files', 'agents'].includes(s))
+                .filter(
+                  (s) =>
+                    !['recent', 'setup'].includes(s) &&
+                    (!simple || !['files', 'agents'].includes(s)),
+                )
                 .map((s) => (
                   <button
                     key={s}
@@ -162,7 +302,13 @@ export default function App() {
                     {labels[s]}
                   </button>
                 ))}
-              <div className="nav-status">
+              <button
+                type="button"
+                className="nav-status"
+                onClick={() => {
+                  setPage('settings');
+                }}
+              >
                 <span className="status-dot" />
                 <span>
                   {creator.checking
@@ -171,7 +317,7 @@ export default function App() {
                       ? 'Git ready'
                       : 'Setup required'}
                 </span>
-              </div>
+              </button>
               <p className="help nav-note">
                 {simple
                   ? 'Start with the essentials. Advanced keeps all your settings.'
@@ -181,7 +327,7 @@ export default function App() {
             <main className="workspace-main" aria-label="Repository configuration" tabIndex={0}>
               <div className="workspace-heading">
                 <div>
-                  <p className="eyebrow">{simple ? 'SIMPLE SETUP' : 'PROJECT WORKSPACE'}</p>
+                  <p className="eyebrow">{simple ? 'SIMPLE SETUP' : 'NEW PROJECT'}</p>
                   <h2 ref={heading} tabIndex={-1}>
                     {labels[section]}
                   </h2>
@@ -302,7 +448,6 @@ export default function App() {
                     copy={creator.copy}
                   />
                 )}
-                {section === 'recent' && <RecentProjects copy={creator.copy} />}
                 {section === 'setup' && (
                   <SetupPanel creator={creator} onReturn={() => navigate('overview')} />
                 )}
@@ -356,8 +501,14 @@ export default function App() {
       {presetsOpen && (
         <PresetDialog
           creator={creator}
-          onClose={() => setPresetsOpen(false)}
-          onSaved={setPresetId}
+          configurationOverride={presetOverride}
+          onClose={() => {
+            setPresetsOpen(false);
+            setPresetOverride(undefined);
+          }}
+          onSaved={(id) => {
+            if (!presetOverride) setPresetId(id);
+          }}
           onApply={apply}
         />
       )}

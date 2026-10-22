@@ -44,6 +44,10 @@ pub fn executable_directories() -> Vec<PathBuf> {
         if let Some(root) = std::env::var_os("APPDATA") {
             directories.push(PathBuf::from(root).join("npm"));
         }
+        if let Some(root) = std::env::var_os("LOCALAPPDATA") {
+            let root = PathBuf::from(root);
+            directories.extend([root.join("agy/bin"), root.join("Microsoft/WindowsApps")]);
+        }
     }
     #[cfg(not(windows))]
     {

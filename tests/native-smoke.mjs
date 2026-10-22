@@ -13,13 +13,13 @@ import { configureNativeStudio } from './native-studio.mjs';
 assert.equal(process.platform, 'win32', 'This smoke test requires Windows WebView2');
 const root = path.resolve(import.meta.dirname, '..');
 const temporaryRoot = path.resolve(os.tmpdir());
-const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.3.2-'));
+const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.4.0-'));
 const parent = path.join(temporary, 'Projects with spaces 日本語');
 const settingsDirectory = path.join(temporary, 'isolated-app-data');
 const executable =
   process.env.REPO_CREATOR_SMOKE_EXE ||
   path.join(root, 'src-tauri', 'target', 'release', 'repo-creator.exe');
-const screenshots = path.join(root, 'artifacts', 'native-v1.3.2');
+const screenshots = path.join(root, 'artifacts', 'native-v1.4.0');
 const names = ['preferences.json', 'preferences.json.bak', 'history.json', 'window.json'];
 const backups = new Map();
 let child,
@@ -253,8 +253,8 @@ async function identityIfNeeded() {
   check(environment.gitInstalled, 'Git is required for the production smoke test');
   if (!environment.identityReady) {
     await page
-      .getByRole('navigation', { name: 'Project setup' })
-      .getByRole('button', { name: 'Setup & status', exact: true })
+      .getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('button', { name: 'Settings', exact: true })
       .click();
     await page
       .getByLabel('Your name for this project', { exact: true })
@@ -447,7 +447,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   page.setDefaultTimeout(15_000);
   await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30_000 });
-  assert.equal((await invoke('get_preferences')).schemaVersion, 4);
+  assert.equal((await invoke('get_preferences')).schemaVersion, 5);
   await expect(page.getByRole('button', { name: 'Simple', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -562,7 +562,7 @@ try {
     if (error.code !== 'ENOENT') throw error;
   });
   const report = {
-    version: '1.3.2',
+    version: '1.4.0',
     checks: [
       'Production WebView2 and native IPC',
       'Simple Blank empty initial commit',
@@ -621,7 +621,7 @@ try {
   const resolved = path.resolve(temporary);
   check(
     path.dirname(resolved) === temporaryRoot &&
-      path.basename(resolved).startsWith('repo-creator-v1.3.2-'),
+      path.basename(resolved).startsWith('repo-creator-v1.4.0-'),
     'Refusing unexpected cleanup path',
   );
   await rm(resolved, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 });

@@ -56,7 +56,7 @@ export function HandoffPanel({
   );
 }
 
-function PromptWorkspace({
+export function PromptWorkspace({
   context,
   recommendedTemplate,
   copy,

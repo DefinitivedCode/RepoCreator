@@ -22,7 +22,13 @@ export const readmeSections = [
   'license',
 ] as const;
 export type ReadmeSection = (typeof readmeSections)[number];
+export interface ProjectTechnologies {
+  ids: string[];
+  custom: string[];
+}
 export interface ProjectOptions {
+  technologies?: ProjectTechnologies;
+  commands?: import('./workspaceTypes').ProjectCommand[];
   commitAuthorName?: string;
   commitAuthorEmail?: string;
   ai: AIStudio;

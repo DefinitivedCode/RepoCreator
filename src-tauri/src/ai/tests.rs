@@ -471,7 +471,7 @@ fn v11_presets_migrate_without_enabling_ai_or_losing_existing_choices() {
     let file = temp.path().join("preferences.json");
     fs::write(&file,serde_json::json!({"schemaVersion":2,"parentPath":temp.path(),"appearance":"dark","defaults":{"readme":"custom","options":{"ignorePresets":[],"initialBranch":"develop"}},"customPresets":[{"id":"custom-old","name":"Old tools","configuration":{"readme":"none","options":{"ignorePresets":["python"],"initialBranch":"old-branch"}}}]}).to_string()).unwrap();
     let migrated = Preferences::load(&file, temp.path().into());
-    assert_eq!(migrated.schema_version, 4);
+    assert_eq!(migrated.schema_version, 5);
     assert_eq!(migrated.defaults.readme, Readme::Custom);
     assert!(!migrated.defaults.options.ai.enabled);
     assert!(migrated.defaults.options.ignore_presets.is_empty());

@@ -22,6 +22,7 @@ function included(configuration: Configuration): string {
     `${options.ai.instructions.rules.length} instruction rules`,
     `${options.ai.specialists.length} specialists`,
     `${options.ai.skills.length} skills`,
+    `${options.commands?.length ?? 0} command templates`,
     `${configuration.destination ?? 'local'} destination`,
     `${configuration.visibility ?? 'private'} visibility`,
     `${configuration.handoffTemplate ?? 'discovery'} handoff`,
@@ -30,11 +31,13 @@ function included(configuration: Configuration): string {
 
 export function PresetDialog({
   creator,
+  configurationOverride,
   onClose,
   onSaved,
   onApply,
 }: {
   creator: Creator;
+  configurationOverride?: Configuration;
   onClose: () => void;
   onSaved: (id: string) => void;
   onApply: (configuration: Configuration, id: string) => void;
@@ -78,7 +81,7 @@ export function PresetDialog({
   }
   async function save() {
     if (!creator.form) return;
-    const configuration = source ?? configurationOf(creator.form);
+    const configuration = source ?? configurationOverride ?? configurationOf(creator.form);
     await run(async () => {
       if (editing) {
         await creator.managePreset('update_custom_preset', {
@@ -103,7 +106,11 @@ export function PresetDialog({
     setEditing(preset.id);
     setName(preset.name);
     setDescription(preset.description ?? '');
-    setSource(useCurrent && creator.form ? configurationOf(creator.form) : preset.configuration);
+    setSource(
+      useCurrent && creator.form
+        ? (configurationOverride ?? configurationOf(creator.form))
+        : preset.configuration,
+    );
     setSourceName(useCurrent ? 'Current project settings' : preset.name);
     setImported(null);
     setDeleting(null);
@@ -131,7 +138,11 @@ export function PresetDialog({
           schemaVersion: 1,
           name: preset?.name ?? (name.trim() || 'My project workflow'),
           description: preset?.description ?? description,
-          configuration: preset?.configuration ?? source ?? configurationOf(creator.form!),
+          configuration:
+            preset?.configuration ??
+            source ??
+            configurationOverride ??
+            configurationOf(creator.form!),
         },
       });
       if (exported)
@@ -229,7 +240,10 @@ export function PresetDialog({
             onChange={(event) => setDescription(event.target.value)}
           />
         </div>
-        <p className="help">Source: {sourceName}</p>
+        <p className="help">
+          Source: {sourceName}
+          {configurationOverride ? ' · Includes workspace command templates' : ''}
+        </p>
         <div className="inline-actions">
           <button
             className="primary"

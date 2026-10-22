@@ -128,6 +128,19 @@ export async function prepare(
 }
 
 export async function navigate(page: Page, name: string) {
+  if (name === 'Setup & status' || name === 'Recent Projects') {
+    const destination = name === 'Setup & status' ? 'Settings' : 'Projects';
+    await page
+      .getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('button', { name: destination, exact: true })
+      .click();
+    await expect(page.getByRole('heading', { name: destination, exact: true })).toBeVisible();
+    return;
+  }
+  await page
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('button', { name: 'New Project', exact: true })
+    .click();
   await page
     .getByRole('navigation', { name: 'Project setup' })
     .getByRole('button', { name, exact: true })
