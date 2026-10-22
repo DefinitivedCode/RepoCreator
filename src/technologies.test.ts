@@ -8,6 +8,8 @@ import {
   technologyCatalog,
   technologyStacks,
   technologySummary,
+  switchTechnologyStack,
+  toggleManualTechnology,
 } from './technologies';
 
 describe('project technology configuration', () => {
@@ -54,6 +56,53 @@ describe('project technology configuration', () => {
     expect(selection.ids).toEqual(['sqlite', 'typescript', 'react', 'vite', 'rust', 'tauri']);
     expect(selection.custom).toEqual(['Internal toolkit']);
   });
+  it('replaces preset contributions repeatedly, preserving manual and shared selections', () => {
+    const unity = technologyStacks.find((entry) => entry.id === 'unity')!.ids;
+    const tauri = technologyStacks.find((entry) => entry.id === 'tauri')!.ids;
+    const react = technologyStacks.find((entry) => entry.id === 'react-vite')!.ids;
+    let value = { ids: ['sqlite', 'rust'], custom: ['Internal toolkit'] };
+    for (let i = 0; i < 3; i++) {
+      value = switchTechnologyStack(value, unity);
+      expect(value.ids).toEqual(['sqlite', 'rust', 'csharp', 'unity']);
+      value = switchTechnologyStack(value, tauri);
+      expect(value.ids).toEqual(['sqlite', 'rust', 'typescript', 'react', 'vite', 'tauri']);
+      value = switchTechnologyStack(value, react);
+      expect(value.ids).toEqual(['sqlite', 'rust', 'typescript', 'react', 'vite', 'node']);
+      expect(value.custom).toEqual(['Internal toolkit']);
+      expect(technologiesError(value)).toBeNull();
+      expect(normalizeTechnologies(value)).toEqual(value);
+    }
+  });
+  it('retains a preset technology deliberately removed and added manually', () => {
+    let value = switchTechnologyStack({ ids: [], custom: [] }, ['csharp', 'unity']);
+    value = toggleManualTechnology(value, 'csharp');
+    value = toggleManualTechnology(value, 'csharp');
+    value = switchTechnologyStack(value, ['typescript', 'tauri']);
+    expect(value.ids).toEqual(['csharp', 'typescript', 'tauri']);
+    expect(value.presetIds).toEqual(['typescript', 'tauri']);
+    expect(switchTechnologyStack(value, ['typescript', 'tauri'])).toEqual(value);
+    expect(switchTechnologyStack({ ids: [], custom: [] }, ['csharp', 'unity']).ids).toEqual([
+      'csharp',
+      'unity',
+    ]);
+  });
+  it('preserves provenance through configuration loading and undo snapshots', () => {
+    const selected = switchTechnologyStack({ ids: ['sqlite'], custom: [] }, ['csharp', 'unity']);
+    const saved = JSON.parse(JSON.stringify(selected));
+    expect(normalizeTechnologies(saved)).toEqual(selected);
+    const changed = switchTechnologyStack(saved, ['rust', 'tauri']);
+    expect(changed.ids).toEqual(['sqlite', 'rust', 'tauri']);
+    expect(switchTechnologyStack(structuredClone(selected), ['python']).ids).toEqual([
+      'sqlite',
+      'python',
+    ]);
+    expect(selected.ids).toEqual(['sqlite', 'csharp', 'unity']);
+    // Old saved selections have no reliable provenance and remain user-owned.
+    expect(switchTechnologyStack({ ids: ['unity'], custom: [] }, ['tauri']).ids).toEqual([
+      'unity',
+      'tauri',
+    ]);
+  });
   it('preserves long v1.3 technology context instead of dropping the saved configuration', () => {
     const legacy = 'Custom toolkit: ' + 'é'.repeat(1000);
     expect(normalizeTechnologies(undefined, legacy).custom).toEqual([legacy]);
@@ -81,6 +130,8 @@ describe('project technology configuration', () => {
   it.each([
     { ids: ['missing'], custom: [] },
     { ids: ['rust', 'rust'], custom: [] },
+    { ids: ['rust'], custom: [], presetIds: ['unity'] },
+    { ids: ['rust'], custom: [], presetIds: ['rust', 'rust'] },
     { ids: [], custom: ['Rust'] },
     { ids: [], custom: ['a', 'A'] },
     { ids: [], custom: ['tool\ncommand'] },

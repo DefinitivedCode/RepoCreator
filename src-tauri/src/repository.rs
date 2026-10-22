@@ -67,6 +67,7 @@ pub fn begin(
     parent: &Path,
     request: CreateRequest,
 ) -> Result<PendingRepo, AppError> {
+    let request = request.normalized();
     validate_request(&request)?;
     // Validate the complete file tree and configuration formats before creating a folder.
     generate_files(&request)?;

@@ -369,7 +369,7 @@ export function AdvancedPanel({ creator, section }: { creator: Creator; section?
                       placeholder={
                         section === 'overview'
                           ? 'Uses your project description when empty.'
-                          : 'Markdown. Empty sections use editable comments.'
+                          : 'Optional Markdown. Empty sections are omitted.'
                       }
                       onChange={(event) =>
                         setOption('sectionContent', {
@@ -380,8 +380,22 @@ export function AdvancedPanel({ creator, section }: { creator: Creator; section?
                     />
                   </div>
                 ))}
-            <p className="help">Missing details are marked with editable Markdown comments.</p>
+            <p className="help">
+              Sections without content are omitted. Technology choices do not install a framework or
+              add setup commands. Use {'{{project_name}}'}, {'{{project_title}}'} and{' '}
+              {'{{description}}'} in custom content.
+            </p>
           </section>
+        )}
+        {form.readme !== 'none' && (!section || section === 'readme') && (
+          <label className="check-label">
+            <input
+              type="checkbox"
+              checked={options.readmeFooter ?? false}
+              onChange={(event) => setOption('readmeFooter', event.target.checked)}
+            />
+            Include “Created with Repo Creator” footer
+          </label>
         )}
         <section className="settings-section" hidden={!!section && section !== 'license'}>
           <h3>License</h3>

@@ -14,6 +14,7 @@ import { useCreator } from './useCreator';
 import { useUpdates } from './useUpdates';
 import { configurationOf, formError } from './validation';
 import type { Configuration, Readme } from './types';
+import { normalizeProjectName } from './projectName';
 
 export type Section = 'overview' | 'files' | 'agents' | 'review' | 'handoff' | 'recent' | 'setup';
 const labels: Record<Section, string> = {
@@ -482,7 +483,7 @@ export default function App() {
                         <p className="help">Creates a new folder and initial commit.</p>
                       </section>
                       <FilePreview
-                        name={form.name || 'project-name'}
+                        name={normalizeProjectName(form.name) || 'project-name'}
                         files={creator.files}
                         loading={creator.previewing}
                         error={creator.previewError}

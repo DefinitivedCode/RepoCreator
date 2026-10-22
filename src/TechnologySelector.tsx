@@ -11,6 +11,8 @@ import {
   technologyCatalog,
   technologyCategories,
   technologyStacks,
+  switchTechnologyStack,
+  toggleManualTechnology,
 } from './technologies';
 import './technology-selector.css';
 
@@ -50,15 +52,14 @@ export function TechnologySelector({
     setOpen(false);
     trigger.current?.focus();
   };
-  const toggle = (technology: string) =>
-    onChange({
-      ...value,
-      ids: value.ids.includes(technology)
-        ? value.ids.filter((selected) => selected !== technology)
-        : [...value.ids, technology],
-    });
+  const toggle = (technology: string) => onChange(toggleManualTechnology(value, technology));
   const addCustom = () => {
-    const next = normalizeTechnologies({ ...value, custom: [...value.custom, custom] });
+    const known = findTechnology(custom);
+    const next = normalizeTechnologies({
+      ...value,
+      custom: [...value.custom, custom],
+      presetIds: value.presetIds?.filter((id) => id !== known?.id),
+    });
     const issue = technologiesError(next);
     if (issue) setError(issue);
     else {
@@ -216,16 +217,10 @@ export function TechnologySelector({
               value=""
               onChange={(event) => {
                 const stack = technologyStacks.find((entry) => entry.id === event.target.value);
-                if (stack)
-                  onChange(
-                    normalizeTechnologies({
-                      ids: [...value.ids, ...stack.ids],
-                      custom: value.custom,
-                    }),
-                  );
+                if (stack) onChange(switchTechnologyStack(value, stack.ids));
               }}
             >
-              <option value="">Add a stack preset…</option>
+              <option value="">Choose a stack preset…</option>
               {technologyStacks.map((stack) => (
                 <option key={stack.id} value={stack.id}>
                   {stack.name}

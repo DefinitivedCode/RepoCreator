@@ -65,9 +65,10 @@ pub fn render_readme(request: &CreateRequest) -> Option<String> {
     if request.readme == Readme::None {
         return None;
     }
-    let mut blocks = vec![format!("# {}", request.name)];
+    let request = request.clone().normalized();
+    let mut blocks = vec![format!("# {}", request.title)];
     if request.readme == Readme::Minimal {
-        if !request.description.trim().is_empty() {
+        if has_visible_content(request.description.trim()) {
             blocks.push(request.description.trim().to_string());
         }
     } else {
@@ -84,6 +85,7 @@ pub fn render_readme(request: &CreateRequest) -> Option<String> {
                 .map(|s| {
                     s.replace("{{description}}", request.description.trim())
                         .replace("{{project_name}}", &request.name)
+                        .replace("{{project_title}}", &request.title)
                         .trim()
                         .to_string()
                 });
@@ -93,38 +95,26 @@ pub fn render_readme(request: &CreateRequest) -> Option<String> {
                     "Overview",
                     custom.unwrap_or(request.description.trim()).to_string(),
                 ),
-                "features" => (
-                    "Features",
-                    custom
-                        .unwrap_or("<!-- List the project's implemented features. -->")
-                        .to_string(),
-                ),
-                "installation" => (
-                    "Installation",
-                    custom
-                        .unwrap_or("<!-- Add the prerequisites and actual installation steps. -->")
-                        .to_string(),
-                ),
-                "usage" => (
-                    "Usage",
-                    custom
-                        .unwrap_or("<!-- Add a short usage example. -->")
-                        .to_string(),
-                ),
-                "development" => (
-                    "Development",
-                    custom
-                        .unwrap_or(
-                            "<!-- Document local setup and the commands for checks and tests. -->",
-                        )
-                        .to_string(),
-                ),
-                "contributing" => (
-                    "Contributing",
-                    custom
-                        .unwrap_or("<!-- Describe how to report issues and contribute changes. -->")
-                        .to_string(),
-                ),
+                "technologies" => {
+                    let technologies = crate::technologies::summary(
+                        &crate::technologies::effective(&request.options, &request.brief),
+                    );
+                    (
+                        "Technologies",
+                        custom.map(str::to_string).unwrap_or_else(|| {
+                            if technologies.is_empty() {
+                                String::new()
+                            } else {
+                                format!("Selected for this project: {technologies}.")
+                            }
+                        }),
+                    )
+                }
+                "features" => ("Features", custom.unwrap_or_default().to_string()),
+                "installation" => ("Installation", custom.unwrap_or_default().to_string()),
+                "usage" => ("Usage", custom.unwrap_or_default().to_string()),
+                "development" => ("Development", custom.unwrap_or_default().to_string()),
+                "contributing" => ("Contributing", custom.unwrap_or_default().to_string()),
                 "license" if request.options.license != License::None => (
                     "License",
                     format!(
@@ -134,12 +124,32 @@ pub fn render_readme(request: &CreateRequest) -> Option<String> {
                 ),
                 _ => continue,
             };
-            if !body.is_empty() {
+            if has_visible_content(&body) {
                 blocks.push(format!("## {title}\n\n{body}"));
             }
         }
     }
+    if request.options.readme_footer {
+        blocks.push(
+            "---\n\nCreated with [Repo Creator](https://github.com/DefinitivedCode/RepoCreator)"
+                .into(),
+        );
+    }
     Some(format!("{}\n", blocks.join("\n\n")))
+}
+
+// Preserve authored Markdown, but an invisible comment alone is not a section.
+fn has_visible_content(mut text: &str) -> bool {
+    while let Some(start) = text.find("<!--") {
+        if !text[..start].trim().is_empty() {
+            return true;
+        }
+        let Some(end) = text[start + 4..].find("-->") else {
+            return false;
+        };
+        text = &text[start + 4 + end + 3..];
+    }
+    !text.trim().is_empty()
 }
 
 pub fn render_license(options: &ProjectOptions) -> Option<String> {
@@ -173,6 +183,7 @@ pub struct GeneratedFile {
 }
 
 pub fn generate_files(request: &CreateRequest) -> Result<Vec<GeneratedFile>, AppError> {
+    let request = &request.clone().normalized();
     validate_request(request)?;
     let mut files = Vec::new();
     let mut add = |path: &str, content: Option<String>| {

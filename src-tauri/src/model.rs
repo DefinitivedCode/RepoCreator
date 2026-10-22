@@ -65,6 +65,8 @@ pub fn validate_brief(brief: &ProjectBrief, template: &str) -> Result<(), AppErr
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CreateRequest {
     pub name: String,
+    #[serde(default)]
+    pub title: String,
     pub description: String,
     pub destination: Destination,
     pub visibility: Visibility,
@@ -89,6 +91,7 @@ impl Default for CreateRequest {
     fn default() -> Self {
         Self {
             name: String::new(),
+            title: String::new(),
             description: String::new(),
             destination: Destination::default(),
             visibility: Visibility::default(),
@@ -101,6 +104,36 @@ impl Default for CreateRequest {
             handoff_template: discovery_template(),
             preset_name: String::new(),
         }
+    }
+}
+
+pub fn normalize_project_name(value: &str) -> String {
+    let mut result = String::new();
+    for character in value.trim_matches(' ').chars() {
+        if matches!(character, ' ' | '_' | '-') {
+            if !result.ends_with('-') {
+                result.push('-');
+            }
+        } else {
+            result.push(character.to_ascii_lowercase());
+        }
+    }
+    result
+}
+
+impl CreateRequest {
+    pub fn normalized(mut self) -> Self {
+        if self.title.is_empty() {
+            self.title = self
+                .name
+                .trim_matches(' ')
+                .split(' ')
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ");
+        }
+        self.name = normalize_project_name(&self.name);
+        self
     }
 }
 
@@ -175,6 +208,12 @@ pub fn validate_name(name: &str) -> Result<(), AppError> {
 }
 
 pub fn validate_request(request: &CreateRequest) -> Result<(), AppError> {
+    if request.title.chars().count() > 350 || request.title.chars().any(char::is_control) {
+        return Err(AppError::new(
+            "Invalid project title.",
+            "Use a title of up to 350 characters without control characters.",
+        ));
+    }
     if request.preset_name.len() > 240 || request.preset_name.chars().any(|c| c.is_control()) {
         return Err(AppError::new(
             "Invalid project preset label.",

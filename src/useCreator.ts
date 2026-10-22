@@ -8,6 +8,7 @@ import {
   configurationOf,
   configurationError,
   configurationForPreset,
+  creationRequestOf,
   formError,
   nameError,
   optionsError,
@@ -295,7 +296,7 @@ export function useCreator() {
       );
       const result = await invoke<CreatedRepo>(
         retry ? 'retry_publish' : 'create_repository',
-        retry ? {} : { request: { ...form, presetName } },
+        retry ? {} : { request: { ...creationRequestOf(form!), presetName } },
       );
       setState({ kind: 'success', result });
     } catch (value) {

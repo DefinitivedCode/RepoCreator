@@ -31,7 +31,7 @@ Local creation requires Git and a commit identity. The application does not chan
 
 ## Create your first local project
 
-1. Select **Simple** and enter a project name, for example `learning-notes`.
+1. Select **Simple** and enter a project name, for example `Learning Notes`. Repo Creator shows the final repository name (`learning-notes`) before creation. Spaces, underscores and repeated hyphens become a single hyphen; letters become lowercase. The readable title is kept in the README. Names must still be valid on Windows and macOS: paths, control characters, reserved device names and `.git` endings are rejected.
 2. Add a short description if useful, then select **Experiment** as the starting point. It creates a lightweight README and safe file exclusions without choosing a license.
 3. Leave **AI coding assistant** set to **None**, or select a tool whose project instructions you want to generate. Installation of the assistant is not required.
 4. Choose **Browse…** and a parent folder you can write to, such as a folder inside Documents. Select **On this computer**.
@@ -67,9 +67,13 @@ change project configuration or generated files.
 Simple and Advanced use the same settings. Switching modes does not discard configuration. Advanced exposes **Project Files**, **AI Agents** and their local subsections.
 
 - **Project Files** controls README sections, ignore rules, project license text, optional `.editorconfig`/`.gitattributes`, Git branch/commit and opening actions. Preview before creation. A generated project's license is your choice and is separate from Repo Creator's MIT License.
+
 - **AI Agents** configures optional assistants, specialists and skills. It generates local instruction/configuration files; it does not run a model or install tools.
 - **Manage…** saves, updates, duplicates, imports and exports project presets. Applying a preset offers **Undo preset change**. Imports are reviewed before use and do not execute code.
 - **AI Handoff** prepares editable prompts locally. Missing details are omitted. Changing a template or style keeps your edits until **Regenerate**. Copying a prompt into another service shares the text you choose to send.
+
+README presets keep documentation concise: General uses selected sections with known details, Minimal includes the title and description, Custom also lets you author section Markdown, and None omits the file. Empty sections and comment-only placeholders are omitted. Selected technologies describe project intent; Repo Creator does not invent setup commands or source folders. The optional **Created with Repo Creator** footer is off by default. The preview shows the exact generated file.
+
 - **Projects** opens the local library and workspace, including Git status, launchers, saved commands and project preferences. Add an existing Git repository without scanning the filesystem. See the [project workspace guide](project-workspace.md).
 
 Preferences, custom presets and recent-project metadata stay in local app storage. They can contain project descriptions, paths and authored configuration. Review settings files and screenshots for private information before sharing them. GitHub credentials remain managed by GitHub CLI.

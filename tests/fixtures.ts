@@ -27,7 +27,11 @@ export async function prepare(
     const brief = {idea:'',audience:'',firstVersion:'',technologies:'',context:''};
     const configuration = { readme: 'general', options, brief, handoffTemplate:'discovery' };
     const builtIns = [ ['default', 'Default', ['os','secrets']], ['blank', 'Blank repository', []], ['tauri', 'Tauri application', ['os','secrets','node','vite','typescript','rust','tauri']], ['python', 'Python project', ['os','secrets','python']], ['standard','Standard',['os','secrets']],['experiment','Experiment',['os','secrets']],['website','Website',['os','secrets','node','frontend']],['desktop','Desktop Application',['os','secrets']],['claude-experiment','Claude Experiment',['os','secrets']] ].map(([id,name,ids]) => ({id,name,description:'Reusable '+name+' workflow',configuration:{readme:id==='blank'?'none':'general',options:{...structuredClone(options),ignorePresets:ids},brief:structuredClone(brief),handoffTemplate:'discovery',visibility:'private'}}));
-    for(const preset of builtIns) preset.configuration.options.ai.instructions.technologies = studio.technologies.filter(t=>t.projectPresets.includes(preset.id)).map(t=>t.id);
+    for(const preset of builtIns) {
+      const ids = studio.technologies.filter(t=>t.projectPresets.includes(preset.id)).map(t=>t.id);
+      preset.configuration.options.ai.instructions.technologies = ids;
+      preset.configuration.options.technologies = {ids,custom:[],presetIds:ids};
+    }
     builtIns.find(p=>p.id==='claude-experiment').configuration.options.ai = {...structuredClone(options.ai),enabled:true,agents:['claude']};
     builtIns.find(p=>p.id==='website').configuration.handoffTemplate = 'architecture';
     const preferences = { schemaVersion: 5, experienceMode:'${mode}', parentPath: 'C:\\\\Projects', destination: 'local', appearance: 'system', accent:'teal',customAccent:'#4FA69B',defaults: configuration, customPresets: [], instructionPresets:[],specialistLibrary:[],recoveryNotice:null,recentLocations: [] };
@@ -42,7 +46,7 @@ export async function prepare(
     }
     function preview(request) {
       const files = [];
-      if(request.readme !== 'none') files.push({path:'README.md',content:'# '+request.name+'\\n'});
+      if(request.readme !== 'none') files.push({path:'README.md',content:'# '+(request.title || request.name)+'\\n'});
       if(request.options.ignorePresets.length || request.options.customPatterns.length) files.push({path:'.gitignore',content:request.options.ignorePresets.flatMap(id=>ignores.find(p=>p.id===id).patterns).concat(request.options.customPatterns).join('\\n')+'\\n'});
       if(request.options.license !== 'none') files.push({path:'LICENSE',content:request.options.license+' '+request.options.copyrightName});
       // IPC test doubles exercise the UI contract; Rust tests and the production smoke test verify actual generation.

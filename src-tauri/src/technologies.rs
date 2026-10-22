@@ -11,6 +11,8 @@ use std::{collections::HashSet, sync::OnceLock};
 pub struct ProjectTechnologies {
     pub ids: Vec<String>,
     pub custom: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub preset_ids: Vec<String>,
     // Missing legacy selections may migrate. Explicit empty selections never repopulate.
     #[serde(skip)]
     legacy: bool,
@@ -20,6 +22,7 @@ impl Default for ProjectTechnologies {
         Self {
             ids: Vec::new(),
             custom: Vec::new(),
+            preset_ids: Vec::new(),
             legacy: true,
         }
     }
@@ -27,13 +30,16 @@ impl Default for ProjectTechnologies {
 impl<'de> Deserialize<'de> for ProjectTechnologies {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Default, Deserialize)]
-        #[serde(default, deny_unknown_fields)]
+        #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
         struct Value {
             ids: Vec<String>,
             custom: Vec<String>,
+            preset_ids: Vec<String>,
         }
         let value = Value::deserialize(deserializer)?;
-        Ok(Self::new(value.ids, value.custom))
+        let mut result = Self::new(value.ids, value.custom);
+        result.preset_ids = value.preset_ids;
+        Ok(result)
     }
 }
 impl ProjectTechnologies {
@@ -41,6 +47,7 @@ impl ProjectTechnologies {
         Self {
             ids,
             custom,
+            preset_ids: Vec::new(),
             legacy: false,
         }
     }
@@ -165,8 +172,13 @@ pub fn summary(value: &ProjectTechnologies) -> String {
 pub fn validate(value: &ProjectTechnologies) -> Result<(), AppError> {
     let mut ids = HashSet::new();
     let mut labels = HashSet::new();
+    let mut preset_ids = HashSet::new();
     if value.ids.len() > catalog().len()
         || value.custom.len() > 30
+        || value
+            .preset_ids
+            .iter()
+            .any(|id| !value.ids.contains(id) || !preset_ids.insert(id))
         || value
             .ids
             .iter()
@@ -222,6 +234,25 @@ pub fn migrate_configuration_value(value: &mut serde_json::Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn preset_provenance_roundtrips_and_rejects_unselected_or_duplicate_ids() {
+        let mut value = ProjectTechnologies::from_ids(&["sqlite", "rust", "tauri"]);
+        value.preset_ids = vec!["rust".into(), "tauri".into()];
+        validate(&value).unwrap();
+        let restored: ProjectTechnologies =
+            serde_json::from_value(serde_json::to_value(&value).unwrap()).unwrap();
+        assert_eq!(restored, value);
+        value.preset_ids.push("unity".into());
+        assert!(validate(&value).is_err());
+        value.preset_ids = vec!["rust".into(), "rust".into()];
+        assert!(validate(&value).is_err());
+        for preset in crate::config::built_in_presets() {
+            assert_eq!(
+                preset.configuration.options.technologies.ids,
+                preset.configuration.options.technologies.preset_ids
+            );
+        }
+    }
     #[test]
     fn shared_catalogue_has_unique_stable_ids_and_valid_references() {
         let mut ids = HashSet::new();

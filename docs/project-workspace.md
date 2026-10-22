@@ -12,6 +12,15 @@ stack preset, or add a custom label. Remove individual chips or clear the
 selection. Simple Mode keeps common choices compact; expand its selector for the
 full catalogue.
 
+Choosing another stack replaces the technologies contributed by the previous
+stack. Manually added technologies and custom labels stay selected, including
+technologies shared with a stack. To keep a preset technology independently,
+remove its chip and add it again. Preset contributions are saved with the
+selection, so switching after loading settings or undoing a project preset
+behaves consistently. Older selections without this metadata are preserved as
+manual choices. Applying a full project preset continues to load that preset's
+configuration; **Undo preset change** restores the previous configuration.
+
 Technologies describe intent. Selecting React, Rust, SQLite and Cloudflare
 Workers does not install them or imply that they share an application component.
 The bounded **Browse technologies** picker stays open while you select several

@@ -1,15 +1,26 @@
 import type { AppError, Configuration, ProjectOptions, RepositoryForm } from './types';
 import { normalizeTechnologies, technologiesError, technologiesFor } from './technologies';
+import { normalizeProjectName, projectTitle } from './projectName';
 
 const byteLength = (value: string) => new TextEncoder().encode(value).length;
 
+export function creationRequestOf(form: RepositoryForm) {
+  return {
+    ...form,
+    name: normalizeProjectName(form.name),
+    title: projectTitle(form.name),
+    options: { ...form.options, technologies: technologiesFor(form) },
+  };
+}
+
 // File generation does not use publishing, handoff or local Git operation settings.
 // Normalise those fields so editing them does not regenerate otherwise identical files.
-export function previewRequestOf(form: RepositoryForm): RepositoryForm {
+export function previewRequestOf(form: RepositoryForm) {
   const { brief: _brief, handoffTemplate: _template, ...request } = form;
   return {
     ...request,
-    name: form.name || 'project-name',
+    name: normalizeProjectName(form.name) || (form.name ? '' : 'project-name'),
+    title: projectTitle(form.name) || (form.name ? '' : 'project-name'),
     destination: 'local',
     visibility: 'private',
     githubOwner: '',
@@ -54,6 +65,8 @@ export function configurationForPreset(
 }
 
 export function nameError(name: string): string | null {
+  if (Array.from(name).length > 350) return 'Keep the project title to 350 characters or fewer.';
+  name = normalizeProjectName(name);
   if (!name) return 'Enter a project name.';
   if (name.length > 100) return 'Keep the name to 100 characters or fewer.';
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name))

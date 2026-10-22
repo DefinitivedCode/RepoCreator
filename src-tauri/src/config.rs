@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 pub const SECTION_IDS: &[&str] = &[
     "overview",
+    "technologies",
     "features",
     "installation",
     "usage",
@@ -79,6 +80,7 @@ pub struct ProjectOptions {
     pub ai: crate::ai::AiStudio,
     pub readme_sections: Vec<String>,
     pub section_content: BTreeMap<String, String>,
+    pub readme_footer: bool,
     pub ignore_presets: Vec<String>,
     pub custom_patterns: Vec<String>,
     pub license: License,
@@ -98,8 +100,9 @@ impl Default for ProjectOptions {
             commands: Vec::new(),
             technologies: crate::technologies::ProjectTechnologies::default(),
             ai: crate::ai::AiStudio::default(),
-            readme_sections: vec!["overview".into(), "license".into()],
+            readme_sections: vec!["overview".into(), "technologies".into(), "license".into()],
             section_content: BTreeMap::new(),
+            readme_footer: false,
             ignore_presets: vec!["os".into(), "secrets".into()],
             custom_patterns: Vec::new(),
             license: License::None,
@@ -234,6 +237,7 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
                 crate::technologies::effective(&options, &Default::default())
             };
             let suggestions = crate::technologies::recommended_ignores(&options.technologies);
+            options.technologies.preset_ids = options.technologies.ids.clone();
             for id in suggestions {
                 if !options.ignore_presets.contains(&id) {
                     options.ignore_presets.push(id);
@@ -320,6 +324,8 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
                 .collect();
             configuration.options.technologies =
                 crate::technologies::ProjectTechnologies::from_ids(&["html", "css", "javascript"]);
+            configuration.options.technologies.preset_ids =
+                configuration.options.technologies.ids.clone();
             configuration.handoff_template = "architecture".into();
         }
         if id == "claude-experiment" {

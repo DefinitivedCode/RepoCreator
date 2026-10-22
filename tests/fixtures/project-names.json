@@ -1,0 +1,21 @@
+[
+  { "input": "My Amazing Project", "slug": "my-amazing-project", "valid": true },
+  { "input": "  My   Amazing Project  ", "slug": "my-amazing-project", "valid": true },
+  { "input": "Repo_2.0", "slug": "repo-2.0", "valid": true },
+  { "input": "My __-- Project", "slug": "my-project", "valid": true },
+  { "input": "already-normalised", "slug": "already-normalised", "valid": true },
+  { "input": "   ", "slug": "", "valid": false },
+  { "input": "___", "slug": "-", "valid": false },
+  { "input": "-flag", "slug": "-flag", "valid": false },
+  { "input": "NUL", "slug": "nul", "valid": false },
+  { "input": " CON.txt ", "slug": "con.txt", "valid": false },
+  { "input": "Repo.GIT", "slug": "repo.git", "valid": false },
+  { "input": "trailing.", "slug": "trailing.", "valid": false },
+  { "input": "../escape", "slug": "../escape", "valid": false },
+  { "input": "a/b", "slug": "a/b", "valid": false },
+  { "input": "a\\b", "slug": "a\\b", "valid": false },
+  { "input": "a\tb", "slug": "a\tb", "valid": false },
+  { "input": "a\nb", "slug": "a\nb", "valid": false },
+  { "input": "café", "slug": "café", "valid": false },
+  { "input": "x;echo", "slug": "x;echo", "valid": false }
+]
