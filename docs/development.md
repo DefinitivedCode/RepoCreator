@@ -53,6 +53,39 @@ cargo test --manifest-path src-tauri/Cargo.toml --locked
 
 `npm run build` checks TypeScript and builds the frontend. `npm run format` formats application/test sources and root configuration; review the diff. Browser tests use Tauri's IPC mock and cover both themes, modes, supported dimensions, enlarged text, recovery and configuration preservation. Rust tests create temporary local Git repositories and simulate remote failures. Automated tests do not create real GitHub repositories or invoke provider models.
 
+## CI coverage and caching
+
+The required check names remain `version`, `windows`, `macOS Apple-Silicon` and `macOS Intel`. No branch-protection changes are needed. Each mode validates the exact checked-out commit; post-merge checks still run native tests on all three platforms rather than relying on a previous PR result.
+
+| Coverage                                                                        | Pull request / push to `main` | Manual desktop workflow  | Prepare release draft        |
+| ------------------------------------------------------------------------------- | ----------------------------- | ------------------------ | ---------------------------- |
+| Version, release/build/licensing/feed helper tests and notice coverage          | Yes                           | Yes                      | Yes, at the approved tag SHA |
+| Frontend checks, format, unit tests; Rust format                                | Once on Windows               | Once on Windows          | Once on Windows              |
+| Browser regressions                                                             | Windows                       | Windows                  | Windows                      |
+| Locked Clippy and Rust tests                                                    | All three native targets      | All three native targets | All three native targets     |
+| Tauri frontend/native build                                                     | Debug executable / Mac app    | Optimized                | Optimized                    |
+| Mac architecture, ad-hoc signature and bundled notices                          | Both architectures            | Both architectures       | Both architectures           |
+| NSIS/MSI/DMG, portable archive, installer notices, source-path scans, checksums | Deferred to full packaging    | Yes                      | Yes                          |
+| Updater signing and complete release assembly                                   | No                            | No                       | Required                     |
+
+Development builds omit Windows installer and Mac DMG creation and avoid the optimized LTO build, while preserving native compilation/linking and Mac app-bundle checks. Every Tauri build still runs the frontend TypeScript/Vite build on its platform. Platform-independent frontend unit/format checks run once, and browser coverage stays on Windows with Edge. Manual desktop dispatch retains full unsigned test downloads. Release preparation retains all tests, optimized builds, signature and artifact verification, approved-tag validation, restricted write permissions and manual publication. It does not reuse PR executables/installers.
+
+Rust checks/tests and Tauri now use the same explicit target and source-path remapping flags. Development/test profiles omit debug symbols to reduce compile and cache size; the shipped release profile is unchanged. Rust caches retain the action's toolchain, compiler-environment and manifest/lockfile keys, with separate target and development/packaging namespaces. Only runs on `main` save caches; PRs restore trusted base caches without uploading large PR-scoped duplicates. GitHub's cache scope also prevents release builds on `main` from restoring PR merge-ref caches. A cache hit only accelerates dependencies: tests and application builds still run. The first run in each new namespace will be cold; stable Rust updates or dependency changes can also require rebuilding. Superseded push/PR runs cancel automatically; release preparation remains serialized by tag and is never automatically cancelled.
+
+The October 22, 2026 audit measured these successful v1.4.1 runs (elapsed workflow time includes orchestration; platform figures below are step durations):
+
+| Baseline                                                                                            | Measured      |
+| --------------------------------------------------------------------------------------------------- | ------------- |
+| [PR validation](https://github.com/DefinitivedCode/RepoCreator/actions/runs/39827607522)            | 17m23s        |
+| [Post-merge validation](https://github.com/DefinitivedCode/RepoCreator/actions/runs/39830193121)    | 20m07s        |
+| [Signed draft preparation](https://github.com/DefinitivedCode/RepoCreator/actions/runs/39833367171) | 11m00s        |
+| Post-merge Intel optimized app/DMG build                                                            | 7m29s         |
+| Post-merge Intel Rust cache restore / save                                                          | 1m09s / 3m06s |
+
+Intel restored an older lockfile cache (~751 MiB) in both PR and push runs; each then uploaded a separate ~1 GiB dependency cache. A PR cache cannot warm `main`, so those uploads repeated. The new PR path avoids the 2m22s measured PR cache-save step and replaces the 7m24s optimized app/DMG step with a debug app build. Cache namespaces avoid downloading release-profile dependencies for development checks. Based on those stages, **6–10 minutes for a warm development workflow (roughly 40–70% less elapsed time)** is an estimate, not a measured result or guarantee. Runner load, cache misses and compilation dominate variability. Release builds deliberately retain full validation, so no specific release-time reduction is promised. Compare new run/step timings after merge once `main` has warmed the new caches; PR results before that may be cold. Do not remove tests based on an estimate.
+
+Invoke `$repo-creator-release` in Codex for the repository-local release guide. It discovers current configuration, prepares concise notes and owner-approved commands, and follows the signed draft and Stable/Beta feed verification process in [Releases](releases.md) and [Updates](updates.md).
+
 ## Build application packages
 
 On Windows:

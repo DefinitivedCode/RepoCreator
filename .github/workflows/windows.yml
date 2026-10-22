@@ -28,11 +28,22 @@ on:
 permissions:
   contents: read
 
+# Release callers have their own tag-based lock; never cancel a signed build.
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ inputs.release_tag || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+
+# Tests and development binaries need no debug symbols. Release profile is unchanged.
+env:
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+
 jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      package: ${{ steps.mode.outputs.package }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,6 +52,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Select validation or full packaging
+        id: mode
+        env:
+          PACKAGE: ${{ github.event_name == 'workflow_dispatch' || inputs.sign_updates || false }}
+          SIGN_UPDATES: ${{ inputs.sign_updates || false }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$SIGN_UPDATES" = true ] && { [ "$EVENT" != workflow_dispatch ] || [ "$REF" != refs/heads/main ]; }; then
+            echo 'Signed builds require manual release preparation on main.' >&2
+            exit 1
+          fi
+          printf 'package=%s\n' "$PACKAGE" >> "$GITHUB_OUTPUT"
       - run: node --test scripts/release.test.mjs scripts/build-desktop.test.mjs scripts/licensing.test.mjs scripts/update-feeds.test.mjs
       - run: node scripts/third-party-notices.mjs --check
       - name: Verify application versions
@@ -68,23 +92,39 @@ jobs:
         with:
           components: rustfmt, clippy
           targets: x86_64-pc-windows-msvc
+      - name: Configure consistent compiler path remapping
+        shell: bash
+        run: node --input-type=module -e 'import { appendFileSync } from "node:fs"; import { buildEnvironment } from "./scripts/build-desktop.mjs"; appendFileSync(process.env.GITHUB_ENV, `CARGO_ENCODED_RUSTFLAGS=${buildEnvironment().CARGO_ENCODED_RUSTFLAGS}\n`);'
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          shared-key: desktop-${{ needs.version.outputs.package == 'true' && 'packages' || 'checks' }}-x86_64-pc-windows-msvc
+          save-if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
       - run: npm ci
       - run: npm run check
       - run: npm run format:check
       - run: npm test
       - run: npm run test:ui
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
-      - run: npm run desktop:build -- --ci --target x86_64-pc-windows-msvc
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets --target x86_64-pc-windows-msvc -- -D warnings
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --target x86_64-pc-windows-msvc
+      - name: Build development executable without installers
+        if: needs.version.outputs.package != 'true'
+        run: npm run desktop:build -- --ci --debug --no-bundle --target x86_64-pc-windows-msvc
+      - name: Verify development executable
+        if: needs.version.outputs.package != 'true'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -LiteralPath 'src-tauri/target/x86_64-pc-windows-msvc/debug/repo-creator.exe')) { throw 'Missing executable' }
+      - name: Build release executable and installers
+        if: needs.version.outputs.package == 'true'
+        run: npm run desktop:build -- --ci --target x86_64-pc-windows-msvc
         env:
           REPO_CREATOR_RELEASE_BUILD: ${{ inputs.sign_updates || false }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.sign_updates && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.sign_updates && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
       - name: Verify Windows outputs
+        if: needs.version.outputs.package == 'true'
         shell: pwsh
         run: |
           $release = 'src-tauri/target/x86_64-pc-windows-msvc/release'
@@ -95,10 +135,12 @@ jobs:
           if ($msi.Count -ne 1) { throw 'Expected one MSI installer' }
           ./scripts/verify-windows-notices.ps1 -Msi $msi[0].FullName -ReleaseDirectory $release
       - name: Package versioned Windows assets and checksums
+        if: needs.version.outputs.package == 'true'
         env:
           VERSION: ${{ needs.version.outputs.version }}
         run: node scripts/release.mjs package --version "$env:VERSION" --platform windows --architecture x64 --source src-tauri/target/x86_64-pc-windows-msvc/release --output artifacts/distribution --updater "${{ inputs.sign_updates || false }}"
       - uses: actions/upload-artifact@v4
+        if: needs.version.outputs.package == 'true'
         with:
           name: Repo-Creator-${{ needs.version.outputs.version }}-windows-x64
           if-no-files-found: error
@@ -141,48 +183,60 @@ jobs:
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: clippy
           targets: ${{ matrix.target }}
+      - name: Configure consistent compiler path remapping
+        run: node --input-type=module -e 'import { appendFileSync } from "node:fs"; import { buildEnvironment } from "./scripts/build-desktop.mjs"; appendFileSync(process.env.GITHUB_ENV, `CARGO_ENCODED_RUSTFLAGS=${buildEnvironment().CARGO_ENCODED_RUSTFLAGS}\n`);'
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          key: ${{ matrix.target }}
+          shared-key: desktop-${{ needs.version.outputs.package == 'true' && 'packages' || 'checks' }}-${{ matrix.target }}
+          save-if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
       - run: npm ci
-      - run: npm run check
-      - run: npm run format:check
-      - run: npm test
-      - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+      # Platform-independent checks run once on Windows; Tauri still builds the
+      # frontend here, and native Clippy/tests run on each Mac architecture.
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets --target ${{ matrix.target }} -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --target ${{ matrix.target }}
-      - name: Build ad-hoc signed test application and DMG
+      - name: Build ad-hoc signed development app without DMG
+        if: needs.version.outputs.package != 'true'
+        run: npm run desktop:build -- --ci --debug --target ${{ matrix.target }} --bundles app
+      - name: Build ad-hoc signed release application and DMG
+        if: needs.version.outputs.package == 'true'
         # No Apple account/certificate or notarization credentials are used.
         run: npm run desktop:build -- --ci --target ${{ matrix.target }} --bundles app,dmg
         env:
           REPO_CREATOR_RELEASE_BUILD: ${{ inputs.sign_updates || false }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.sign_updates && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.sign_updates && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
-      - name: Verify architecture, signature and installers; preserve app permissions
+      - name: Verify architecture, signature and bundled notices
         env:
           TARGET: ${{ matrix.target }}
           EXPECTED_ARCH: ${{ matrix.machine_arch }}
+          PROFILE: ${{ needs.version.outputs.package == 'true' && 'release' || 'debug' }}
         run: |
           set -euo pipefail
-          bundle="src-tauri/target/$TARGET/release/bundle"
+          bundle="src-tauri/target/$TARGET/$PROFILE/bundle"
           app="$bundle/macos/Repo Creator.app"
           test -d "$app"
           test "$(lipo -archs "$app/Contents/MacOS/repo-creator")" = "$EXPECTED_ARCH"
           codesign --verify --deep --strict --verbose=2 "$app"
           cmp LICENSE "$app/Contents/Resources/LICENSE"
           cmp THIRD_PARTY_NOTICES.txt "$app/Contents/Resources/THIRD_PARTY_NOTICES.txt"
-          find "$bundle/dmg" -name '*.dmg' -type f -size +0c | grep -q .
           printf 'Ad-hoc signed, not notarized. Architecture: %s. A physical Mac launch remains to be tested.\n' "$EXPECTED_ARCH" >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify DMG
+        if: needs.version.outputs.package == 'true'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: find "src-tauri/target/$TARGET/release/bundle/dmg" -name '*.dmg' -type f -size +0c | grep -q .
       - name: Package versioned Mac assets and checksums
+        if: needs.version.outputs.package == 'true'
         env:
           VERSION: ${{ needs.version.outputs.version }}
           TARGET: ${{ matrix.target }}
           ASSET_ARCH: ${{ matrix.asset_arch }}
         run: node scripts/release.mjs package --version "$VERSION" --platform macos --architecture "$ASSET_ARCH" --source "src-tauri/target/$TARGET/release/bundle" --output artifacts/distribution --updater "${{ inputs.sign_updates || false }}"
       - uses: actions/upload-artifact@v4
+        if: needs.version.outputs.package == 'true'
         with:
           name: Repo-Creator-${{ needs.version.outputs.version }}-macos-${{ matrix.asset_arch }}
           if-no-files-found: error

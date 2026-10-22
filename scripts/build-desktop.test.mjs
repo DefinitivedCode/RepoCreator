@@ -30,6 +30,29 @@ test('ambiguous plain flags fail clearly without silently discarding user config
     /delimiter/,
   );
 });
+
+test('preconfigured CI remaps keep the same compiler fingerprint when the wrapper runs', () => {
+  for (const platformSettings of [
+    settings,
+    { root: '/Users/builder/source', home: '/Users/builder', platform: 'darwin' },
+  ]) {
+    const environment = buildEnvironment(
+      { CARGO_ENCODED_RUSTFLAGS: '-C\u001ftarget-cpu=generic' },
+      platformSettings,
+    );
+    let invocation;
+    runBuild(['--ci', '--debug', '--no-bundle'], {
+      ...platformSettings,
+      environment,
+      execute: (...args) => {
+        invocation = args;
+        return { status: 0 };
+      },
+    });
+    assert.equal(invocation[2].env.CARGO_ENCODED_RUSTFLAGS, environment.CARGO_ENCODED_RUSTFLAGS);
+    assert.ok(environment.CARGO_ENCODED_RUSTFLAGS.startsWith('-C\u001ftarget-cpu=generic\u001f'));
+  }
+});
 test('build wrapper forwards Tauri arguments without a shell and propagates failure', () => {
   let invocation;
   const status = runBuild(['--ci', '--target', 'x86_64-pc-windows-msvc'], {

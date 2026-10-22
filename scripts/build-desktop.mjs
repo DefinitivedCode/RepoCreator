@@ -51,7 +51,13 @@ export function buildEnvironment(environment = process.env, settings = {}) {
   const flags = buildPaths({ ...settings, environment }).flatMap(([source, target]) =>
     pathSpellings(source, platform).map((spelling) => `--remap-path-prefix=${spelling}=${target}`),
   );
-  next.CARGO_ENCODED_RUSTFLAGS = [environment.CARGO_ENCODED_RUSTFLAGS, ...flags]
+  // CI sets these before Clippy/tests so the desktop build can reuse their dependencies.
+  // Append only missing remaps; preserve custom flags and their ordering verbatim.
+  const existing = new Set((environment.CARGO_ENCODED_RUSTFLAGS || '').split(separator));
+  next.CARGO_ENCODED_RUSTFLAGS = [
+    environment.CARGO_ENCODED_RUSTFLAGS,
+    ...flags.filter((flag) => !existing.has(flag)),
+  ]
     .filter((value) => value !== undefined && value !== '')
     .join(separator);
   return next;
