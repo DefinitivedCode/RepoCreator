@@ -239,10 +239,13 @@ test('appearance and partial publication retain the local repository and metadat
   page,
 }) => {
   await prepare(page, true);
-  await page.getByLabel('Appearance').selectOption('dark');
+  await navigate(page, 'Setup & status');
+  await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
+  await page.getByRole('radio', { name: 'Dark', exact: true }).check();
   await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark');
-  await page.getByLabel('Appearance').selectOption('light');
+  await page.getByRole('radio', { name: 'Light', exact: true }).check();
   await expect(page.locator('html')).toHaveAttribute('data-appearance', 'light');
+  await navigate(page, 'Overview');
   await page.getByLabel('Project name').fill('fresh-start');
   await page.getByRole('button', { name: 'GitHub', exact: true }).click();
   await expect(page.getByRole('radio', { name: /^Private/ })).toBeChecked();

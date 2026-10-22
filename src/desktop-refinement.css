@@ -46,8 +46,9 @@ select {
   font-weight: 550;
 }
 .app-navigation > button[aria-current='page'] {
-  border-color: var(--separator);
-  background: var(--secondary);
+  color: var(--selected-text);
+  border-color: var(--selected-border);
+  background: var(--selected-background);
   box-shadow: inset 0 -2px var(--accent);
 }
 .desktop-app .appearance-control select {
@@ -89,8 +90,8 @@ select {
   border-radius: 4px;
 }
 .nav-item.active {
-  color: var(--text);
-  background: var(--surface);
+  color: var(--selected-text);
+  background: var(--selected-background);
   border: 1px solid var(--separator);
   box-shadow: inset 2px 0 var(--accent);
 }
@@ -123,9 +124,9 @@ select {
   font-size: 12px;
 }
 .subnavigation > button[aria-pressed='true'] {
-  color: var(--text);
-  border-color: var(--border);
-  background: var(--surface);
+  color: var(--selected-text);
+  border-color: var(--selected-border);
+  background: var(--selected-background);
   box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
 }
 .file-editor-layout,
@@ -198,8 +199,9 @@ select {
   border-color: transparent;
 }
 .focused-preview-tabs > button[aria-pressed='true'] {
-  background: var(--secondary);
-  border-color: var(--separator);
+  color: var(--selected-text);
+  background: var(--selected-background);
+  border-color: var(--selected-border);
 }
 .focused-file-preview .preview {
   border: 0;
@@ -293,8 +295,25 @@ select {
   gap: 12px;
 }
 .assistant-option.selected {
-  border-color: var(--accent);
+  background: var(--selected-background);
+  border-color: var(--selected-border);
   box-shadow: inset 3px 0 var(--accent);
+}
+.primary {
+  border-color: var(--primary-border);
+}
+.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  filter: none;
+}
+.segmented > button[aria-pressed='true'] {
+  color: var(--selected-text);
+  background: var(--selected-background);
+  border-color: var(--selected-border);
+}
+a,
+.result-link {
+  color: var(--link);
 }
 .assistant-option > span {
   display: grid;

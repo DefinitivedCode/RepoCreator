@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { AppearanceSettings } from './AppearanceSettings';
 import { Icon } from './icons';
 import { ProjectBrief } from './ProjectBrief';
 import type { Creator } from './useCreator';
-import type { Configuration } from './types';
+import type { Configuration, Environment } from './types';
 import type { Agent } from './aiTypes';
 import type { Section } from './App';
 import { displayPath, nameError } from './validation';
@@ -498,31 +499,19 @@ export function Context({
   );
 }
 export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: () => void }) {
-  const env = creator.environment;
+  const env: Environment = creator.environment ?? {
+    gitInstalled: false,
+    identityReady: false,
+    ghInstalled: false,
+    githubUser: null,
+    githubOwners: [],
+    identityName: null,
+    vscodeAvailable: false,
+  };
   const form = creator.form!;
-  const [tab, setTab] = useState<'git' | 'github' | 'tools'>('git');
+  const [tab, setTab] = useState<'git' | 'github' | 'tools' | 'appearance'>('git');
   const option = (key: 'commitAuthorName' | 'commitAuthorEmail', value: string) =>
     creator.update('options', { ...form.options, [key]: value });
-  if (!env)
-    return (
-      <div className="setup-settings">
-        <p role="status">
-          {creator.checking ? 'Checking your computer…' : 'Computer checks are unavailable.'}
-        </p>
-        <div className="inline-actions">
-          <button
-            type="button"
-            disabled={creator.checking}
-            onClick={() => void creator.refresh(form.destination === 'github')}
-          >
-            Recheck
-          </button>
-          <button type="button" onClick={onReturn}>
-            Return to project setup
-          </button>
-        </div>
-      </div>
-    );
   const hasProjectIdentity = !!(
     form.options.commitAuthorName?.trim() && form.options.commitAuthorEmail?.trim()
   );
@@ -532,29 +521,40 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
         <div>
           <Icon name="settings" size={20} />
           <div>
-            <strong>Development environment</strong>
+            <strong>
+              {tab === 'appearance' ? 'Application appearance' : 'Development environment'}
+            </strong>
             <span>
-              {env.gitInstalled && (env.identityReady || hasProjectIdentity)
-                ? 'Ready for local projects'
-                : 'Complete Git setup to create a project'}
+              {tab === 'appearance'
+                ? 'Theme and accent for this device'
+                : !creator.environment
+                  ? creator.checking
+                    ? 'Checking your computer…'
+                    : 'Computer checks are unavailable.'
+                  : env.gitInstalled && (env.identityReady || hasProjectIdentity)
+                    ? 'Ready for local projects'
+                    : 'Complete Git setup to create a project'}
             </span>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => void creator.refresh(tab === 'github' || form.destination === 'github')}
-          disabled={creator.checking}
-        >
-          <Icon name="refresh" size={14} />
-          {creator.checking ? 'Checking…' : 'Recheck'}
-        </button>
+        {tab !== 'appearance' && (
+          <button
+            type="button"
+            onClick={() => void creator.refresh(tab === 'github' || form.destination === 'github')}
+            disabled={creator.checking}
+          >
+            <Icon name="refresh" size={14} />
+            {creator.checking ? 'Checking…' : 'Recheck'}
+          </button>
+        )}
       </div>
-      <div className="setup-tabs" role="tablist" aria-label="Environment settings">
+      <div className="setup-tabs" role="tablist" aria-label="Settings sections">
         {(
           [
             ['git', 'Git & identity'],
             ['github', 'GitHub'],
             ['tools', 'Development tools'],
+            ['appearance', 'Appearance'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -569,13 +569,13 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
             onKeyDown={(event) => {
               if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                 event.preventDefault();
-                const tabs = ['git', 'github', 'tools'] as const;
+                const tabs = ['git', 'github', 'tools', 'appearance'] as const;
                 const index =
                   event.key === 'Home'
                     ? 0
                     : event.key === 'End'
-                      ? 2
-                      : (tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+                      ? 3
+                      : (tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : 3)) % 4;
                 setTab(tabs[index]);
                 document.getElementById(`environment-tab-${tabs[index]}`)?.focus();
               }
@@ -591,7 +591,15 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
         id={`environment-panel-${tab}`}
         aria-labelledby={`environment-tab-${tab}`}
       >
-        {tab === 'git' && (
+        {tab === 'appearance' && <AppearanceSettings creator={creator} />}
+        {tab !== 'appearance' && !creator.environment && (
+          <p role="status">
+            {creator.checking
+              ? 'Checking your computer…'
+              : 'Computer checks are unavailable. Select Recheck to try again.'}
+          </p>
+        )}
+        {tab === 'git' && !!creator.environment && (
           <>
             <div className="setup-status-row">
               <div className="setup-tool-name">
@@ -664,7 +672,7 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
             </div>
           </>
         )}
-        {tab === 'github' && (
+        {tab === 'github' && !!creator.environment && (
           <>
             <div className="setup-status-row">
               <div className="setup-tool-name">
@@ -712,7 +720,7 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
             </div>
           </>
         )}
-        {tab === 'tools' && (
+        {tab === 'tools' && !!creator.environment && (
           <>
             <div className="setup-section-heading">
               <h3>Editors & coding assistants</h3>
@@ -769,7 +777,11 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
         )}
       </section>
       <div className="setup-settings-footer">
-        <span>Local settings · no tools are installed automatically</span>
+        <span>
+          {tab === 'appearance'
+            ? 'Saved on this computer'
+            : 'Local settings · no tools are installed automatically'}
+        </span>
         <button type="button" onClick={onReturn}>
           Return to project setup
           <Icon name="arrow" size={14} />

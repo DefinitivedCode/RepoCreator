@@ -78,6 +78,31 @@ pub fn set_appearance(
     persist(&session.preferences, &session.preference_file)
 }
 
+fn save_accent(
+    preferences: &mut Preferences,
+    file: &std::path::Path,
+    accent: String,
+    custom_accent: String,
+) -> Result<(), AppError> {
+    let normalized = crate::preferences::validate_accent(&accent, &custom_accent)?;
+    let mut updated = preferences.clone();
+    updated.accent = accent;
+    updated.custom_accent = normalized;
+    persist(&updated, file)?;
+    *preferences = updated;
+    Ok(())
+}
+#[tauri::command(async)]
+pub fn set_accent(
+    accent: String,
+    custom_accent: String,
+    state: State<'_, Arc<Runtime>>,
+) -> Result<(), AppError> {
+    let mut session = state.session.lock().map_err(|_| lock_error())?;
+    let file = session.preference_file.clone();
+    save_accent(&mut session.preferences, &file, accent, custom_accent)
+}
+
 #[tauri::command(async)]
 pub fn select_recent_location(
     index: usize,
@@ -159,4 +184,62 @@ pub async fn open_vscode(state: State<'_, Arc<Runtime>>) -> Result<(), AppError>
     tauri::async_runtime::spawn_blocking(move || crate::desktop::open_vscode(&path))
         .await
         .map_err(|_| lock_error())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn accent_updates_are_validated_normalized_and_atomic() {
+        let directory = tempfile::tempdir().unwrap();
+        let file = directory.path().join("preferences.json");
+        let mut preferences = Preferences::new(directory.path().into());
+        preferences.appearance = Appearance::Dark;
+        preferences.save(&file).unwrap();
+        save_accent(&mut preferences, &file, "custom".into(), "#ab34cd".into()).unwrap();
+        assert_eq!(preferences.accent, "custom");
+        assert_eq!(preferences.custom_accent, "#AB34CD");
+        let loaded = Preferences::load(&file, directory.path().into());
+        assert_eq!(loaded.accent, "custom");
+        assert_eq!(loaded.custom_accent, "#AB34CD");
+        assert_eq!(loaded.appearance, Appearance::Dark);
+        let saved = std::fs::read(&file).unwrap();
+        for (accent, custom) in [
+            ("purple", "#123456"),
+            ("teal", "#123"),
+            ("teal", "123456"),
+            ("teal", "#GG0000"),
+            ("teal", "#12345678"),
+            ("custom", "#12345\n"),
+        ] {
+            assert!(save_accent(&mut preferences, &file, accent.into(), custom.into()).is_err());
+            assert_eq!(preferences.accent, "custom");
+            assert_eq!(preferences.custom_accent, "#AB34CD");
+            assert_eq!(std::fs::read(&file).unwrap(), saved);
+        }
+        let unavailable = directory.path().join("occupied");
+        std::fs::create_dir(&unavailable).unwrap();
+        assert!(save_accent(
+            &mut preferences,
+            &unavailable,
+            "gold".into(),
+            "#112233".into()
+        )
+        .is_err());
+        assert_eq!(preferences.accent, "custom");
+        assert_eq!(preferences.custom_accent, "#AB34CD");
+    }
+    #[test]
+    fn newer_settings_are_never_replaced_by_an_accent_change() {
+        let directory = tempfile::tempdir().unwrap();
+        let file = directory.path().join("preferences.json");
+        let original = r##"{"schemaVersion":999,"appearance":"light","accent":"custom","customAccent":"#AABBCC","futureField":"preserved"}"##;
+        std::fs::write(&file, original).unwrap();
+        let mut preferences = Preferences::load(&file, directory.path().into());
+        assert!(save_accent(&mut preferences, &file, "teal".into(), "#4FA69B".into()).is_err());
+        assert_eq!(preferences.accent, "custom");
+        assert_eq!(preferences.custom_accent, "#AABBCC");
+        assert_eq!(preferences.appearance, Appearance::Light);
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), original);
+    }
 }

@@ -477,6 +477,7 @@ pub fn run() {
             settings_commands::preview_files,
             settings_commands::save_configuration,
             settings_commands::set_appearance,
+            settings_commands::set_accent,
             settings_commands::select_recent_location,
             settings_commands::save_custom_preset,
             settings_commands::rename_custom_preset,

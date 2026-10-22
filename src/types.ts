@@ -3,6 +3,7 @@ export type Destination = 'local' | 'github';
 export type Readme = 'general' | 'minimal' | 'none' | 'custom';
 export type Visibility = 'private' | 'public';
 export type Appearance = 'system' | 'light' | 'dark';
+export type Accent = 'slate' | 'teal' | 'gold' | 'copper' | 'monochrome' | 'custom';
 export type ExperienceMode = 'simple' | 'advanced';
 export interface ProjectBrief {
   idea: string;
@@ -97,6 +98,8 @@ export interface Preferences {
   parentPath: string;
   destination: Destination;
   appearance: Appearance;
+  accent?: Accent;
+  customAccent?: string;
   recentLocations: string[];
   defaults: Configuration;
   customPresets: ProjectPreset[];

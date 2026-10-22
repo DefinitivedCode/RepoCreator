@@ -48,3 +48,11 @@ are additive; stored project preferences retain their existing representation.
 Creation file editors and shared instruction previews consume `creator.files`
 from the existing Rust preview command. Layout changes do not introduce another
 file generator. Path presentation uses the shared `displayPath` helper.
+
+Appearance stays in the existing schema-5 preferences: `appearance` retains
+`system | light | dark`; additive `accent` and `customAccent` fields are saved by
+`set_accent`. Native validation accepts the six named choices and `#RRGGBB`,
+normalizes case, and persists before changing session state. Fresh settings use
+Muted Teal; files without the new fields migrate to Copper without changing theme.
+`appearance.ts` derives semantic CSS tokens with WCAG contrast checks and the
+preference hook observes system theme changes. There is no separate theme store.

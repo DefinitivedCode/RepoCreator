@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { applyAppearance, normalizeHex } from './appearance';
 import {
   appError,
   blankForm,
@@ -14,6 +15,7 @@ import {
 } from './validation';
 import type {
   AppError,
+  Accent,
   Appearance,
   Catalog,
   Configuration,
@@ -44,6 +46,7 @@ export function useCreator() {
   const locked = useRef(false);
   const environmentRequest = useRef(0);
   const environmentFailure = useRef('');
+  const accentSave = useRef<Promise<void>>(Promise.resolve());
   const busy = state.kind === 'creating';
 
   const refresh = useCallback(async (includeGithub: boolean) => {
@@ -101,7 +104,6 @@ export function useCreator() {
         setForm(
           blankForm(preferences.defaults ?? catalog.defaultConfiguration, preferences.destination),
         );
-        document.documentElement.dataset.appearance = preferences.appearance ?? 'system';
         void refresh(preferences.destination === 'github');
       })
       .catch((value) => {
@@ -111,6 +113,15 @@ export function useCreator() {
       active = false;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!preferences) return;
+    const system = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => applyAppearance(preferences, system.matches);
+    apply();
+    system.addEventListener('change', apply);
+    return () => system.removeEventListener('change', apply);
+  }, [preferences?.appearance, preferences?.accent, preferences?.customAccent]);
 
   const previewKey = form ? JSON.stringify(previewRequestOf(form)) : '';
   useEffect(() => {
@@ -222,10 +233,27 @@ export function useCreator() {
     }
   }
   async function appearance(appearance: Appearance) {
-    document.documentElement.dataset.appearance = appearance;
     setPreferences((preferences) => (preferences ? { ...preferences, appearance } : preferences));
     try {
       await invoke('set_appearance', { appearance });
+    } catch (value) {
+      setNotice(appError(value).message);
+    }
+  }
+  async function accent(accent: Accent, customAccent: string) {
+    const normalized = normalizeHex(customAccent);
+    if (!normalized) return;
+    setPreferences((preferences) =>
+      preferences ? { ...preferences, accent, customAccent: normalized } : preferences,
+    );
+    // Native picker input can emit rapidly. Persist in selection order so a
+    // slower earlier request cannot replace the user's final color on restart.
+    const saving = accentSave.current.then(() =>
+      invoke<void>('set_accent', { accent, customAccent: normalized }),
+    );
+    accentSave.current = saving.catch(() => {});
+    try {
+      await saving;
     } catch (value) {
       setNotice(appError(value).message);
     }
@@ -372,6 +400,7 @@ export function useCreator() {
     chooseFolder,
     recentLocation,
     appearance,
+    accent,
     experienceMode,
     execute,
     action,

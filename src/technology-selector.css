@@ -172,9 +172,9 @@ dialog.technology-dialog[open] {
   flex-shrink: 0;
 }
 .technology-categories button[aria-pressed='true'] {
-  background: var(--surface);
-  border-color: var(--border);
-  color: var(--accent);
+  background: var(--selected-background, var(--surface));
+  border-color: var(--selected-border, var(--border));
+  color: var(--selected-text, var(--accent));
   font-weight: 650;
 }
 .technology-catalogue-scroll {
@@ -210,8 +210,9 @@ dialog.technology-dialog[open] {
   background: var(--surface);
 }
 .technology-results > button[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  border-color: var(--selected-border, var(--accent));
+  background: var(--selected-background, var(--secondary));
+  color: var(--selected-text, var(--text));
 }
 .technology-results > button > svg {
   flex-shrink: 0;

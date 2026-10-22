@@ -120,7 +120,7 @@
   vertical-align: middle;
 }
 .rc-project-workspace .git-clean::before {
-  background: var(--accent);
+  background: var(--success);
 }
 .rc-project-workspace .project-branch {
   margin-left: 4px;
@@ -141,7 +141,8 @@
   border-bottom-width: 2px;
 }
 .rc-project-workspace .workspace-tabs > button[aria-pressed='true'] {
-  background: var(--surface);
+  background: var(--selected-background);
+  color: var(--selected-text);
   font-weight: 600;
 }
 .rc-project-workspace .workspace-card {
@@ -303,7 +304,7 @@
   flex-shrink: 0;
 }
 .rc-tool-launcher .other-tool-actions > a {
-  color: var(--muted);
+  color: var(--link);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -389,7 +390,7 @@
   opacity: 0.6;
 }
 .rc-project-settings .tool-status-available .tool-state-dot {
-  background: var(--accent);
+  background: var(--success);
   opacity: 1;
 }
 .rc-project-settings .advanced-executables {
@@ -463,7 +464,10 @@
   margin-left: auto;
 }
 .rc-project-workspace .command-last-status.status-running {
-  color: var(--accent);
+  color: var(--warning);
+}
+.rc-project-workspace .command-last-status.status-succeeded {
+  color: var(--success);
 }
 .rc-project-workspace .command-last-status.status-failed {
   color: var(--error);

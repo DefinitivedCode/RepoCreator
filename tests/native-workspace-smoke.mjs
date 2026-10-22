@@ -25,6 +25,30 @@ const invoke = (command, args = {}) =>
     command,
     args,
   });
+async function setTheme(appearance, section) {
+  await page
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
+  await page
+    .getByRole('radio', { name: appearance === 'dark' ? 'Dark' : 'Light', exact: true })
+    .check();
+  await page.screenshot({
+    path: path.join(artifacts, `appearance-${appearance}.png`),
+    animations: 'disabled',
+  });
+  await page
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('button', { name: 'Projects', exact: true })
+    .click();
+  await page
+    .getByRole('main', { name: 'Project workspace' })
+    .getByRole('button', { name: section, exact: true })
+    .click();
+  if (section === 'Commands')
+    await expect(page.getByLabel('long output', { exact: true })).toContainText('stream-start');
+}
 const command = (id, overrides = {}) => ({
   id,
   name: id,
@@ -132,6 +156,10 @@ try {
     .toBe(true);
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30000 });
+  await expect(page.locator('.app-header').getByRole('combobox')).toHaveCount(0);
+  const freshPreferences = await invoke('get_preferences');
+  assert.equal(freshPreferences.accent, 'teal');
+  assert.equal(freshPreferences.customAccent, '#4FA69B');
   const added = await invoke('add_existing_project', { path: project });
   assert.ok(added?.id);
   const duplicate = await invoke('add_existing_project', { path: project });
@@ -363,7 +391,7 @@ try {
   await page.getByRole('button', { name: 'Refresh tool detection', exact: true }).click();
   assert.deepEqual(antigravityProcesses(), beforeIde);
   for (const appearance of ['light', 'dark']) {
-    await page.getByRole('combobox', { name: /Appearance/ }).selectOption(appearance);
+    await setTheme(appearance, 'Open');
     await page.screenshot({
       path: path.join(artifacts, `open-${appearance}.png`),
       animations: 'disabled',
@@ -405,7 +433,7 @@ try {
   );
   await workspacePage.getByRole('button', { name: 'Overview', exact: true }).click();
   for (const appearance of ['light', 'dark']) {
-    await page.getByRole('combobox', { name: /Appearance/ }).selectOption(appearance);
+    await setTheme(appearance, 'Overview');
     await page.screenshot({
       path: path.join(artifacts, `workspace-${appearance}.png`),
       animations: 'disabled',
@@ -414,7 +442,7 @@ try {
   await workspacePage.getByRole('button', { name: 'Commands', exact: true }).click();
   await expect(page.getByLabel('long output', { exact: true })).toContainText('stream-start');
   for (const appearance of ['light', 'dark']) {
-    await page.getByRole('combobox', { name: /Appearance/ }).selectOption(appearance);
+    await setTheme(appearance, 'Commands');
     await page.screenshot({
       path: path.join(artifacts, `commands-${appearance}.png`),
       animations: 'disabled',
@@ -422,7 +450,7 @@ try {
   }
   await workspacePage.getByRole('button', { name: 'Project Settings', exact: true }).click();
   for (const appearance of ['light', 'dark']) {
-    await page.getByRole('combobox', { name: /Appearance/ }).selectOption(appearance);
+    await setTheme(appearance, 'Project Settings');
     await page.screenshot({
       path: path.join(artifacts, `settings-${appearance}.png`),
       animations: 'disabled',

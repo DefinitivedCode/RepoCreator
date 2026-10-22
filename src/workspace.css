@@ -9,10 +9,23 @@
   --muted: #69665f;
   --border: #cdc9bf;
   --separator: #dedad1;
-  --primary: #a44319;
-  --primary-text: #fffaf6;
-  --accent: #b74d21;
-  --focus: #a44319;
+  --primary: #326e66;
+  --primary-hover: #2d635c;
+  --primary-text: #ffffff;
+  --primary-border: var(--primary);
+  --accent: #326e66;
+  --accent-border: #478b80;
+  --accent-surface: #eff6f1;
+  --accent-surface-hover: #e6f1eb;
+  --selected-background: var(--accent-surface);
+  --selected-text: var(--accent);
+  --selected-border: var(--accent-border);
+  --link: var(--accent);
+  --focus: var(--accent);
+  --success: #267046;
+  --success-bg: #edf6ef;
+  --warning: #835d13;
+  --warning-bg: #fbf3df;
   --radius: 3px;
 }
 @media (prefers-color-scheme: dark) {
@@ -26,10 +39,17 @@
     --muted: #aaa69e;
     --border: #484641;
     --separator: #393833;
-    --primary: #d86d3c;
-    --primary-text: #1d160f;
-    --accent: #ee9868;
-    --focus: #ee9868;
+    --primary: #72c0b5;
+    --primary-hover: #7fc6bc;
+    --primary-text: #151515;
+    --accent: #72c0b5;
+    --accent-border: #4fa69b;
+    --accent-surface: #2d3937;
+    --accent-surface-hover: #30413d;
+    --success: #7dc59c;
+    --success-bg: #24332a;
+    --warning: #e3b95f;
+    --warning-bg: #383020;
   }
 }
 :root[data-appearance='dark'] {
@@ -42,10 +62,17 @@
   --muted: #aaa69e;
   --border: #484641;
   --separator: #393833;
-  --primary: #d86d3c;
-  --primary-text: #1d160f;
-  --accent: #ee9868;
-  --focus: #ee9868;
+  --primary: #72c0b5;
+  --primary-hover: #7fc6bc;
+  --primary-text: #151515;
+  --accent: #72c0b5;
+  --accent-border: #4fa69b;
+  --accent-surface: #2d3937;
+  --accent-surface-hover: #30413d;
+  --success: #7dc59c;
+  --success-bg: #24332a;
+  --warning: #e3b95f;
+  --warning-bg: #383020;
 }
 .desktop-app .app-header {
   min-height: 64px;
@@ -87,9 +114,9 @@
   font-size: 12px;
 }
 .app-navigation > button[aria-current='page'] {
-  color: var(--text);
+  color: var(--selected-text);
   border-bottom-color: var(--accent);
-  background: var(--secondary);
+  background: var(--selected-background);
 }
 .header-actions {
   margin-left: auto;
@@ -129,10 +156,11 @@
   border-radius: 0 3px 3px 0;
 }
 .nav-item.active {
+  color: var(--selected-text);
   border-left-color: var(--accent);
   border-color: transparent;
   border-left-color: var(--accent);
-  background: var(--surface);
+  background: var(--selected-background);
   font-weight: 650;
 }
 .nav-status {
@@ -144,7 +172,7 @@
   font-size: 11px;
 }
 .nav-status .status-dot {
-  background: var(--accent);
+  background: var(--muted);
 }
 .desktop-app .nav-note {
   font-size: 10px;
@@ -225,7 +253,7 @@
   font-weight: 650;
 }
 .ready-text {
-  color: var(--accent);
+  color: var(--success);
 }
 .library-page,
 .project-workspace-page {
@@ -664,7 +692,7 @@
 }
 .unreviewed-label {
   font-size: 9px;
-  color: var(--accent);
+  color: var(--warning);
   margin-left: auto;
 }
 .command-card h4 {
@@ -757,9 +785,11 @@
 .run-status {
   text-transform: capitalize;
 }
-.status-running,
+.status-running {
+  color: var(--warning);
+}
 .status-succeeded {
-  color: var(--accent);
+  color: var(--success);
 }
 .status-failed {
   color: var(--error);

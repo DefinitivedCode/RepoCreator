@@ -48,6 +48,20 @@ In Overview, select **Computer and GitHub**, choose an owner, and review **Priva
 
 Keep the app open while it creates the project. If publication fails after local creation, the local files and commit remain available. Read the displayed recovery guidance before retrying; see [publication recovery](troubleshooting.md#github-publication-failed).
 
+## Choose an appearance
+
+Open **Settings → Appearance** to choose System, Light or Dark and an accent:
+Slate, Muted Teal, Muted Gold, Copper, Monochrome or Custom. Fresh installations
+use Muted Teal (`#4FA69B`). Existing installations keep their saved theme and
+start with Copper when no accent was previously saved.
+
+For Custom, use the colour picker or enter a six-digit hexadecimal colour such as
+`#436F7A`. Valid changes apply immediately and persist locally. Invalid text
+keeps the previous colour. The app derives readable shades for buttons, text and
+focus indicators in each theme; status colours retain their meaning.
+**Reset to default** restores System and Muted Teal. Appearance settings do not
+change project configuration or generated files.
+
 ## Adjust the project
 
 Simple and Advanced use the same settings. Switching modes does not discard configuration. Advanced exposes **Project Files**, **AI Agents** and their local subsections.

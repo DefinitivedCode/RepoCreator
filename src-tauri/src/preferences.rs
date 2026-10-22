@@ -10,6 +10,27 @@ use std::{
 };
 
 pub const SETTINGS_VERSION: u32 = 5;
+fn legacy_accent() -> String {
+    "copper".into()
+}
+fn default_custom_accent() -> String {
+    "#4FA69B".into()
+}
+pub(crate) fn validate_accent(accent: &str, custom_accent: &str) -> Result<String, AppError> {
+    if !["slate", "teal", "gold", "copper", "monochrome", "custom"].contains(&accent)
+        || custom_accent.len() != 7
+        || !custom_accent.starts_with('#')
+        || !custom_accent.as_bytes()[1..]
+            .iter()
+            .all(u8::is_ascii_hexdigit)
+    {
+        return Err(AppError::new(
+            "The accent colour is invalid.",
+            "Choose a supported accent and enter a custom colour in #RRGGBB format.",
+        ));
+    }
+    Ok(custom_accent.to_ascii_uppercase())
+}
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preferences {
@@ -17,6 +38,10 @@ pub struct Preferences {
     pub parent_path: PathBuf,
     pub destination: Destination,
     pub appearance: Appearance,
+    #[serde(default = "legacy_accent")]
+    pub accent: String,
+    #[serde(default = "default_custom_accent")]
+    pub custom_accent: String,
     #[serde(default)]
     pub experience_mode: ExperienceMode,
     pub recent_locations: Vec<PathBuf>,
@@ -42,6 +67,8 @@ impl Preferences {
             parent_path,
             destination: Destination::Local,
             appearance: Appearance::System,
+            accent: "teal".into(),
+            custom_accent: default_custom_accent(),
             experience_mode: ExperienceMode::Simple,
             recent_locations: Vec::new(),
             defaults: Configuration::default(),
@@ -100,6 +127,29 @@ impl Preferences {
         result.destination =
             serde_json::from_value(value["destination"].clone()).unwrap_or_default();
         result.appearance = serde_json::from_value(value["appearance"].clone()).unwrap_or_default();
+        // An existing installation keeps its established copper appearance.
+        // These additive fields do not alter the independent theme preference.
+        result.accent = legacy_accent();
+        if let Some(accent) = value.get("accent") {
+            if let Some(accent) = accent
+                .as_str()
+                .filter(|accent| validate_accent(accent, &default_custom_accent()).is_ok())
+            {
+                result.accent = accent.into();
+            } else {
+                result.recover_notice();
+            }
+        }
+        if let Some(custom_accent) = value.get("customAccent") {
+            if let Some(normalized) = custom_accent
+                .as_str()
+                .and_then(|custom| validate_accent(&result.accent, custom).ok())
+            {
+                result.custom_accent = normalized;
+            } else {
+                result.recover_notice();
+            }
+        }
         if let Some(defaults) = result.read_configuration(&value["defaults"]) {
             result.defaults = defaults;
         }
@@ -217,6 +267,7 @@ impl Preferences {
         if self.future_version {
             return Err("These settings were written by a newer app. Preferences will apply for this session only.".into());
         }
+        validate_accent(&self.accent, &self.custom_accent).map_err(|error| error.message)?;
         let parent = file.parent().ok_or("Preference location is unavailable.")?;
         fs::create_dir_all(parent)
             .map_err(|_| "Could not save preferences. Check app data permissions.")?;
@@ -378,4 +429,87 @@ pub fn valid_description(description: &str) -> bool {
 }
 fn preset_error(message: &str) -> AppError {
     AppError::new(message, "Update the preset and try again.")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn accent_defaults_distinguish_new_installations_from_saved_themes() {
+        let directory = tempfile::tempdir().unwrap();
+        let file = directory.path().join("preferences.json");
+        let fresh = Preferences::load(&file, directory.path().into());
+        assert_eq!(fresh.accent, "teal");
+        assert_eq!(fresh.custom_accent, "#4FA69B");
+        assert_eq!(fresh.appearance, Appearance::System);
+        for (theme, appearance) in [
+            ("system", Appearance::System),
+            ("light", Appearance::Light),
+            ("dark", Appearance::Dark),
+        ] {
+            let legacy = serde_json::json!({"schemaVersion":5,"parentPath":directory.path(),"appearance":theme});
+            fs::write(&file, serde_json::to_vec(&legacy).unwrap()).unwrap();
+            let saved = Preferences::load(&file, directory.path().into());
+            assert_eq!(saved.accent, "copper");
+            assert_eq!(saved.custom_accent, "#4FA69B");
+            assert_eq!(saved.appearance, appearance);
+            assert!(!saved.needs_backup);
+            saved.save(&file).unwrap();
+            let restored = Preferences::load(&file, directory.path().into());
+            assert_eq!(restored.accent, "copper");
+            assert_eq!(restored.appearance, appearance);
+        }
+    }
+    #[test]
+    fn every_named_accent_and_custom_colour_round_trip_without_schema_changes() {
+        let directory = tempfile::tempdir().unwrap();
+        let file = directory.path().join("preferences.json");
+        for accent in ["slate", "teal", "gold", "copper", "monochrome", "custom"] {
+            let mut preferences = Preferences::new(directory.path().into());
+            preferences.accent = accent.into();
+            preferences.custom_accent = "#123ABC".into();
+            preferences.save(&file).unwrap();
+            let loaded = Preferences::load(&file, directory.path().into());
+            assert_eq!(loaded.accent, accent);
+            assert_eq!(loaded.custom_accent, "#123ABC");
+            assert_eq!(loaded.schema_version, SETTINGS_VERSION);
+        }
+        fs::write(
+            &file,
+            r##"{"schemaVersion":5,"accent":"custom","customAccent":"#abcDEF"}"##,
+        )
+        .unwrap();
+        assert_eq!(
+            Preferences::load(&file, directory.path().into()).custom_accent,
+            "#ABCDEF"
+        );
+    }
+    #[test]
+    fn malformed_accent_settings_keep_other_preferences_and_back_up_original_data() {
+        for (accent, custom) in [
+            (
+                serde_json::json!("unsupported"),
+                serde_json::json!("#123456"),
+            ),
+            (serde_json::json!(50), serde_json::json!("#123456")),
+            (serde_json::json!("custom"), serde_json::json!("#GG0000")),
+            (serde_json::json!("teal"), serde_json::json!(false)),
+        ] {
+            let directory = tempfile::tempdir().unwrap();
+            let file = directory.path().join("preferences.json");
+            let original = serde_json::json!({"schemaVersion":5,"appearance":"dark","destination":"github","accent":accent,"customAccent":custom}).to_string();
+            fs::write(&file, &original).unwrap();
+            let preferences = Preferences::load(&file, directory.path().into());
+            assert!(preferences.needs_backup);
+            assert!(preferences.recovery_notice.is_some());
+            assert_eq!(preferences.appearance, Appearance::Dark);
+            assert_eq!(preferences.destination, Destination::Github);
+            assert!(validate_accent(&preferences.accent, &preferences.custom_accent).is_ok());
+            preferences.save(&file).unwrap();
+            assert_eq!(
+                fs::read_to_string(file.with_extension("json.bak")).unwrap(),
+                original
+            );
+        }
+    }
 }

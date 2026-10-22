@@ -12,7 +12,7 @@ import { RepositoryState } from './RepositoryState';
 import { Overview, ProjectSummary, SetupPanel, Context } from './WorkspaceFields';
 import { useCreator } from './useCreator';
 import { configurationOf, formError } from './validation';
-import type { Appearance, Configuration, Readme } from './types';
+import type { Configuration, Readme } from './types';
 
 export type Section = 'overview' | 'files' | 'agents' | 'review' | 'handoff' | 'recent' | 'setup';
 const labels: Record<Section, string> = {
@@ -137,18 +137,6 @@ export default function App() {
               </button>
             </div>
           )}
-          <label className="appearance-control">
-            <span className="sr-only">Appearance</span>
-            <select
-              value={preferences?.appearance ?? 'system'}
-              disabled={!preferences || creator.busy}
-              onChange={(e) => void creator.appearance(e.target.value as Appearance)}
-            >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
         </div>
       </header>
       {!form || !catalog || !preferences ? (

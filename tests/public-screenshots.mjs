@@ -48,6 +48,8 @@ try {
       parentPath: demonstrationDirectory,
       destination: 'local',
       appearance: 'light',
+      accent: 'teal',
+      customAccent: '#4FA69B',
     }),
   );
   child = spawn(executable, [], {
