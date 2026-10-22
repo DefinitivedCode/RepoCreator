@@ -46,6 +46,42 @@ test('build wrapper forwards Tauri arguments without a shell and propagates fail
   assert.equal(invocation[2].cwd, settings.root);
   assert.ok(invocation[2].env.CARGO_ENCODED_RUSTFLAGS);
 });
+test('release builds fail closed without keys and signed builds enable updater artifacts', () => {
+  assert.throws(
+    () =>
+      runBuild([], {
+        ...settings,
+        environment: { REPO_CREATOR_RELEASE_BUILD: 'true' },
+        execute: () => assert.fail(),
+      }),
+    /require/,
+  );
+  assert.throws(
+    () =>
+      runBuild([], {
+        ...settings,
+        environment: { TAURI_SIGNING_PRIVATE_KEY: 'test' },
+        execute: () => assert.fail(),
+      }),
+    /require/,
+  );
+  let invocation;
+  runBuild([], {
+    ...settings,
+    environment: {
+      TAURI_SIGNING_PRIVATE_KEY: 'test-only',
+      REPO_CREATOR_UPDATER_PUBLIC_KEY: 'public-test-key',
+    },
+    execute: (...args) => {
+      invocation = args;
+      return { status: 0 };
+    },
+  });
+  const config = JSON.parse(invocation[1].at(-1));
+  assert.equal(config.bundle.createUpdaterArtifacts, true);
+  assert.equal(config.plugins.updater.pubkey, 'public-test-key');
+  assert.ok(!invocation[1].join().includes('test-only'));
+});
 test('distribution scan rejects UTF-8 and UTF-16 local paths without reporting their contents', () => {
   for (const value of ['C:\\Build User\\.cargo\\source.rs', 'C:/Build User/Repo/src/main.rs']) {
     for (const encoding of ['utf8', 'utf16le']) {

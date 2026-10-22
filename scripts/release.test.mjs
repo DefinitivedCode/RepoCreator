@@ -66,7 +66,8 @@ test('release versions and tags are strict and every application manifest must a
   const root = manifestFixture();
   assert.equal(checkVersions(root, '1.3.2', 'v1.3.2'), '1.3.2');
   assert.equal(checkVersions(root), '1.3.2');
-  for (const invalid of ['1.3', 'v1.3.2', '01.3.2', '1.3.2-beta', '1.3.2\n', '../1.3.2'])
+  assert.equal(releaseVersion('1.5.0-beta.1'), '1.5.0-beta.1');
+  for (const invalid of ['1.3', 'v1.3.2', '01.3.2', '1.3.2-beta.01', '1.3.2\n', '../1.3.2'])
     assert.throws(() => releaseVersion(invalid));
   assert.throws(() => checkVersions(root, '1.3.2', 'v1.3.1'));
   put(root, 'src-tauri/Cargo.toml', '[package]\nname = "repo-creator"\nversion = "1.3.1"\n');

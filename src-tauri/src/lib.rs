@@ -16,6 +16,7 @@ mod settings_commands;
 mod technologies;
 #[cfg(test)]
 mod tests;
+mod updates;
 mod workspace;
 
 use model::{AppError, CreateRequest, CreatedRepo, Destination};
@@ -407,6 +408,8 @@ fn connect_github() -> Result<(), AppError> {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::UpdateManager::default())
         .setup(|app| {
             let fallback = app.path().home_dir()?.canonicalize()?;
             let preference_file = data_dir(app.handle())
@@ -442,6 +445,12 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            updates::get_update_info,
+            updates::set_update_preferences,
+            updates::check_for_updates,
+            updates::download_update,
+            updates::cancel_update_download,
+            updates::install_update,
             get_preferences,
             check_environment,
             choose_parent,

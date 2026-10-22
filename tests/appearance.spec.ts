@@ -52,6 +52,8 @@ test('appearance themes and accent presets apply live through native preferences
   }
   await page.getByRole('tab', { name: 'Appearance', exact: true }).focus();
   await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Updates', exact: true })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Git & identity' })).toBeFocused();
 });
 

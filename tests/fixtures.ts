@@ -73,6 +73,20 @@ export async function prepare(
       if(command==='get_catalog' && sessionStorage.getItem('failBootstrap')==='true') throw {message:'Could not load saved settings.',guidance:'Retry loading the application.'};
       if (command === 'get_catalog') return {studio,ignorePresets: ignores,builtInPresets: builtIns,defaultConfiguration: configuration};
       if (command === 'get_preferences') return structuredClone(preferences);
+      if (command === 'get_update_info') return {currentVersion: '1.4.1', configured: true};
+      if (command === 'set_update_preferences') { if(window.testUpdateSaveError) throw {message:'Could not save update settings.'}; preferences.updates=payload.updates; return structuredClone(preferences); }
+      if (command === 'check_for_updates') {
+        if(window.testUpdateError) throw {message:window.testUpdateError};
+        return window.testUpdateOffer || null;
+      }
+      if (command === 'download_update') {
+        if(window.testDownloadError) throw {message:window.testDownloadError};
+        payload.onProgress.onmessage({downloaded:50,total:100});
+        if(window.testDownloadWait) return await new Promise(resolve=>{window.finishUpdateDownload=resolve;});
+        return true;
+      }
+      if (command === 'cancel_update_download') { window.finishUpdateDownload?.(false); return; }
+      if (command === 'install_update') return;
       if (command === 'check_environment') {
         if(window.testEnvironmentError) throw {message:'Could not inspect local tools.',guidance:'Recheck your setup.'};
         const queued=window.testEnvironmentQueue?.shift();

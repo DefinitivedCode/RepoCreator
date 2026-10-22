@@ -1,0 +1,35 @@
+.update-settings {
+  display: grid;
+  gap: 16px;
+  max-width: 720px;
+}
+.update-settings h3,
+.update-settings h4,
+.update-settings h5,
+.update-settings p {
+  margin: 0;
+}
+.update-offer {
+  display: grid;
+  gap: 12px;
+}
+.update-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 240px;
+  overflow: auto;
+  font: inherit;
+  margin: 0;
+}
+.update-settings progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.update-notification {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+}

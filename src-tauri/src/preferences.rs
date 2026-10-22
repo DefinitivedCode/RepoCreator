@@ -43,6 +43,8 @@ pub struct Preferences {
     #[serde(default = "default_custom_accent")]
     pub custom_accent: String,
     #[serde(default)]
+    pub updates: crate::updates::UpdatePreferences,
+    #[serde(default)]
     pub experience_mode: ExperienceMode,
     pub recent_locations: Vec<PathBuf>,
     pub defaults: Configuration,
@@ -69,6 +71,7 @@ impl Preferences {
             appearance: Appearance::System,
             accent: "teal".into(),
             custom_accent: default_custom_accent(),
+            updates: crate::updates::UpdatePreferences::default(),
             experience_mode: ExperienceMode::Simple,
             recent_locations: Vec::new(),
             defaults: Configuration::default(),
@@ -127,6 +130,12 @@ impl Preferences {
         result.destination =
             serde_json::from_value(value["destination"].clone()).unwrap_or_default();
         result.appearance = serde_json::from_value(value["appearance"].clone()).unwrap_or_default();
+        if let Some(updates) = value.get("updates") {
+            match serde_json::from_value(updates.clone()) {
+                Ok(updates) => result.updates = updates,
+                Err(_) => result.recover_notice(),
+            }
+        }
         // An existing installation keeps its established copper appearance.
         // These additive fields do not alter the independent theme preference.
         result.accent = legacy_accent();

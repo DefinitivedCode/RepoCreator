@@ -1,0 +1,35 @@
+name: Refresh published update channels
+
+on:
+  release:
+    types: [published, edited, unpublished, deleted, released, prereleased]
+  workflow_dispatch:
+  # Reconcile withdrawn/edited assets and recover missed events; never publish a release.
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: published-update-feeds
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.repository == 'DefinitivedCode/RepoCreator'
+    runs-on: ubuntu-latest
+    steps:
+      # Always execute reviewed main, never code from a release tag or downloaded asset.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate published releases and atomically refresh both feeds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO_CREATOR_UPDATER_PUBLIC_KEY: ${{ vars.REPO_CREATOR_UPDATER_PUBLIC_KEY }}
+        run: node scripts/update-feeds.mjs

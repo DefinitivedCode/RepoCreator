@@ -81,6 +81,8 @@ macOS output is under the corresponding `src-tauri/target/<target>/release/bundl
 
 [Release preparation](releases.md) explains version checks, normalized download names, checksums and the draft-only workflow. Normal CI does not publish a release.
 
+[Built-in updates](updates.md) describes Settings → Updates, updater signing setup and the post-publication Stable/Beta feeds. Ordinary builds do not require private signing credentials; without a configured public key their updater is disabled. Release preparation requires the signing secrets and public-key variable documented there.
+
 ## Production smoke on Windows
 
 After building, run the real WebView2 application through the opt-in test:

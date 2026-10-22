@@ -16,6 +16,14 @@ on:
       release_tag:
         type: string
         default: ''
+      sign_updates:
+        type: boolean
+        default: false
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: false
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: false
 
 permissions:
   contents: read
@@ -33,7 +41,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test scripts/release.test.mjs scripts/build-desktop.test.mjs scripts/licensing.test.mjs
+      - run: node --test scripts/release.test.mjs scripts/build-desktop.test.mjs scripts/licensing.test.mjs scripts/update-feeds.test.mjs
       - run: node scripts/third-party-notices.mjs --check
       - name: Verify application versions
         id: version
@@ -45,6 +53,8 @@ jobs:
   windows:
     needs: version
     runs-on: windows-latest
+    env:
+      REPO_CREATOR_UPDATER_PUBLIC_KEY: ${{ vars.REPO_CREATOR_UPDATER_PUBLIC_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,6 +80,10 @@ jobs:
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
       - run: npm run desktop:build -- --ci --target x86_64-pc-windows-msvc
+        env:
+          REPO_CREATOR_RELEASE_BUILD: ${{ inputs.sign_updates || false }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.sign_updates && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.sign_updates && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
       - name: Verify Windows outputs
         shell: pwsh
         run: |
@@ -83,7 +97,7 @@ jobs:
       - name: Package versioned Windows assets and checksums
         env:
           VERSION: ${{ needs.version.outputs.version }}
-        run: node scripts/release.mjs package --version "$env:VERSION" --platform windows --architecture x64 --source src-tauri/target/x86_64-pc-windows-msvc/release --output artifacts/distribution
+        run: node scripts/release.mjs package --version "$env:VERSION" --platform windows --architecture x64 --source src-tauri/target/x86_64-pc-windows-msvc/release --output artifacts/distribution --updater "${{ inputs.sign_updates || false }}"
       - uses: actions/upload-artifact@v4
         with:
           name: Repo-Creator-${{ needs.version.outputs.version }}-windows-x64
@@ -92,6 +106,7 @@ jobs:
             artifacts/distribution/Repo-Creator-*.exe
             artifacts/distribution/Repo-Creator-*.msi
             artifacts/distribution/Repo-Creator-*.zip
+            artifacts/distribution/Repo-Creator-*.sig
             artifacts/distribution/SHA256SUMS-*.txt
 
   macos:
@@ -113,6 +128,8 @@ jobs:
             machine_arch: x86_64
             asset_arch: x64
     runs-on: ${{ matrix.runner }}
+    env:
+      REPO_CREATOR_UPDATER_PUBLIC_KEY: ${{ vars.REPO_CREATOR_UPDATER_PUBLIC_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -140,6 +157,10 @@ jobs:
       - name: Build ad-hoc signed test application and DMG
         # No Apple account/certificate or notarization credentials are used.
         run: npm run desktop:build -- --ci --target ${{ matrix.target }} --bundles app,dmg
+        env:
+          REPO_CREATOR_RELEASE_BUILD: ${{ inputs.sign_updates || false }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.sign_updates && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.sign_updates && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
       - name: Verify architecture, signature and installers; preserve app permissions
         env:
           TARGET: ${{ matrix.target }}
@@ -160,7 +181,7 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
           TARGET: ${{ matrix.target }}
           ASSET_ARCH: ${{ matrix.asset_arch }}
-        run: node scripts/release.mjs package --version "$VERSION" --platform macos --architecture "$ASSET_ARCH" --source "src-tauri/target/$TARGET/release/bundle" --output artifacts/distribution
+        run: node scripts/release.mjs package --version "$VERSION" --platform macos --architecture "$ASSET_ARCH" --source "src-tauri/target/$TARGET/release/bundle" --output artifacts/distribution --updater "${{ inputs.sign_updates || false }}"
       - uses: actions/upload-artifact@v4
         with:
           name: Repo-Creator-${{ needs.version.outputs.version }}-macos-${{ matrix.asset_arch }}
@@ -168,4 +189,5 @@ jobs:
           path: |
             artifacts/distribution/Repo-Creator-*.dmg
             artifacts/distribution/Repo-Creator-*.tar.gz
+            artifacts/distribution/Repo-Creator-*.sig
             artifacts/distribution/SHA256SUMS-*.txt
