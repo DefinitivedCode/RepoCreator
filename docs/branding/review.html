@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Repo Creator — identity studies</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 48px;
+      background: #f7f5f0;
+      color: #242526;
+      font:
+        16px/1.5 'Segoe UI',
+        Arial,
+        sans-serif;
+    }
+    main {
+      max-width: 1200px;
+      margin: auto;
+    }
+    h1 {
+      font-size: 32px;
+      letter-spacing: -1px;
+      margin: 0 0 8px;
+    }
+    p {
+      max-width: 80ch;
+      color: #5d5d5c;
+    }
+    .concepts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 32px 0;
+    }
+    article {
+      border: 1px solid #cfcdc8;
+      padding: 24px;
+      background: #fffefa;
+    }
+    article img {
+      width: 96px;
+      height: 96px;
+      display: block;
+      margin-bottom: 24px;
+    }
+    .sizes {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      height: 56px;
+    }
+    .sizes img {
+      margin: 0;
+    }
+    .dark {
+      background: #242526;
+      padding: 12px;
+    }
+    .dark img {
+      filter: brightness(0) invert(1);
+    }
+    h2 {
+      font-size: 20px;
+      margin: 0 0 8px;
+    }
+    .banner {
+      width: 100%;
+      border: 1px solid #cfcdc8;
+    }
+  </style>
+  <main>
+    <h1>Repo Creator / Identity studies</h1>
+    <p>
+      Review concepts only. The shipping icon and current README artwork are unchanged. Each mark
+      uses simple geometry and one warm accent; monochrome versions work on dark surfaces.
+    </p>
+    <div class="concepts">
+      <article>
+        <img src="module.svg" alt="Four open modules" />
+        <h2>A · Module</h2>
+        <p>
+          Four open units form a compact repository. The highlighted unit suggests a new starting
+          point. Recommended: clearest at small sizes and flexible for future workspace sections.
+        </p>
+        <div class="sizes">
+          <img src="module.svg" style="width: 16px; height: 16px" alt="Module at 16 pixels" /><img
+            src="module.svg"
+            style="width: 32px; height: 32px"
+            alt="Module at 32 pixels"
+          /><span class="dark"
+            ><img src="module.svg" style="width: 32px; height: 32px" alt="Monochrome Module"
+          /></span>
+        </div>
+      </article>
+      <article>
+        <img src="join.svg" alt="Two boundaries surrounding a joining component" />
+        <h2>B · Join</h2>
+        <p>
+          Two deliberate boundaries frame a new component. Strong creation signal, though the frame
+          reads more like an editor symbol at 16 pixels.
+        </p>
+        <div class="sizes">
+          <img src="join.svg" style="width: 16px; height: 16px" alt="Join at 16 pixels" /><img
+            src="join.svg"
+            style="width: 32px; height: 32px"
+            alt="Join at 32 pixels"
+          /><span class="dark"
+            ><img src="join.svg" style="width: 32px; height: 32px" alt="Monochrome Join"
+          /></span>
+        </div>
+      </article>
+      <article>
+        <img src="assembly.svg" alt="Three blocks with an addition mark" />
+        <h2>C · Assembly</h2>
+        <p>
+          Three components and a fourth being added. Bolder at app icon size, with a more literal
+          creation cue and less distinctive silhouette.
+        </p>
+        <div class="sizes">
+          <img
+            src="assembly.svg"
+            style="width: 16px; height: 16px"
+            alt="Assembly at 16 pixels"
+          /><img
+            src="assembly.svg"
+            style="width: 32px; height: 32px"
+            alt="Assembly at 32 pixels"
+          /><span class="dark"
+            ><img src="assembly.svg" style="width: 32px; height: 32px" alt="Monochrome Assembly"
+          /></span>
+        </div>
+      </article>
+    </div>
+    <h2>README treatment / Module</h2>
+    <img class="banner" src="readme-banner.svg" alt="Proposed Repo Creator README banner" />
+    <p>
+      Keep shipping artwork until a maintainer approves a direction. Production icon exports would
+      need platform masks, padding and optical sizing; these are editable vector studies.
+    </p>
+  </main>
+</html>

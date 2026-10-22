@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-labelledby="title desc">
+  <title id="title">Repo Creator — proposed README banner</title>
+  <desc id="desc">A restrained modular symbol and wordmark on a warm neutral canvas.</desc>
+  <path fill="#f7f5f0" d="M0 0h1280v320H0z"/>
+  <path fill="#dd643a" d="M80 80h64v64H80z"/>
+  <path fill="#242526" d="M160 80h64v64h-64zM80 160h64v64H80zM160 160h64v64h-64z"/>
+  <path fill="#f7f5f0" d="M98 98h28v28H98zM178 98h28v28h-28zM98 178h28v28H98zM178 178h28v28h-28z"/>
+  <text x="280" y="157" fill="#242526" font-family="Segoe UI,Helvetica,Arial,sans-serif" font-size="64" font-weight="650" letter-spacing="-2">Repo Creator</text>
+  <text x="284" y="207" fill="#5d5d5c" font-family="Segoe UI,Helvetica,Arial,sans-serif" font-size="24">A clear starting point. A workspace for what comes next.</text>
+  <path fill="#dd643a" d="M0 312h1280v8H0z"/>
+</svg>

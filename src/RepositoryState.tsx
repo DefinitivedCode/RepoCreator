@@ -4,15 +4,18 @@ import { displayPath } from './validation';
 import { stages } from './types';
 import { HandoffPanel } from './HandoffPanel';
 import { FilePreview } from './ConfigurationPanels';
+import { CreatedProjectLauncher } from './ProjectWorkspace';
 
 export function RepositoryState({
   creator,
   onAnother,
   presetName,
+  onWorkspace,
 }: {
   creator: Creator;
   onAnother: () => void;
   presetName: string;
+  onWorkspace: (id: string) => void;
 }) {
   const { state, form } = creator;
   if (!form || state.kind === 'form') return null;
@@ -158,6 +161,9 @@ export function RepositoryState({
               </button>
             )}
           </div>
+          {(result || error?.localReady) && (
+            <CreatedProjectLauncher path={path} onWorkspace={onWorkspace} />
+          )}
           {result &&
             (result.files.length ? (
               <details className="result-files">

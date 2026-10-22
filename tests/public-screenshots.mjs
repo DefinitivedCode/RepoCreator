@@ -48,6 +48,8 @@ try {
       parentPath: demonstrationDirectory,
       destination: 'local',
       appearance: 'light',
+      accent: 'teal',
+      customAccent: '#4FA69B',
     }),
   );
   child = spawn(executable, [], {
@@ -87,7 +89,7 @@ try {
     })
     .toBe(true);
   await page.getByLabel('Project name', { exact: true }).waitFor();
-  await expect(page.locator('.version')).toHaveText('1.3.2');
+  await expect(page.locator('.version')).toHaveText('1.4.0');
   await page.getByLabel('Project name', { exact: true }).fill('weekend-notes');
   await page.getByLabel('Starting point', { exact: true }).selectOption('experiment');
   await page
@@ -101,7 +103,7 @@ try {
     assert(!/[/\\]Users[/\\]|[/\\]home[/\\]|@|https:\/\/github\.com\//i.test(text));
     assert(text.includes('C:\\Projects'));
     await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
-    await page.screenshot({ path: path.join(output, name) });
+    await page.screenshot({ path: path.join(output, name), animations: 'disabled' });
   };
   await capture('simple-mode.png');
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();

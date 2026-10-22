@@ -24,7 +24,7 @@ Do not disable Gatekeeper, remove quarantine attributes or change system-wide pr
 
 ## Create a local experiment
 
-1. Open Repo Creator and choose **Setup & status**.
+1. Open Repo Creator and choose **Settings**.
 2. If Git is missing, open its official installation instructions, install it, then return and select **Recheck**.
 3. If asked for a commit identity, enter the name and email you want recorded in the new project. These fields do not change global Git settings.
 4. Select **Simple**, give the project a new name, choose **Experiment**, and select a writable parent folder inside Documents.
@@ -40,9 +40,13 @@ Use new local demonstration projects and preserve previous project files.
 - [ ] Launch from Applications and complete Git detection/identity setup.
 - [ ] Create **Blank repository** and **Experiment** locally; verify path, branch and initial commit on success.
 - [ ] Create an optional assistant configuration and compare files with Review previews, without the assistant installed.
-- [ ] Try Simple/Advanced, Project Files, AI Agents, Review, AI Handoff and Recent Projects in light/dark modes.
+- [ ] Try Simple/Advanced, Project Files, AI Agents, Review, AI Handoff and Projects in light/dark modes.
 - [ ] Test the default window, a smaller window and 125%/150% display or text scaling where available. Controls must remain reachable and the primary action visible.
 - [ ] Open the folder and optional editor; test a parent folder containing spaces and non-ASCII characters.
+- [ ] Add an existing Git repository in Projects; check missing-folder recovery and local settings persistence.
+- [ ] Launch macOS Terminal and installed assistants from a Unicode project path; confirm the directory and normal permission prompts.
+- [ ] Run a harmless short command, a failing command and a long-running local process. Check output, exit codes, Stop and cleanup on Quit.
+- [ ] Review imported command templates before execution; confirm no process starts on project opening or discovery.
 - [ ] Close/reopen the app and verify preferences, recent projects and resized dimensions.
 
 Optional Git verification in the created folder uses `git log -1` and `git status`; expect the initial commit and a clean working tree. Publishing to a real GitHub account is a separate manual test requiring the tester's explicit choice, not part of automated CI.

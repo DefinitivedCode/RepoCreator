@@ -13,13 +13,13 @@ import { configureNativeStudio } from './native-studio.mjs';
 assert.equal(process.platform, 'win32', 'This smoke test requires Windows WebView2');
 const root = path.resolve(import.meta.dirname, '..');
 const temporaryRoot = path.resolve(os.tmpdir());
-const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.3.2-'));
+const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.4.0-'));
 const parent = path.join(temporary, 'Projects with spaces 日本語');
 const settingsDirectory = path.join(temporary, 'isolated-app-data');
 const executable =
   process.env.REPO_CREATOR_SMOKE_EXE ||
   path.join(root, 'src-tauri', 'target', 'release', 'repo-creator.exe');
-const screenshots = path.join(root, 'artifacts', 'native-v1.3.2');
+const screenshots = path.join(root, 'artifacts', 'native-v1.4.0');
 const names = ['preferences.json', 'preferences.json.bak', 'history.json', 'window.json'];
 const backups = new Map();
 let child,
@@ -43,6 +43,20 @@ const invoke = (command, args = {}) =>
     command,
     args,
   });
+async function setTheme(appearance) {
+  await page
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
+  await page
+    .getByRole('radio', { name: appearance === 'dark' ? 'Dark' : 'Light', exact: true })
+    .check();
+  await page
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('button', { name: 'New Project', exact: true })
+    .click();
+}
 function git(values, project) {
   check(
     path.resolve(project).startsWith(path.resolve(parent) + path.sep),
@@ -73,7 +87,8 @@ async function resize(size) {
     .poll(() => page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
     .toEqual(size);
 }
-const screenshot = (name) => page.screenshot({ path: path.join(screenshots, `${name}.png`) });
+const screenshot = (name) =>
+  page.screenshot({ path: path.join(screenshots, `${name}.png`), animations: 'disabled' });
 async function verifyOverview(mode) {
   await resize(scrollSizes[0]);
   const main = page.locator('.workspace-main');
@@ -239,6 +254,10 @@ if (-not [SmokeClose]::PostMessage($owned.MainWindowHandle, 0x0010, [IntPtr]::Ze
     .toEqual(wanted);
   const preferences = await invoke('get_preferences');
   assert.equal(preferences.experienceMode, 'advanced');
+  assert.equal(preferences.accent, 'custom');
+  assert.equal(preferences.customAccent, '#386B87');
+  await expect(page.locator('html')).toHaveAttribute('data-accent', 'custom');
+  await expect(page.locator('.app-header').getByRole('combobox')).toHaveCount(0);
   assert.equal(preferences.defaults.options.ai.specialists.length, 7);
   assert.equal((await invoke('list_recent_projects')).length, 3);
   await screenshot('relaunch-restored-window');
@@ -253,8 +272,8 @@ async function identityIfNeeded() {
   check(environment.gitInstalled, 'Git is required for the production smoke test');
   if (!environment.identityReady) {
     await page
-      .getByRole('navigation', { name: 'Project setup' })
-      .getByRole('button', { name: 'Setup & status', exact: true })
+      .getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('button', { name: 'Settings', exact: true })
       .click();
     await page
       .getByLabel('Your name for this project', { exact: true })
@@ -447,7 +466,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   page.setDefaultTimeout(15_000);
   await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30_000 });
-  assert.equal((await invoke('get_preferences')).schemaVersion, 4);
+  assert.equal((await invoke('get_preferences')).schemaVersion, 5);
   await expect(page.getByRole('button', { name: 'Simple', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -458,6 +477,12 @@ try {
   await page.getByLabel('Project name', { exact: true }).fill('native-blank');
   await identityIfNeeded();
   await verifyOverview('simple');
+  await page.getByRole('button', { name: 'Browse technologies', exact: true }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Choose technologies', exact: true }),
+  ).toBeVisible();
+  await screenshot('technology-picker-dark');
+  await page.keyboard.press('Escape');
   await verifyExpandedScrolling(page, resize);
   for (const size of scrollSizes) {
     await resize(size);
@@ -466,7 +491,10 @@ try {
     await screenshot(`simple-dark-${size.width}x${size.height}`);
   }
   await resize(scrollSizes[0]);
-  await page.getByRole('combobox', { name: /Appearance/ }).selectOption('light');
+  await setTheme('light');
+  await page.getByRole('button', { name: 'Browse technologies', exact: true }).click();
+  await screenshot('technology-picker-light');
+  await page.keyboard.press('Escape');
   await screenshot('simple-light-1100x740');
   await verifyEmulatedScales();
   assert.equal(
@@ -501,7 +529,7 @@ try {
   );
   await page.getByRole('button', { name: 'Create Another', exact: true }).click();
   const details = await configureNativeStudio({ page, invoke, verifyOverview });
-  await page.getByRole('combobox', { name: /Appearance/ }).selectOption('dark');
+  await setTheme('dark');
   await verifyExpandedScrolling(page, resize);
   await resize(scrollSizes[0]);
   await screenshot('advanced-assistants-dark');
@@ -556,13 +584,14 @@ try {
     history.map((project) => project.context.projectName).sort(),
     created.map((project) => project.name).sort(),
   );
+  await invoke('set_accent', { accent: 'custom', customAccent: '#386b87' });
   await verifyWindowPersistence();
   assert.deepEqual(errors, []);
   await unlink(path.join(screenshots, 'failure.png')).catch((error) => {
     if (error.code !== 'ENOENT') throw error;
   });
   const report = {
-    version: '1.3.2',
+    version: '1.4.0',
     checks: [
       'Production WebView2 and native IPC',
       'Simple Blank empty initial commit',
@@ -579,6 +608,7 @@ try {
       'Confirmed development handoff',
       'Recent-project persistence',
       'Resized logical window dimensions persist and restore after a real relaunch',
+      'Custom accent survives a native application restart with normalized hex',
       'Existing-directory protection',
       'No JavaScript errors',
     ],
@@ -621,7 +651,7 @@ try {
   const resolved = path.resolve(temporary);
   check(
     path.dirname(resolved) === temporaryRoot &&
-      path.basename(resolved).startsWith('repo-creator-v1.3.2-'),
+      path.basename(resolved).startsWith('repo-creator-v1.4.0-'),
     'Refusing unexpected cleanup path',
   );
   await rm(resolved, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 });

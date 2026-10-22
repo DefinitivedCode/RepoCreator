@@ -17,7 +17,7 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
   await page.getByLabel('Project name').fill('learning-lab');
   await page.getByLabel('What are you making?').fill('Try a useful local tool');
   await page.getByLabel('Starting point').selectOption('experiment');
-  await page.getByLabel('Language or technology').selectOption('Python');
+  await page.getByRole('combobox', { name: 'Technologies', exact: true }).selectOption('python');
   await page.getByLabel('AI coding assistant').selectOption('claude');
   await page.locator('.brief-details > summary').click();
   await page.getByLabel('What are you building?').fill('é'.repeat(2100));
@@ -40,8 +40,8 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
   await expect(page.getByLabel('What are you building?')).toHaveValue(
     'A small local learning tool',
   );
-  await expect(page.getByLabel('Language or technology')).toHaveValue('Python');
   await page.getByRole('button', { name: 'Undo preset change' }).click();
+  await expect(page.getByRole('button', { name: 'Remove Python', exact: true })).toBeVisible();
   await page.getByLabel('Project name').fill('learning-lab');
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();
   await fileTab(page, 'Git Settings');
@@ -50,7 +50,7 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
   await expect(page.getByLabel('Project name')).toHaveValue('learning-lab');
   await expect(page.getByLabel('Description')).toHaveValue('Try a useful local tool');
   await page.getByRole('button', { name: 'Simple', exact: true }).click();
-  await expect(page.getByLabel('Language or technology')).toHaveValue('Python');
+  await expect(page.getByRole('button', { name: 'Remove Python', exact: true })).toBeVisible();
   await expect(page.getByLabel('AI coding assistant')).toHaveValue('claude');
   await page.getByRole('button', { name: 'Review project', exact: true }).click();
   await expect(page.locator('.project-summary')).toContainText('learning-lab');
@@ -66,7 +66,7 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
   );
   expect(call.payload.request.options.ai).toMatchObject({ enabled: true, agents: ['claude'] });
   expect(call.payload.request.options.initialBranch).toBe('experiment/start');
-  expect(call.payload.request.brief.technologies).toBe('Python');
+  expect(call.payload.request.options.technologies.ids).toContain('python');
 });
 
 test('workspace uses available width and retains one pane scroller at supported window sizes', async ({
@@ -82,15 +82,7 @@ test('workspace uses available width and retains one pane scroller at supported 
     await page.getByRole('checkbox', { name, exact: true }).check();
   await verifyExpandedScrolling(page);
   mkdirSync('artifacts', { recursive: true });
-  for (const section of [
-    'Overview',
-    'Project Files',
-    'AI Agents',
-    'Review',
-    'AI Handoff',
-    'Recent Projects',
-    'Setup & status',
-  ]) {
+  for (const section of ['Overview', 'Project Files', 'AI Agents', 'Review', 'AI Handoff']) {
     await navigate(page, section);
     await verifyExpandedScrolling(page);
     await page.setViewportSize({ width: 1100, height: 740 });
@@ -247,10 +239,13 @@ test('appearance and partial publication retain the local repository and metadat
   page,
 }) => {
   await prepare(page, true);
-  await page.getByLabel('Appearance').selectOption('dark');
+  await navigate(page, 'Setup & status');
+  await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
+  await page.getByRole('radio', { name: 'Dark', exact: true }).check();
   await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark');
-  await page.getByLabel('Appearance').selectOption('light');
+  await page.getByRole('radio', { name: 'Light', exact: true }).check();
   await expect(page.locator('html')).toHaveAttribute('data-appearance', 'light');
+  await navigate(page, 'Overview');
   await page.getByLabel('Project name').fill('fresh-start');
   await page.getByRole('button', { name: 'GitHub', exact: true }).click();
   await expect(page.getByRole('radio', { name: /^Private/ })).toBeChecked();
@@ -293,7 +288,9 @@ test('optional tools and disconnected GitHub never block a local project or hand
   await page.getByLabel('Project name').fill('offline-project');
   await navigate(page, 'Setup & status');
   await page.getByRole('button', { name: 'Recheck', exact: true }).click();
+  await page.getByRole('tab', { name: 'Development tools', exact: true }).click();
   await expect(page.getByText('Claude Code', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Return to project setup', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
   await navigate(page, 'AI Handoff');
   await expect(page.getByLabel('AI prompt')).toHaveValue(/offline-project/);

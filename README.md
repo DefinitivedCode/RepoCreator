@@ -14,6 +14,10 @@ A desktop application for creating and configuring Git repositories on Windows a
 - Generate a README, `.gitignore`, license and optional project files, with previews before creation.
 - Add optional configuration for Codex, Claude Code, GitHub Copilot, Cursor, Gemini CLI and OpenCode.
 - Prepare AI handoff prompts locally, without an AI account or API request.
+- Combine languages, frameworks, runtimes, databases and deployment technologies.
+- Keep a searchable project library with pinned projects and local workspaces.
+- Open editors, terminals and supported coding assistants in the project folder.
+- Save project commands, follow live output and stop running processes.
 
 ## Download
 
@@ -29,12 +33,12 @@ Windows builds are unsigned. Mac builds are ad-hoc signed and **not notarized**;
 
 ## Getting started
 
-1. Install or open Repo Creator, then visit **Setup & status** to check Git.
+1. Install or open Repo Creator, then visit **Settings** to check Git.
 2. Enter a project name and choose a starting point, such as **Experiment**.
 3. Choose a save location and **On this computer** for a local project. Publishing through **Computer and GitHub** additionally requires GitHub CLI and sign-in.
 4. Select **Review project**, inspect the files, then choose **Create Project**.
 
-Repo Creator creates a new child folder and initial commit. Existing files and folders are never overwritten. See [Getting started](docs/getting-started.md) for the complete workflow and [Troubleshooting](docs/troubleshooting.md) for setup or publication failures.
+Repo Creator creates a new child folder and initial commit. Existing files and folders are never overwritten. Return through **Projects** to manage the workspace, launch tools and configure commands. See [Getting started](docs/getting-started.md), the [project workspace guide](docs/project-workspace.md) and [Troubleshooting](docs/troubleshooting.md).
 
 ## Requirements
 

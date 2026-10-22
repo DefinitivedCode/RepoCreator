@@ -1,0 +1,396 @@
+/* Shared desktop controls and creation editors. Project-specific views add their
+   own scoped styles; all views use these sizing and focus conventions. */
+button,
+input,
+textarea,
+select {
+  appearance: none;
+  -webkit-appearance: none;
+}
+input[type='checkbox'],
+input[type='radio'] {
+  appearance: auto;
+  accent-color: var(--accent);
+}
+button {
+  background-color: var(--surface);
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%23808080' stroke-width='1.5'%3E%3Cpath d='m3 5 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  padding-right: 30px !important;
+}
+.desktop-app .app-header {
+  min-height: 56px;
+  gap: 24px;
+}
+.app-title h1 {
+  font-size: 14px;
+}
+.app-navigation {
+  gap: 2px;
+  align-items: center;
+}
+.app-navigation > button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 550;
+}
+.app-navigation > button[aria-current='page'] {
+  color: var(--selected-text);
+  border-color: var(--selected-border);
+  background: var(--selected-background);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.desktop-app .appearance-control select {
+  width: 85px;
+  padding-right: 22px !important;
+}
+.header-actions .mode-switch {
+  border-color: var(--separator);
+}
+.header-actions .mode-switch button {
+  min-height: 28px;
+  font-size: 12px;
+}
+.workspace,
+.workspace.with-context {
+  grid-template-columns: 140px minmax(0, 1fr) 254px;
+}
+.workspace:not(.with-context) {
+  grid-template-columns: 140px minmax(0, 1fr);
+}
+.navigation-rail {
+  padding: 22px 10px 14px;
+  background: var(--background);
+  border-right-color: var(--separator);
+}
+.nav-caption {
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+  color: var(--muted);
+}
+.nav-item {
+  min-height: 36px;
+  font-size: 12px;
+  padding: 8px;
+  gap: 8px;
+  color: var(--muted);
+  border-left: 0;
+  border-radius: 4px;
+}
+.nav-item.active {
+  color: var(--selected-text);
+  background: var(--selected-background);
+  border: 1px solid var(--separator);
+  box-shadow: inset 2px 0 var(--accent);
+}
+.workspace-main {
+  padding: 22px 24px;
+}
+.workspace-heading {
+  margin-bottom: 18px;
+}
+.desktop-app .workspace-heading h2 {
+  font-size: 20px;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+  margin: 0;
+}
+.desktop-app .subnavigation {
+  border: 1px solid var(--separator);
+  background: var(--secondary);
+  padding: 3px;
+  border-radius: 5px;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.subnavigation > button {
+  min-height: 32px;
+  padding: 6px 11px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.subnavigation > button[aria-pressed='true'] {
+  color: var(--selected-text);
+  border-color: var(--selected-border);
+  background: var(--selected-background);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+.file-editor-layout,
+.review-editor-layout,
+.agent-editor-layout.with-instruction-preview {
+  display: grid;
+  grid-template-columns: minmax(270px, 0.85fr) minmax(300px, 1.15fr);
+  gap: 24px;
+  align-items: start;
+  min-width: 0;
+}
+.file-configuration,
+.agent-editor-layout > *,
+.review-editor-layout > * {
+  min-width: 0;
+}
+.file-configuration > .field {
+  margin-bottom: 16px;
+}
+.file-configuration .advanced-panel > summary {
+  display: none;
+}
+.file-configuration .advanced-panel .settings-section > h3:first-child {
+  margin-top: 0;
+}
+.file-configuration .advanced-panel {
+  border-top: 0;
+  margin: 0;
+}
+.file-configuration .settings-section:first-child {
+  margin-top: 0;
+}
+.focused-file-preview {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.focused-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--separator);
+  padding: 10px 12px;
+  min-height: 46px;
+}
+.focused-preview-toolbar > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.focused-preview-toolbar strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.focused-preview-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--separator);
+  padding: 6px;
+}
+.focused-preview-tabs > button {
+  font-size: 11px;
+  min-height: 28px;
+  border-color: transparent;
+}
+.focused-preview-tabs > button[aria-pressed='true'] {
+  color: var(--selected-text);
+  background: var(--selected-background);
+  border-color: var(--selected-border);
+}
+.focused-file-preview .preview {
+  border: 0;
+  border-radius: 0;
+  margin: 0;
+  max-height: min(58vh, 560px);
+  min-height: 220px;
+  overflow: auto;
+  padding: 18px;
+  font-size: 12px;
+  line-height: 1.7;
+  background: var(--surface);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.focused-file-preview code {
+  font-size: inherit;
+}
+.focused-preview-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--separator);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.preview-placeholder {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  gap: 10px;
+  text-align: center;
+  color: var(--muted);
+}
+.commit-plan,
+.review-summary-card {
+  background: var(--surface);
+  border: 1px solid var(--separator);
+  border-radius: 5px;
+  padding: 22px;
+}
+.commit-plan {
+  display: grid;
+  gap: 14px;
+}
+.commit-plan > svg {
+  color: var(--accent);
+}
+.commit-plan-branch {
+  margin: 0;
+}
+.commit-plan strong {
+  overflow-wrap: anywhere;
+}
+.review-summary-card .project-summary {
+  margin-block: 20px 12px;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 12px;
+}
+.review-editor-layout > .file-preview {
+  margin: 0;
+  padding: 0;
+}
+.review-editor-layout .preview {
+  max-height: 350px;
+}
+.agent-editor-layout .agent-panel {
+  margin-top: 0;
+  border-top: 0;
+}
+.agent-panel > summary {
+  display: none;
+}
+.agent-panel .settings-section > h3 {
+  margin-block: 16px 8px;
+}
+.assistant-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+.assistant-options .assistant-option {
+  padding: 16px;
+  border: 1px solid var(--separator);
+  background: var(--surface);
+  border-radius: 5px;
+  gap: 12px;
+}
+.assistant-option.selected {
+  background: var(--selected-background);
+  border-color: var(--selected-border);
+  box-shadow: inset 3px 0 var(--accent);
+}
+.primary {
+  border-color: var(--primary-border);
+}
+.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  filter: none;
+}
+.segmented > button[aria-pressed='true'] {
+  color: var(--selected-text);
+  background: var(--selected-background);
+  border-color: var(--selected-border);
+}
+a,
+.result-link {
+  color: var(--link);
+}
+.assistant-option > span {
+  display: grid;
+  gap: 5px;
+}
+.assistant-option strong {
+  font-size: 13px;
+}
+.assistant-option small {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.agent-panel .studio-rule-group {
+  padding: 14px 0;
+}
+.agent-panel .studio-rule-group .check-label {
+  padding-block: 4px;
+}
+.agent-panel textarea,
+.specialist-panel textarea {
+  line-height: 1.65;
+  font-size: 12px;
+}
+.desktop-app .action-bar {
+  min-height: 66px;
+  border-top-color: var(--border);
+}
+@media (max-width: 1050px) {
+  .desktop-app .app-header {
+    gap: 12px;
+  }
+  .app-navigation > button {
+    padding-inline: 9px;
+  }
+  .workspace.with-context {
+    grid-template-columns: 140px minmax(0, 1fr);
+  }
+  .context-panel {
+    display: none;
+  }
+  .file-editor-layout,
+  .review-editor-layout,
+  .agent-editor-layout.with-instruction-preview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .focused-file-preview {
+    position: static;
+  }
+}
+@media (max-width: 860px) {
+  .desktop-app .app-header {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+  .app-title .version {
+    display: none;
+  }
+  .app-navigation > button > svg {
+    display: none;
+  }
+  .app-navigation > button {
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+  .header-actions {
+    gap: 4px;
+  }
+  .header-actions .mode-switch button {
+    padding-inline: 7px;
+  }
+  .workspace-main {
+    padding: 18px;
+  }
+}
+@media (max-height: 700px) {
+  .workspace-main {
+    padding-block: 16px;
+  }
+}

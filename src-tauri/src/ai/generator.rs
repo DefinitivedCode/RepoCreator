@@ -9,6 +9,10 @@ pub fn shared_instructions(request: &CreateRequest) -> String {
         blocks.push(request.description.clone());
     }
     blocks.push("This is a newly initialized repository. Implementation details, toolchain versions and build commands are not yet established. Treat selected technologies as intended direction; inspect the actual files before making assumptions.".into());
+    let selected = crate::technologies::effective(&request.options, &request.brief);
+    if !selected.ids.is_empty() || !selected.custom.is_empty() {
+        blocks.push(format!("## Intended technologies\n\n{}\n\nThese selections may belong to different components. They do not confirm installed dependencies or an existing implementation.", crate::technologies::summary(&selected)));
+    }
     for (title, text) in [
         ("Technology stack", &profile.stack),
         ("Architecture expectations", &profile.architecture),
@@ -46,12 +50,28 @@ pub fn shared_instructions(request: &CreateRequest) -> String {
         }
     }
     for technology in &catalog().technologies {
-        if profile.technologies.contains(&technology.id) {
+        if profile.technologies.contains(&technology.id) || selected.ids.contains(&technology.id) {
             let text = profile
                 .technology_wording
                 .get(&technology.id)
                 .unwrap_or(&technology.instructions);
-            blocks.push(format!("## {} guidance\n\n{text}", technology.name));
+            if seen.insert(text.trim().to_string()) {
+                blocks.push(format!("## {} guidance\n\n{text}", technology.name));
+            }
+        }
+    }
+    for technology in crate::technologies::catalog() {
+        if selected.ids.contains(&technology.id)
+            && !catalog()
+                .technologies
+                .iter()
+                .any(|legacy| legacy.id == technology.id)
+            && seen.insert(technology.guidance.trim().to_string())
+        {
+            blocks.push(format!(
+                "## {} guidance\n\n{}",
+                technology.name, technology.guidance
+            ));
         }
     }
     if !profile.custom_text.is_empty() {

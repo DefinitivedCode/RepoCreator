@@ -210,6 +210,13 @@ pub fn setup_url(resource: &str) -> Result<&'static str, AppError> {
         "gemini" => Ok("https://geminicli.com/docs/get-started/installation/"),
         "opencode" => Ok("https://opencode.ai/docs/"),
         "vscode" => Ok("https://code.visualstudio.com/download"),
+        "agy" => Ok("https://antigravity.google/docs/getting-started?tab=cli"),
+        "antigravity-ide" => Ok("https://antigravity.google/docs/getting-started?tab=ide"),
+        "terminal" => Ok(if cfg!(windows) {
+            "https://learn.microsoft.com/windows/terminal/"
+        } else {
+            "https://support.apple.com/guide/terminal/welcome/mac"
+        }),
         _ => Err(AppError::new(
             "Unknown setup resource.",
             "Choose a setup action in Repo Creator.",

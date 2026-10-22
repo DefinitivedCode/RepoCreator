@@ -74,6 +74,8 @@ pub struct PostActions {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectOptions {
+    pub commands: Vec<crate::workspace::ProjectCommand>,
+    pub technologies: crate::technologies::ProjectTechnologies,
     pub ai: crate::ai::AiStudio,
     pub readme_sections: Vec<String>,
     pub section_content: BTreeMap<String, String>,
@@ -93,6 +95,8 @@ pub struct ProjectOptions {
 impl Default for ProjectOptions {
     fn default() -> Self {
         Self {
+            commands: Vec::new(),
+            technologies: crate::technologies::ProjectTechnologies::default(),
             ai: crate::ai::AiStudio::default(),
             readme_sections: vec!["overview".into(), "license".into()],
             section_content: BTreeMap::new(),
@@ -224,6 +228,17 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
                 .filter(|t| t.project_presets.iter().any(|p| p == id))
                 .map(|t| t.id.clone())
                 .collect();
+            options.technologies = if *id == "web" {
+                crate::technologies::ProjectTechnologies::from_ids(&["html", "css", "javascript"])
+            } else {
+                crate::technologies::effective(&options, &Default::default())
+            };
+            let suggestions = crate::technologies::recommended_ignores(&options.technologies);
+            for id in suggestions {
+                if !options.ignore_presets.contains(&id) {
+                    options.ignore_presets.push(id);
+                }
+            }
             ProjectPreset {
                 id: (*id).into(),
                 name: (*name).into(),
@@ -303,6 +318,8 @@ pub fn built_in_presets() -> Vec<ProjectPreset> {
                 .filter(|t| t.project_presets.iter().any(|p| p == "web"))
                 .map(|t| t.id.clone())
                 .collect();
+            configuration.options.technologies =
+                crate::technologies::ProjectTechnologies::from_ids(&["html", "css", "javascript"]);
             configuration.handoff_template = "architecture".into();
         }
         if id == "claude-experiment" {
@@ -342,6 +359,8 @@ pub fn validate_branch(branch: &str) -> Result<(), AppError> {
 }
 
 pub fn validate_options(options: &ProjectOptions) -> Result<(), AppError> {
+    crate::technologies::validate(&options.technologies)?;
+    crate::workspace::validate_commands(&options.commands)?;
     crate::ai::validate(&options.ai)?;
     let fail = |message| {
         AppError::new(

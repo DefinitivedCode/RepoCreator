@@ -11,6 +11,19 @@ import {
 } from './validation';
 import type { Configuration, ProjectOptions } from './types';
 
+describe('project path presentation', () => {
+  it('presents drive and UNC canonical paths without changing their contents', () => {
+    expect(displayPath('\\\\?\\C:\\Projects\\日本語 with spaces')).toBe(
+      'C:\\Projects\\日本語 with spaces',
+    );
+    expect(displayPath('\\\\?\\UNC\\server\\share\\日本語')).toBe('\\\\server\\share\\日本語');
+    expect(displayPath('\\\\server\\share\\project')).toBe('\\\\server\\share\\project');
+    expect(displayPath('/Users/example/Projects/café')).toBe('/Users/example/Projects/café');
+    const long = `C:\\Projects\\${'nested\\'.repeat(50)}project`;
+    expect(displayPath(`\\\\?\\${long}`)).toBe(long);
+  });
+});
+
 const options: ProjectOptions = {
   ai: {
     schemaVersion: 1,

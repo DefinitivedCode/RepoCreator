@@ -30,7 +30,7 @@ export async function prepare(
     for(const preset of builtIns) preset.configuration.options.ai.instructions.technologies = studio.technologies.filter(t=>t.projectPresets.includes(preset.id)).map(t=>t.id);
     builtIns.find(p=>p.id==='claude-experiment').configuration.options.ai = {...structuredClone(options.ai),enabled:true,agents:['claude']};
     builtIns.find(p=>p.id==='website').configuration.handoffTemplate = 'architecture';
-    const preferences = { schemaVersion: 4, experienceMode:'${mode}', parentPath: 'C:\\\\Projects', destination: 'local', appearance: 'system', defaults: configuration, customPresets: [], instructionPresets:[],specialistLibrary:[],recoveryNotice:null,recentLocations: [] };
+    const preferences = { schemaVersion: 5, experienceMode:'${mode}', parentPath: 'C:\\\\Projects', destination: 'local', appearance: 'system', accent:'teal',customAccent:'#4FA69B',defaults: configuration, customPresets: [], instructionPresets:[],specialistLibrary:[],recoveryNotice:null,recentLocations: [] };
     if(window.testRecentLocations) preferences.recentLocations=window.testRecentLocations;
     if(window.testPreferredTemplate) preferences.defaults={...structuredClone(configuration),handoffTemplate:window.testPreferredTemplate};
     if(window.testPersistPreferences && sessionStorage.getItem('testPreferences')) Object.assign(preferences,JSON.parse(sessionStorage.getItem('testPreferences')));
@@ -86,6 +86,7 @@ export async function prepare(
       if (command === 'set_destination') preferences.destination = payload.destination;
       if (command === 'set_experience_mode') { preferences.experienceMode=payload.mode; return structuredClone(preferences); }
       if (command === 'set_appearance') { preferences.appearance=payload.appearance; return; }
+      if (command === 'set_accent') { preferences.accent=payload.accent; preferences.customAccent=payload.customAccent; return; }
       if (command === 'list_recent_projects') return [];
       if (command === 'export_project_preset' || command === 'export_handoff_text') return true;
       if (command === 'import_handoff_template') return window.testPromptImport || '{}';
@@ -128,6 +129,19 @@ export async function prepare(
 }
 
 export async function navigate(page: Page, name: string) {
+  if (name === 'Setup & status' || name === 'Recent Projects') {
+    const destination = name === 'Setup & status' ? 'Settings' : 'Projects';
+    await page
+      .getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('button', { name: destination, exact: true })
+      .click();
+    await expect(page.getByRole('heading', { name: destination, exact: true })).toBeVisible();
+    return;
+  }
+  await page
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('button', { name: 'New Project', exact: true })
+    .click();
   await page
     .getByRole('navigation', { name: 'Project setup' })
     .getByRole('button', { name, exact: true })

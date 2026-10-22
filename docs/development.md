@@ -35,7 +35,7 @@ The standard HTTPS URL permits anonymous cloning once the repository is public. 
 
 Preview and creation use the same Rust generator. The native boundary revalidates input and receives structured command arguments. Existing destinations are never adopted or overwritten; native creation guards reject duplicate operations. Publishing failures preserve completed local work. Do not replace these boundaries with frontend filesystem or shell access.
 
-The app generates project configuration rather than installing frameworks or invoking coding assistants. [Agent format documentation](agent-formats.md) records supported provider formats and sources. Product instruction templates are application data, separate from developer instructions for this repository.
+The generator describes intended project context without installing frameworks. The project workspace can explicitly launch installed tools and user-authored commands through the native backend. [Workspace contracts](workspace-architecture.md) describe the shared types; the [workspace guide](project-workspace.md) documents execution and safety. [Agent format documentation](agent-formats.md) records supported provider formats and sources. Product instruction templates are application data, separate from developer instructions for this repository.
 
 ## Checks
 
@@ -88,9 +88,16 @@ After building, run the real WebView2 application through the opt-in test:
 ```powershell
 $env:REPO_CREATOR_SMOKE_EXE = (Resolve-Path 'src-tauri/target/x86_64-pc-windows-msvc/release/repo-creator.exe').Path
 node tests/native-smoke.mjs
+node tests/native-workspace-smoke.mjs
 ```
 
 The script uses isolated application/WebView data and temporary local projects, verifies previews against disk and initial commits, checks existing-directory protection and restores a resized window after relaunch. It also exercises all six assistants and built-in specialists/skills. It removes its owned temporary data and leaves a report/screenshots under ignored `artifacts/`. It does not publish repositories. Inspect reports before sharing: native screenshots may include local temporary paths.
+
+The workspace smoke additionally exercises real command output, exit codes,
+import consent, duplicate prevention, cancellation and child-process cleanup,
+including application closure. It compiles a harmless local launcher fixture to
+verify Windows Terminal/PowerShell cwd and arguments without starting real
+assistant sessions. Use the same `REPO_CREATOR_SMOKE_EXE` for both scripts.
 
 ## Persistence and privacy
 

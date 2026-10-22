@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Join — Repo Creator concept B</title>
+  <path fill="none" stroke="#242526" stroke-width="8" stroke-linejoin="miter" d="M26 12H10v40h16M38 12h16v40H38"/>
+  <path fill="#dd643a" d="M28 22h8v6h6v8h-6v6h-8v-6h-6v-8h6z"/>
+</svg>

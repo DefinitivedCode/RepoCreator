@@ -69,7 +69,7 @@ pub fn decode_project_preset(text: &str) -> Result<ProjectPresetExchange, AppErr
     if text.len() > LIMIT {
         return Err(error("Project presets must be no larger than 1 MiB."));
     }
-    let value: serde_json::Value =
+    let mut value: serde_json::Value =
         serde_json::from_str(text).map_err(|_| error("The selected file is not valid JSON."))?;
     if let Some(version) = value["schemaVersion"].as_u64() {
         if version != 1 {
@@ -78,11 +78,15 @@ pub fn decode_project_preset(text: &str) -> Result<ProjectPresetExchange, AppErr
             )));
         }
     }
-    let preset: ProjectPresetExchange = serde_json::from_value(value).map_err(|e| {
+    if let Some(configuration) = value.get_mut("configuration") {
+        crate::technologies::migrate_configuration_value(configuration);
+    }
+    let mut preset: ProjectPresetExchange = serde_json::from_value(value).map_err(|e| {
         error(format!(
             "This preset contains invalid or unsupported fields: {e}"
         ))
     })?;
+    crate::workspace::mark_imported(&mut preset.configuration.options.commands);
     validate_exchange(&preset)?;
     Ok(preset)
 }
@@ -126,9 +130,10 @@ pub fn update_custom_preset(
 
 #[tauri::command(async)]
 pub fn confirm_project_preset_import(
-    preset: ProjectPresetExchange,
+    mut preset: ProjectPresetExchange,
     state: State<'_, Arc<Runtime>>,
 ) -> Result<Vec<ProjectPreset>, AppError> {
+    crate::workspace::mark_imported(&mut preset.configuration.options.commands);
     validate_exchange(&preset)?;
     Ok(persist_edit(&state, |prefs| {
         let id = prefs.save_preset(preset.name.clone(), preset.configuration.clone())?;
@@ -176,6 +181,8 @@ pub async fn export_project_preset(
     // A Git identity belongs to the current machine/user, not a portable workflow.
     preset.configuration.options.commit_author_name.clear();
     preset.configuration.options.commit_author_email.clear();
+    preset.configuration.options.commands =
+        crate::workspace::portable_commands(&preset.configuration.options.commands);
     validate_exchange(&preset)?;
     let bytes =
         serde_json::to_vec_pretty(&preset).map_err(|_| error("Could not encode this preset."))?;
@@ -226,6 +233,34 @@ mod tests {
         }
     }
     #[test]
+    fn command_templates_roundtrip_as_untrusted_without_exported_environment() {
+        let mut preset = exchange();
+        preset
+            .configuration
+            .options
+            .commands
+            .push(crate::workspace::ProjectCommand {
+                id: "build-web".into(),
+                name: "Build frontend".into(),
+                category: "build".into(),
+                executable: "npm".into(),
+                args: vec!["run".into(), "build".into()],
+                environment: [("BUILD_MODE".into(), "production".into())].into(),
+                ..Default::default()
+            });
+        let imported = decode_project_preset(&serde_json::to_string(&preset).unwrap()).unwrap();
+        let command = &imported.configuration.options.commands[0];
+        assert!(command.imported);
+        assert!(command.environment.is_empty());
+        assert_eq!(command.args, ["run", "build"]);
+        let portable = crate::workspace::portable_commands(&preset.configuration.options.commands);
+        assert!(portable[0].environment.is_empty());
+        assert!(portable[0].imported);
+        assert!(!preset.configuration.options.commands[0]
+            .environment
+            .is_empty());
+    }
+    #[test]
     fn portable_roundtrip_preserves_ai_and_rejects_unknown_or_future_data() {
         let mut preset = exchange();
         preset.configuration.options.ai.enabled = true;
@@ -273,6 +308,8 @@ mod tests {
             .unwrap();
         assert_eq!(preferences.custom_presets.len(), 1, "Disabled local drafts remain editable, while imported data must always pass full validation");
         assert!(decode_project_preset("not-json").is_err());
+        assert!(decode_project_preset("[]").is_err());
+        assert!(decode_project_preset("null").is_err());
     }
     #[test]
     fn v12_preferences_migrate_without_changing_configuration_and_fresh_mode_is_simple() {
@@ -284,7 +321,7 @@ mod tests {
         );
         fs::write(&file, serde_json::json!({"schemaVersion":3,"defaults":{"readme":"none","options":{"ignorePresets":[],"initialBranch":"develop"}},"customPresets":[{"id":"custom-old","name":"Old preset","configuration":{"readme":"minimal","options":{}}}]}).to_string()).unwrap();
         let migrated = Preferences::load(&file, temp.path().into());
-        assert_eq!(migrated.schema_version, 4);
+        assert_eq!(migrated.schema_version, 5);
         assert_eq!(migrated.experience_mode, ExperienceMode::Advanced);
         assert_eq!(migrated.defaults.options.initial_branch, "develop");
         assert!(migrated.defaults.options.ignore_presets.is_empty());

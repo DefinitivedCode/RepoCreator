@@ -1,4 +1,5 @@
 import type { AppError, Configuration, ProjectOptions, RepositoryForm } from './types';
+import { normalizeTechnologies, technologiesError, technologiesFor } from './technologies';
 
 const byteLength = (value: string) => new TextEncoder().encode(value).length;
 
@@ -16,6 +17,7 @@ export function previewRequestOf(form: RepositoryForm): RepositoryForm {
     homepage: '',
     options: {
       ...form.options,
+      technologies: technologiesFor(form),
       initialBranch: 'main',
       commitMessage: 'Initial commit',
       commitAuthorName: '',
@@ -31,6 +33,11 @@ export function configurationForPreset(
   identityName?: string | null,
 ): Configuration {
   const copy = structuredClone(configuration);
+  copy.options.technologies = normalizeTechnologies(
+    configuration.options.technologies,
+    configuration.brief?.technologies,
+    configuration.options.ai.instructions.technologies,
+  );
   if (current.brief) {
     copy.brief = { ...current.brief, ...copy.brief };
     for (const key of Object.keys(current.brief) as (keyof typeof current.brief)[]) {
@@ -66,6 +73,14 @@ export function blankForm(
     name: '',
     description: '',
     ...structuredClone(configuration),
+    options: {
+      ...structuredClone(configuration.options),
+      technologies: normalizeTechnologies(
+        configuration.options.technologies,
+        configuration.brief?.technologies,
+        configuration.options.ai.instructions.technologies,
+      ),
+    },
     destination,
     visibility: configuration.visibility ?? 'private',
     githubOwner: '',
@@ -89,6 +104,8 @@ export function branchError(branch: string): string | null {
 }
 
 export function optionsError(options: ProjectOptions): string | null {
+  const technologyIssue = technologiesError(options.technologies);
+  if (technologyIssue) return technologyIssue;
   const authorName = options.commitAuthorName ?? '';
   const authorEmail = options.commitAuthorEmail ?? '';
   if (

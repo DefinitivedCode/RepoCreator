@@ -9,3 +9,10 @@ If private reporting is unavailable, open an ordinary issue requesting a private
 Report the affected version, platform, impact and minimal reproduction through the agreed private channel. Use test data and remove secrets. If a credential may have been exposed, revoke or rotate it through its provider; deleting a file does not remove it from Git history or downloaded artifacts.
 
 Repo Creator's GitHub authentication is managed by GitHub CLI. The application generates coding-agent configuration and handoff prompts locally; sharing those files or prompts with another service remains a separate user action.
+
+Workspace commands run with the current user's permissions only after an explicit
+Run action. Imported commands require review and never auto-run. Command processes
+inherit the ordinary user environment, which can contain credentials; do not put
+secrets in saved command text, arguments or overrides. Export strips command
+environment values, but cannot reliably redact authored text or process output.
+Read the [execution model](docs/project-workspace.md) before sharing presets or logs.

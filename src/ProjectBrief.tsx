@@ -21,7 +21,6 @@ export function ProjectBrief({
       ? [
           { key: 'audience' as const, label: 'Who is it for?' },
           { key: 'firstVersion' as const, label: 'What should the first version accomplish?' },
-          { key: 'technologies' as const, label: 'Preferred technologies' },
           { key: 'context' as const, label: 'Additional context or constraints' },
         ]
       : []),

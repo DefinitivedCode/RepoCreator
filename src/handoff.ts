@@ -1,4 +1,5 @@
 import type { CreatedRepo, GeneratedFile, ProjectBrief, RepositoryForm } from './types';
+import { technologiesFor, technologySummary } from './technologies';
 
 export type HandoffStyle = 'beginner' | 'rapid' | 'architecture' | 'production' | 'implementation';
 export interface PromptTemplate {
@@ -19,7 +20,7 @@ export interface HandoffContext {
   files: string[];
   presetName: string;
   visibility: 'private' | 'public';
-  status: 'planned' | 'created';
+  status: 'planned' | 'created' | 'imported';
   commit?: string;
 }
 export const emptyBrief: ProjectBrief = {
@@ -114,12 +115,13 @@ export function contextForProject(
   presetName: string,
   result?: CreatedRepo,
 ): HandoffContext {
-  const brief = { ...emptyBrief, ...form.brief };
+  const selectedTechnologies = technologySummary(technologiesFor(form));
+  const brief = { ...emptyBrief, ...form.brief, technologies: selectedTechnologies };
   return {
     projectName: result?.name ?? form.name,
     description: form.description,
     projectType: presetName === 'Last used settings' ? '' : presetName,
-    language: brief.technologies || form.options.ai.instructions.stack,
+    language: selectedTechnologies || form.options.ai.instructions.stack,
     brief,
     localPath:
       result?.path ??
@@ -218,16 +220,27 @@ export function renderPrompt(
     source = source
       .replace(
         /^Project context:$/m,
-        context.status === 'created' ? 'Project context:' : 'Project idea and proposed setup:',
+        context.status !== 'planned' ? 'Project context:' : 'Project idea and proposed setup:',
       )
       .replace(
         /^Local path:/m,
-        context.status === 'created' ? 'Local folder:' : 'Planned local folder:',
+        context.status !== 'planned' ? 'Local folder:' : 'Planned local folder:',
       )
-      .replace(/^Branch:/m, context.status === 'created' ? 'Initial branch:' : 'Planned branch:')
+      .replace(
+        /^Branch:/m,
+        context.status === 'created'
+          ? 'Initial branch:'
+          : context.status === 'imported'
+            ? 'Observed branch:'
+            : 'Planned branch:',
+      )
       .replace(
         /^File list:/m,
-        context.status === 'created' ? 'Files generated at creation:' : 'Planned files:',
+        context.status === 'created'
+          ? 'Files generated at creation:'
+          : context.status === 'imported'
+            ? 'Observed files:'
+            : 'Planned files:',
       );
     source = source.replace(/\n\n(?:Project idea and proposed setup|Project context):$/, '');
   }
@@ -238,7 +251,9 @@ export function renderPrompt(
   const status =
     context.status === 'created'
       ? `Verified repository status: a local Git repository was created${context.commit ? ` with initial commit ${text(context.commit)}` : ''}.${confirmedUrl ? ' Publishing to GitHub succeeded.' : ' No remote publication was confirmed.'}${context.files.length ? ' The listed files were generated at creation time; they may have changed since then.' : ''}`
-      : 'Planning state: this project has not been confirmed as created. Paths, branch and file list are proposed settings, not an existing implementation.';
+      : context.status === 'imported'
+        ? 'Existing project: this local Git repository was added to the project library. Its implementation, dependencies and remote publication have not been verified. Opening it did not modify its source files.'
+        : 'Planning state: this project has not been confirmed as created. Paths, branch and file list are proposed settings, not an existing implementation.';
   const access = confirmedUrl
     ? `The repository is ${context.visibility}. Chatbot access to repository contents is unconfirmed. Ask the user to provide access or files if needed.`
     : '';

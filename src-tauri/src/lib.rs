@@ -1,17 +1,22 @@
 mod ai;
+mod command_runner;
 mod config;
 mod desktop;
 mod generation;
 mod github;
 mod handoff;
+mod launcher;
 mod model;
 mod preferences;
 mod preset_commands;
 mod process;
+mod process_tree;
 mod repository;
 mod settings_commands;
+mod technologies;
 #[cfg(test)]
 mod tests;
+mod workspace;
 
 use model::{AppError, CreateRequest, CreatedRepo, Destination};
 use preferences::Preferences;
@@ -91,6 +96,7 @@ fn get_preferences(state: State<'_, Arc<Runtime>>) -> Result<Preferences, AppErr
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Environment {
+    platform: &'static str,
     optional_tools: Vec<process::ToolStatus>,
     git_installed: bool,
     identity_ready: bool,
@@ -147,6 +153,7 @@ async fn check_environment(
             github_owners.extend(github::organisations(&runner, &parent));
         }
         Environment {
+            platform: launcher::platform(),
             optional_tools: process::optional_tools(),
             git_installed,
             identity_ready,
@@ -419,6 +426,7 @@ pub fn run() {
                 }),
                 busy: AtomicBool::new(false),
             }));
+            app.manage(Arc::new(command_runner::CommandRunner::default()));
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -426,6 +434,9 @@ pub fn run() {
                 if window.state::<Arc<Runtime>>().busy.load(Ordering::Acquire) {
                     api.prevent_close();
                 } else {
+                    window
+                        .state::<Arc<command_runner::CommandRunner>>()
+                        .shutdown();
                     desktop::remember_window(window.app_handle());
                 }
             }
@@ -451,10 +462,22 @@ pub fn run() {
             handoff::open_recent_project,
             handoff::import_handoff_template,
             handoff::export_handoff_text,
+            workspace::add_existing_project,
+            workspace::get_project_workspace,
+            workspace::save_project_settings,
+            workspace::relocate_project,
+            workspace::save_project_commands,
+            workspace::suggest_project_commands,
+            launcher::get_project_tools,
+            launcher::launch_project_tool,
+            command_runner::run_project_command,
+            command_runner::list_command_runs,
+            command_runner::stop_project_command,
             settings_commands::get_catalog,
             settings_commands::preview_files,
             settings_commands::save_configuration,
             settings_commands::set_appearance,
+            settings_commands::set_accent,
             settings_commands::select_recent_location,
             settings_commands::save_custom_preset,
             settings_commands::rename_custom_preset,
@@ -468,6 +491,14 @@ pub fn run() {
             ai::commands::export_instruction_preset,
             settings_commands::open_vscode
         ])
-        .run(tauri::generate_context!())
-        .expect("Could not start Repo Creator");
+        .build(tauri::generate_context!())
+        .expect("Could not start Repo Creator")
+        .run(|app, event| {
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) {
+                app.state::<Arc<command_runner::CommandRunner>>().shutdown();
+            }
+        });
 }

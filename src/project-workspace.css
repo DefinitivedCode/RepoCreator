@@ -1,0 +1,666 @@
+/* Local workspace refinements: creation and global settings keep their own layout. */
+.rc-workspace-library button,
+.rc-project-workspace button,
+.rc-tool-launcher button,
+.rc-completion-launcher button,
+.rc-workspace-dialog button {
+  appearance: none;
+  -webkit-appearance: none;
+  font-size: 12px;
+  min-height: 32px;
+}
+.rc-workspace-library,
+.rc-project-workspace {
+  padding: 22px 28px;
+}
+.rc-workspace-library .page-heading {
+  margin-bottom: 20px;
+}
+.rc-workspace-library .page-heading h2 {
+  margin: 0 0 5px;
+  font-size: 22px;
+}
+.rc-workspace-library .library-toolbar {
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+.rc-workspace-library .library-search {
+  max-width: 580px;
+}
+.rc-workspace-library .library-toolbar .help,
+.rc-workspace-library .sort-control {
+  font-size: 12px;
+}
+.rc-workspace-library .project-library {
+  gap: 14px;
+}
+.rc-workspace-library .project-card {
+  padding: 16px;
+}
+.rc-workspace-library .project-card-heading {
+  gap: 10px;
+}
+.rc-workspace-library .project-card-heading .project-glyph {
+  width: 34px;
+  height: 34px;
+}
+.rc-workspace-library button.project-name {
+  font-size: 15px;
+  min-height: 27px;
+}
+.rc-workspace-library .project-card .path {
+  font-size: 12px;
+}
+.rc-workspace-library .project-tech {
+  padding: 14px 0;
+  min-height: 0;
+  font-size: 12px;
+}
+.rc-workspace-library .project-card-footer .help {
+  font-size: 12px;
+}
+.rc-workspace-library .project-card-footer {
+  gap: 10px;
+  padding-top: 12px;
+}
+.rc-workspace-library button.pin-button {
+  font-size: 22px;
+}
+.rc-workspace-library .library-note {
+  font-size: 12px;
+  margin-top: 20px;
+}
+.rc-project-workspace > .project-workspace-heading {
+  margin-bottom: 16px;
+  gap: 11px;
+  align-items: center;
+}
+.rc-project-workspace .library-back {
+  width: 28px;
+  padding: 4px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.rc-project-workspace .library-back svg {
+  transform: rotate(90deg);
+}
+.rc-project-workspace .project-workspace-heading .project-glyph {
+  width: 36px;
+  height: 36px;
+}
+.rc-project-workspace .project-workspace-heading > div:nth-of-type(2) {
+  min-width: 0;
+}
+.rc-project-workspace .project-workspace-heading h2 {
+  font-size: 19px;
+  letter-spacing: -0.4px;
+}
+.rc-project-workspace .project-workspace-heading .path {
+  font-size: 12px;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rc-project-workspace .project-git-state {
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.rc-project-workspace .project-git-state::before {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  content: '';
+  background: var(--muted);
+  margin-right: 7px;
+  vertical-align: middle;
+}
+.rc-project-workspace .git-clean::before {
+  background: var(--success);
+}
+.rc-project-workspace .project-branch {
+  margin-left: 4px;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+.rc-project-workspace .workspace-tabs {
+  gap: 3px;
+  border-bottom: 1px solid var(--separator);
+  margin-bottom: 20px;
+  padding-bottom: 0;
+}
+.rc-project-workspace .workspace-tabs > button {
+  padding: 9px 14px;
+  font-size: 13px;
+  border-radius: 3px 3px 0 0;
+  min-height: 39px;
+  border-bottom-width: 2px;
+}
+.rc-project-workspace .workspace-tabs > button[aria-pressed='true'] {
+  background: var(--selected-background);
+  color: var(--selected-text);
+  font-weight: 600;
+}
+.rc-project-workspace .workspace-card {
+  padding: 19px;
+}
+.rc-project-workspace .workspace-overview-grid {
+  gap: 16px;
+}
+.rc-project-workspace .workspace-facts {
+  margin-top: 20px;
+  row-gap: 13px;
+  font-size: 13px;
+}
+.rc-project-workspace .workspace-facts .result-link {
+  font-size: 12px;
+}
+.rc-project-workspace .workspace-card .help {
+  font-size: 12px;
+}
+.rc-project-workspace .workspace-quick-actions {
+  margin-top: 17px;
+  gap: 9px;
+}
+.rc-project-workspace .workspace-quick-actions > button {
+  min-height: 42px;
+  padding: 11px;
+  font-size: 13px;
+}
+.rc-project-workspace .view-heading {
+  margin-bottom: 16px;
+}
+.rc-project-workspace .view-heading h3 {
+  font-size: 15px;
+}
+.rc-project-workspace .view-heading .help {
+  font-size: 12px;
+  margin-top: 4px;
+}
+.rc-project-workspace .missing-project {
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.rc-project-workspace .empty-workspace {
+  padding: 34px 20px;
+  min-height: 190px;
+}
+.rc-project-workspace .empty-workspace h3 {
+  font-size: 15px;
+}
+.rc-project-workspace .empty-workspace p {
+  font-size: 12px;
+}
+.rc-tool-launcher {
+  min-width: 0;
+}
+.rc-tool-launcher .launcher-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.rc-tool-launcher .launcher-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.rc-tool-launcher .launcher-toolbar .text-button {
+  font-size: 12px;
+  min-height: 30px;
+}
+.rc-tool-launcher .available-tool-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.rc-tool-launcher .available-tool > button {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 12px 14px;
+  gap: 11px;
+  min-height: 48px;
+  white-space: normal;
+  text-align: left;
+  background: var(--surface);
+}
+.rc-tool-launcher .available-tool > button > span {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+}
+.rc-tool-launcher .available-tool > button > small {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.rc-tool-launcher .available-tool > button > svg:last-child {
+  color: var(--muted);
+}
+.rc-tool-launcher .other-tools {
+  border-top: 1px solid var(--separator);
+  margin-top: 18px;
+  padding-top: 12px;
+}
+.rc-tool-launcher .other-tools > summary {
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  width: fit-content;
+  min-height: 28px;
+  padding: 4px 0;
+}
+.rc-tool-launcher .other-tools > summary > span {
+  padding: 1px 5px;
+  margin-left: 6px;
+  font-size: 11px;
+  border: 1px solid var(--separator);
+  border-radius: 3px;
+}
+.rc-tool-launcher .other-tool-list {
+  margin-top: 8px;
+}
+.rc-tool-launcher .other-tool {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 13px 0;
+  border-top: 1px solid var(--separator);
+}
+.rc-tool-launcher .other-tool-identity {
+  min-width: 0;
+}
+.rc-tool-launcher .other-tool-identity > strong {
+  font-size: 13px;
+  font-weight: 500;
+  margin-right: 12px;
+}
+.rc-tool-launcher .other-tool-identity > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.rc-tool-launcher .other-tool-identity > .help {
+  font-size: 12px;
+  margin-top: 6px;
+}
+.rc-tool-launcher .other-tool-identity > code {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.rc-tool-launcher .other-tool-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.rc-tool-launcher .other-tool-actions > a {
+  color: var(--link);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  text-decoration: none;
+}
+.rc-tool-launcher .other-tool-actions > a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+.rc-tool-launcher .other-tool.tool-status-invalid .other-tool-identity > span {
+  color: var(--error);
+}
+.rc-tool-launcher .help {
+  font-size: 12px;
+}
+.rc-project-workspace .rc-project-settings {
+  gap: 0;
+}
+.rc-project-settings .project-preference-section {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 20px;
+  padding: 16px 0;
+  border-top: 1px solid var(--separator);
+}
+.rc-project-settings .preference-section-label h3 {
+  font-size: 13px;
+  margin: 0 0 5px;
+}
+.rc-project-settings .preference-section-label .help {
+  font-size: 12px;
+}
+.rc-project-settings .preference-section-fields {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.rc-project-settings .preference-section-fields > .field {
+  max-width: 390px;
+}
+.rc-project-settings .project-location-setting {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  font-size: 12px;
+}
+.rc-project-settings .project-location-setting > span {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+.rc-project-settings .project-location-setting > code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  flex: 1;
+  min-width: 100px;
+}
+.rc-project-settings .project-location-setting > button {
+  min-height: 28px;
+  padding: 2px;
+}
+.rc-project-settings .environment-tool-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 18px;
+}
+.rc-project-settings .environment-tool {
+  font-size: 12px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--muted);
+}
+.rc-project-settings .environment-tool small {
+  font-size: 12px;
+}
+.rc-project-settings .tool-state-dot {
+  height: 5px;
+  width: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.6;
+}
+.rc-project-settings .tool-status-available .tool-state-dot {
+  background: var(--success);
+  opacity: 1;
+}
+.rc-project-settings .advanced-executables {
+  border-top: 1px solid var(--separator);
+  border-bottom: 1px solid var(--separator);
+}
+.rc-project-settings .advanced-executables > summary {
+  padding: 16px 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.rc-project-settings .advanced-executables > summary .help {
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 12px;
+}
+.rc-project-settings .advanced-executable-body {
+  padding: 4px 0 20px;
+}
+.rc-project-settings .advanced-executable-body .launcher-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.rc-project-settings .advanced-executable-body .help {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.rc-project-settings .executable-grid {
+  gap: 18px;
+}
+.rc-project-workspace .commands-workspace .view-heading {
+  align-items: center;
+}
+.rc-project-workspace .command-presets {
+  padding-bottom: 15px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--separator);
+}
+.rc-project-workspace .command-presets button {
+  font-size: 12px;
+}
+.rc-project-workspace .command-layout {
+  grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.25fr);
+  gap: 16px;
+}
+.rc-project-workspace .command-card {
+  padding: 15px;
+}
+.rc-project-workspace .command-card h4 {
+  font-size: 14px;
+  margin: 6px 0 9px;
+}
+.rc-project-workspace .command-card-heading {
+  gap: 10px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+.rc-project-workspace .command-category {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: capitalize;
+}
+.rc-project-workspace .command-last-status {
+  font-size: 12px;
+  text-transform: capitalize;
+  color: var(--muted);
+  margin-left: auto;
+}
+.rc-project-workspace .command-last-status.status-running {
+  color: var(--warning);
+}
+.rc-project-workspace .command-last-status.status-succeeded {
+  color: var(--success);
+}
+.rc-project-workspace .command-last-status.status-failed {
+  color: var(--error);
+}
+.rc-project-workspace .unreviewed-label {
+  margin-left: 0;
+  font-size: 12px;
+}
+.rc-project-workspace .saved-command-text {
+  font-size: 12px;
+  margin: 0 0 8px;
+  color: var(--text);
+}
+.rc-project-workspace .command-working-directory {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 0;
+}
+.rc-project-workspace .command-working-directory > span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rc-project-workspace .command-mode-label {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 12px;
+}
+.rc-project-workspace .command-card > .help {
+  font-size: 12px;
+  margin-top: 10px;
+}
+.rc-project-workspace .command-card-actions {
+  padding-top: 13px;
+}
+.rc-project-workspace .command-card-actions button {
+  font-size: 12px;
+  min-height: 30px;
+  padding: 4px 10px;
+}
+.rc-project-workspace .command-card-actions button.run-button {
+  color: var(--primary-text);
+}
+.rc-project-workspace button.command-stop {
+  border-color: var(--error);
+  color: var(--error);
+}
+.rc-project-workspace .command-output {
+  top: 0;
+}
+.rc-project-workspace .output-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+.rc-project-workspace .output-toolbar {
+  padding: 11px 13px;
+}
+.rc-project-workspace .output-toolbar select {
+  font-size: 12px;
+}
+.rc-project-workspace .run-summary {
+  font-size: 12px;
+  padding: 11px 14px;
+}
+.rc-project-workspace .run-summary > strong {
+  font-size: 13px;
+}
+.rc-project-workspace .run-output {
+  background: var(--background);
+  font-size: 12px;
+  line-height: 1.65;
+  height: 250px;
+  max-height: 40vh;
+}
+.rc-project-workspace .output-actions {
+  padding: 9px 11px;
+}
+.rc-project-workspace .output-actions > button {
+  font-size: 12px;
+}
+.rc-project-workspace .output-terminal {
+  padding: 11px 13px;
+}
+.rc-project-workspace .output-terminal .help {
+  font-size: 12px;
+}
+.rc-project-workspace .output-terminal > button {
+  font-size: 12px;
+}
+.rc-project-workspace .output-empty {
+  min-height: 190px;
+  font-size: 12px;
+}
+.rc-workspace-dialog {
+  width: min(690px, calc(100vw - 48px));
+  padding: 22px;
+}
+.rc-workspace-dialog .dialog-heading h2 {
+  font-size: 18px;
+}
+.rc-workspace-dialog .help {
+  font-size: 12px;
+}
+.rc-workspace-dialog .field > span {
+  font-size: 12px;
+}
+.rc-workspace-dialog .suggested-command small {
+  font-size: 12px;
+}
+.rc-workspace-dialog .command-review code {
+  font-size: 12px;
+}
+.rc-completion-launcher .view-heading h3 {
+  font-size: 14px;
+}
+.rc-completion-launcher .compact-launcher .available-tool-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rc-completion-launcher .compact-launcher .available-tool {
+  flex: 0 1 auto;
+}
+.rc-completion-launcher .compact-launcher .available-tool > button {
+  min-height: 34px;
+  padding: 7px 11px;
+  gap: 8px;
+}
+.rc-completion-launcher .compact-launcher .available-tool > button > span {
+  font-size: 12px;
+  font-weight: 500;
+}
+.rc-completion-launcher .compact-launcher .other-tools {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: 0;
+}
+.rc-completion-launcher .compact-launcher .other-tools > summary {
+  min-height: 24px;
+  padding: 2px 0;
+}
+.rc-completion-launcher .compact-launcher .other-tool {
+  padding: 10px 0;
+}
+@media (min-width: 1400px) {
+  .rc-workspace-library .project-library {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .rc-project-workspace .project-git-state {
+    display: none;
+  }
+  .rc-project-workspace .project-workspace-heading > div:nth-of-type(2) {
+    flex: 1;
+  }
+  .rc-project-workspace .command-layout {
+    grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1fr);
+  }
+  .rc-project-settings .project-preference-section {
+    grid-template-columns: 165px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .rc-tool-launcher .available-tool > button > small {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .rc-workspace-library,
+  .rc-project-workspace {
+    padding: 18px 16px;
+  }
+  .rc-project-workspace .command-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rc-project-settings .project-preference-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .rc-project-workspace .workspace-tabs > button {
+    padding-inline: 10px;
+  }
+  .rc-tool-launcher .available-tool-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rc-tool-launcher .other-tool {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
