@@ -77,9 +77,31 @@ export function runBuild(
     platform = process.platform,
   } = {},
 ) {
+  const signed = Boolean(environment.TAURI_SIGNING_PRIVATE_KEY);
+  if (
+    (signed || environment.REPO_CREATOR_RELEASE_BUILD === 'true') &&
+    (!signed || !environment.REPO_CREATOR_UPDATER_PUBLIC_KEY?.trim())
+  )
+    throw new Error(
+      'Signed release builds require TAURI_SIGNING_PRIVATE_KEY and REPO_CREATOR_UPDATER_PUBLIC_KEY.',
+    );
+  const updaterConfig = signed
+    ? [
+        '--config',
+        JSON.stringify({
+          bundle: { createUpdaterArtifacts: true },
+          plugins: { updater: { pubkey: environment.REPO_CREATOR_UPDATER_PUBLIC_KEY.trim() } },
+        }),
+      ]
+    : [];
   const result = execute(
     process.execPath,
-    [path.join(root, 'node_modules', '@tauri-apps', 'cli', 'tauri.js'), 'build', ...args],
+    [
+      path.join(root, 'node_modules', '@tauri-apps', 'cli', 'tauri.js'),
+      'build',
+      ...args,
+      ...updaterConfig,
+    ],
     {
       cwd: root,
       env: buildEnvironment(environment, { root, home, platform }),

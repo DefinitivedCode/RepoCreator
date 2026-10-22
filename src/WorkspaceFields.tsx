@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppearanceSettings } from './AppearanceSettings';
+import { UpdateSettings } from './UpdateSettings';
+import type { Updates } from './useUpdates';
 import { Icon } from './icons';
 import { ProjectBrief } from './ProjectBrief';
 import type { Creator } from './useCreator';
@@ -498,7 +500,17 @@ export function Context({
     </div>
   );
 }
-export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: () => void }) {
+export function SetupPanel({
+  creator,
+  onReturn,
+  updates,
+  updateRequest,
+}: {
+  creator: Creator;
+  onReturn: () => void;
+  updates: Updates;
+  updateRequest: number;
+}) {
   const env: Environment = creator.environment ?? {
     gitInstalled: false,
     identityReady: false,
@@ -509,7 +521,12 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
     vscodeAvailable: false,
   };
   const form = creator.form!;
-  const [tab, setTab] = useState<'git' | 'github' | 'tools' | 'appearance'>('git');
+  const [tab, setTab] = useState<'git' | 'github' | 'tools' | 'appearance' | 'updates'>(
+    updateRequest ? 'updates' : 'git',
+  );
+  useEffect(() => {
+    if (updateRequest) setTab('updates');
+  }, [updateRequest]);
   const option = (key: 'commitAuthorName' | 'commitAuthorEmail', value: string) =>
     creator.update('options', { ...form.options, [key]: value });
   const hasProjectIdentity = !!(
@@ -522,22 +539,28 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
           <Icon name="settings" size={20} />
           <div>
             <strong>
-              {tab === 'appearance' ? 'Application appearance' : 'Development environment'}
+              {tab === 'updates'
+                ? 'Application updates'
+                : tab === 'appearance'
+                  ? 'Application appearance'
+                  : 'Development environment'}
             </strong>
             <span>
-              {tab === 'appearance'
-                ? 'Theme and accent for this device'
-                : !creator.environment
-                  ? creator.checking
-                    ? 'Checking your computer…'
-                    : 'Computer checks are unavailable.'
-                  : env.gitInstalled && (env.identityReady || hasProjectIdentity)
-                    ? 'Ready for local projects'
-                    : 'Complete Git setup to create a project'}
+              {tab === 'updates'
+                ? 'Choose when and how to update'
+                : tab === 'appearance'
+                  ? 'Theme and accent for this device'
+                  : !creator.environment
+                    ? creator.checking
+                      ? 'Checking your computer…'
+                      : 'Computer checks are unavailable.'
+                    : env.gitInstalled && (env.identityReady || hasProjectIdentity)
+                      ? 'Ready for local projects'
+                      : 'Complete Git setup to create a project'}
             </span>
           </div>
         </div>
-        {tab !== 'appearance' && (
+        {tab !== 'appearance' && tab !== 'updates' && (
           <button
             type="button"
             onClick={() => void creator.refresh(tab === 'github' || form.destination === 'github')}
@@ -555,6 +578,7 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
             ['github', 'GitHub'],
             ['tools', 'Development tools'],
             ['appearance', 'Appearance'],
+            ['updates', 'Updates'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -569,13 +593,14 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
             onKeyDown={(event) => {
               if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                 event.preventDefault();
-                const tabs = ['git', 'github', 'tools', 'appearance'] as const;
+                const tabs = ['git', 'github', 'tools', 'appearance', 'updates'] as const;
                 const index =
                   event.key === 'Home'
                     ? 0
                     : event.key === 'End'
-                      ? 3
-                      : (tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : 3)) % 4;
+                      ? tabs.length - 1
+                      : (tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) %
+                        tabs.length;
                 setTab(tabs[index]);
                 document.getElementById(`environment-tab-${tabs[index]}`)?.focus();
               }
@@ -592,7 +617,8 @@ export function SetupPanel({ creator, onReturn }: { creator: Creator; onReturn: 
         aria-labelledby={`environment-tab-${tab}`}
       >
         {tab === 'appearance' && <AppearanceSettings creator={creator} />}
-        {tab !== 'appearance' && !creator.environment && (
+        {tab === 'updates' && <UpdateSettings updates={updates} />}
+        {tab !== 'appearance' && tab !== 'updates' && !creator.environment && (
           <p role="status">
             {creator.checking
               ? 'Checking your computer…'

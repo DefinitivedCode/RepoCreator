@@ -82,6 +82,10 @@ jobs:
       build_ref: ${{ needs.validate.outputs.commit }}
       expected_version: ${{ needs.validate.outputs.version }}
       release_tag: ${{ inputs.tag }}
+      sign_updates: true
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
   assemble:
     needs: [validate, build]
@@ -101,7 +105,8 @@ jobs:
       - name: Verify complete artifact inventory and checksums
         env:
           VERSION: ${{ needs.validate.outputs.version }}
-        run: node scripts/release.mjs collect --version "$VERSION" --source artifacts/downloaded --output artifacts/release
+          REPO_CREATOR_UPDATER_PUBLIC_KEY: ${{ vars.REPO_CREATOR_UPDATER_PUBLIC_KEY }}
+        run: node scripts/release.mjs collect --version "$VERSION" --source artifacts/downloaded --output artifacts/release --updater true
       - uses: actions/upload-artifact@v4
         with:
           name: Repo-Creator-${{ needs.validate.outputs.version }}-release-assets
@@ -140,5 +145,5 @@ jobs:
           gh release create "$TAG" --repo "$GH_REPO" --verify-tag --draft \
             --title "Repo Creator $VERSION" --notes-file release-assets/RELEASE_NOTES.md \
             release-assets/Repo-Creator-* release-assets/LICENSE.txt \
-            release-assets/THIRD_PARTY_NOTICES.txt release-assets/SHA256SUMS.txt
+            release-assets/THIRD_PARTY_NOTICES.txt release-assets/SHA256SUMS.txt release-assets/updater.json
           printf 'A draft was prepared for owner review. Publication remains a separate manual action.\n' >> "$GITHUB_STEP_SUMMARY"

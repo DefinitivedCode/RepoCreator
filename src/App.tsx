@@ -11,6 +11,7 @@ import { technologySummary } from './technologies';
 import { RepositoryState } from './RepositoryState';
 import { Overview, ProjectSummary, SetupPanel, Context } from './WorkspaceFields';
 import { useCreator } from './useCreator';
+import { useUpdates } from './useUpdates';
 import { configurationOf, formError } from './validation';
 import type { Configuration, Readme } from './types';
 
@@ -28,6 +29,8 @@ const labels: Record<Section, string> = {
 export default function App() {
   const creator = useCreator();
   const { form, catalog, preferences, state } = creator;
+  const updates = useUpdates(preferences);
+  const [updateRequest, setUpdateRequest] = useState(0);
   const [section, setSection] = useState<Section>('overview');
   const [page, setPage] = useState<'new' | 'projects' | 'presets' | 'settings'>('new');
   const [selectedProjectId, setSelectedProjectId] = useState<string>();
@@ -84,7 +87,7 @@ export default function App() {
         <div className="app-title">
           <Icon name="repo" size={19} />
           <h1>Repo Creator</h1>
-          <span className="version">1.4.0</span>
+          <span className="version">1.4.1</span>
         </div>
         <nav className="app-navigation" aria-label="Main navigation">
           {(
@@ -139,6 +142,23 @@ export default function App() {
           )}
         </div>
       </header>
+      {updates.offer && !updates.dismissed && page !== 'settings' && (
+        <aside className="update-notification" aria-label="Software update">
+          <span>Repo Creator {updates.offer.version} is available.</span>
+          <button
+            type="button"
+            onClick={() => {
+              setUpdateRequest((value) => value + 1);
+              setPage('settings');
+            }}
+          >
+            Review update
+          </button>
+          <button type="button" onClick={updates.later}>
+            Later
+          </button>
+        </aside>
+      )}
       {!form || !catalog || !preferences ? (
         <main className="content">
           <p role="status">{creator.notice || creator.error?.message || 'Loading settings…'}</p>
@@ -237,6 +257,8 @@ export default function App() {
           )}
           <SetupPanel
             creator={creator}
+            updates={updates}
+            updateRequest={updateRequest}
             onReturn={() => {
               setPage('new');
               navigate('overview');
@@ -486,7 +508,12 @@ export default function App() {
                   />
                 )}
                 {section === 'setup' && (
-                  <SetupPanel creator={creator} onReturn={() => navigate('overview')} />
+                  <SetupPanel
+                    creator={creator}
+                    updates={updates}
+                    updateRequest={updateRequest}
+                    onReturn={() => navigate('overview')}
+                  />
                 )}
               </fieldset>
               {creator.error && (

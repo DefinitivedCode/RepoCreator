@@ -90,6 +90,7 @@ export interface GeneratedFile {
   content: string;
 }
 export interface Preferences {
+  updates?: import('./useUpdates').UpdatePreferences;
   experienceMode?: ExperienceMode;
   instructionPresets: SavedInstructions[];
   specialistLibrary: Specialist[];

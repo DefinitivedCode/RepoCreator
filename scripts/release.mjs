@@ -13,10 +13,13 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { assertNoPrivateBuildPaths } from './build-desktop.mjs';
+import { verifyUpdaterSignature } from './updater-signatures.mjs';
 
-const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const versionPattern =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?$/;
 export function releaseVersion(value) {
-  if (!versionPattern.test(value)) throw new Error('Use a stable version such as 1.3.2.');
+  if (typeof value !== 'string' || !versionPattern.test(value) || /\s/.test(value))
+    throw new Error('Use a version such as 1.4.1 or 1.5.0-beta.1.');
   return value;
 }
 
@@ -49,14 +52,17 @@ export function checkVersions(root, expected, tag) {
   return version;
 }
 
-export function platformAssets(version, platform, architecture) {
+export function platformAssets(version, platform, architecture, updater = false) {
   releaseVersion(version);
   if (platform === 'windows' && architecture === 'x64')
-    return ['unsigned-setup.exe', 'unsigned.msi', 'unsigned-portable.zip'].map(
-      (suffix) => `Repo-Creator-${version}-windows-x64-${suffix}`,
-    );
+    return [
+      'unsigned-setup.exe',
+      'unsigned.msi',
+      'unsigned-portable.zip',
+      ...(updater ? ['unsigned-setup.exe.sig', 'unsigned.msi.sig'] : []),
+    ].map((suffix) => `Repo-Creator-${version}-windows-x64-${suffix}`);
   if (platform === 'macos' && ['arm64', 'x64'].includes(architecture))
-    return ['dmg', 'app.tar.gz'].map(
+    return ['dmg', 'app.tar.gz', ...(updater ? ['app.tar.gz.sig'] : [])].map(
       (extension) => `Repo-Creator-${version}-macos-${architecture}-adhoc.${extension}`,
     );
   throw new Error('Unsupported distribution platform or architecture.');
@@ -106,8 +112,9 @@ export function packagePlatform({
   platform,
   architecture,
   archive = execFileSync,
+  updater = false,
 }) {
-  const names = platformAssets(version, platform, architecture);
+  const names = platformAssets(version, platform, architecture, updater);
   mkdirSync(output, { recursive: true });
   if (readdirSync(output).length) throw new Error('Distribution output must be empty.');
   if (platform === 'windows') {
@@ -121,6 +128,16 @@ export function packagePlatform({
       path.join(source, 'bundle', 'msi', `Repo Creator_${version}_x64_en-US.msi`),
       path.join(output, names[1]),
     );
+    if (updater) {
+      copy(
+        path.join(source, 'bundle', 'nsis', `Repo Creator_${version}_x64-setup.exe.sig`),
+        path.join(output, names[3]),
+      );
+      copy(
+        path.join(source, 'bundle', 'msi', `Repo Creator_${version}_x64_en-US.msi.sig`),
+        path.join(output, names[4]),
+      );
+    }
     // Build a portable archive with required notices, rather than distribute a bare executable.
     const portable = path.join(output, 'portable');
     mkdirSync(portable);
@@ -162,11 +179,16 @@ export function packagePlatform({
       readFileSync(regularFile(path.join(app, 'Contents', 'MacOS', 'repo-creator'))),
       { root },
     );
-    archive(
-      'tar',
-      ['-czf', path.join(output, names[1]), '-C', path.join(source, 'macos'), 'Repo Creator.app'],
-      { stdio: 'inherit' },
-    );
+    if (updater) {
+      // Copy Tauri's exact signed archive; rebuilding the tarball would invalidate its signature.
+      copy(path.join(source, 'macos', 'Repo Creator.app.tar.gz'), path.join(output, names[1]));
+      copy(path.join(source, 'macos', 'Repo Creator.app.tar.gz.sig'), path.join(output, names[2]));
+    } else
+      archive(
+        'tar',
+        ['-czf', path.join(output, names[1]), '-C', path.join(source, 'macos'), 'Repo Creator.app'],
+        { stdio: 'inherit' },
+      );
     regularFile(path.join(output, names[1]));
   }
   const manifest = `SHA256SUMS-${platform}-${architecture}.txt`;
@@ -174,13 +196,20 @@ export function packagePlatform({
   return { names, manifest };
 }
 
-export function collectRelease({ root, source, output, version }) {
+export function collectRelease({
+  root,
+  source,
+  output,
+  version,
+  updater = false,
+  publicKey = process.env.REPO_CREATOR_UPDATER_PUBLIC_KEY,
+}) {
   releaseVersion(version);
   const expected = [
     ['windows', 'x64'],
     ['macos', 'arm64'],
     ['macos', 'x64'],
-  ].flatMap(([platform, architecture]) => platformAssets(version, platform, architecture));
+  ].flatMap(([platform, architecture]) => platformAssets(version, platform, architecture, updater));
   const found = new Map();
   const scan = (directory) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -229,7 +258,35 @@ export function collectRelease({ root, source, output, version }) {
   for (const name of expected) copy(found.get(name), path.join(output, name));
   copy(path.join(root, 'LICENSE'), path.join(output, 'LICENSE.txt'));
   copy(path.join(root, 'THIRD_PARTY_NOTICES.txt'), path.join(output, 'THIRD_PARTY_NOTICES.txt'));
-  checksums(output, [...expected, 'LICENSE.txt', 'THIRD_PARTY_NOTICES.txt']);
+  if (updater) {
+    if (!publicKey)
+      throw new Error('REPO_CREATOR_UPDATER_PUBLIC_KEY is required for release verification.');
+    const platforms = {};
+    for (const [target, file] of [
+      ['windows-x86_64-nsis', platformAssets(version, 'windows', 'x64')[0]],
+      ['windows-x86_64-msi', platformAssets(version, 'windows', 'x64')[1]],
+      ['darwin-aarch64', platformAssets(version, 'macos', 'arm64')[1]],
+      ['darwin-x86_64', platformAssets(version, 'macos', 'x64')[1]],
+    ]) {
+      const signature = readFileSync(path.join(output, `${file}.sig`), 'utf8').trim();
+      verifyUpdaterSignature(readFileSync(path.join(output, file)), signature, publicKey, version);
+      platforms[target] = {
+        url: `https://github.com/DefinitivedCode/RepoCreator/releases/download/v${version}/${file}`,
+        signature,
+      };
+    }
+    writeFileSync(
+      path.join(output, 'updater.json'),
+      JSON.stringify({ version, platforms }, null, 2) + '\n',
+      { flag: 'wx' },
+    );
+  }
+  checksums(output, [
+    ...expected,
+    'LICENSE.txt',
+    'THIRD_PARTY_NOTICES.txt',
+    ...(updater ? ['updater.json'] : []),
+  ]);
   writeFileSync(
     path.join(output, 'RELEASE_NOTES.md'),
     `Repo Creator ${version}\n\nChoose the asset for your operating system and processor. Windows installers and the portable archive are unsigned. macOS builds are ad-hoc signed and not notarized; physical Mac launch remains to be verified.\n\nSee the installation and troubleshooting documentation before opening a test build. SHA256SUMS.txt covers all downloadable application assets and notices.\n\nSource and history privacy review, license review and owner publication approval remain required. This workflow prepares a draft only.\n`,
@@ -264,6 +321,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         version: flags.version,
         platform: flags.platform,
         architecture: flags.architecture,
+        updater: flags.updater === 'true',
       });
       console.log(`Verified ${result.names.length} application assets and ${result.manifest}.`);
     } else if (command === 'collect') {
@@ -272,6 +330,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         source: path.resolve(flags.source),
         output: path.resolve(flags.output),
         version: flags.version,
+        updater: flags.updater === 'true',
       });
       console.log(
         `Verified all ${names.length} application assets; release bundle and SHA256SUMS.txt are ready.`,
