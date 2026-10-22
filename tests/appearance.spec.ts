@@ -93,7 +93,7 @@ test('invalid custom drafts leave saved colors unchanged; valid picker changes p
   await page.addInitScript(() => {
     (window as any).testPersistPreferences = true;
   });
-  await prepare(page, false, 'simple');
+  await prepare(page, false, 'simple', false);
   let panel = await openAppearance(page);
   const prior = await page
     .locator('html')
