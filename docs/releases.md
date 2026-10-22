@@ -14,17 +14,17 @@ The normal **Desktop checks and test builds** workflow runs on pushes to `main`,
 
 `npm run desktop:build` uses a local wrapper to remap home, checkout, Cargo and Rustup paths to generic compiler source paths. This prevents compiler-generated source locations from retaining a builder's local username. Existing encoded Rust flags are preserved. A nonempty plain `RUSTFLAGS` causes a clear error rather than being silently replaced; unset it or move custom flags to Cargo's encoded form before building. Packaging scans the native executable for the current builder's home/source/toolchain paths in UTF-8 and UTF-16 and stops if any remain. These checks complement the broader source/history privacy review; they are not a complete secret scanner. See [Rust source-path remapping](https://doc.rust-lang.org/rustc/command-line-arguments.html#--remap-path-prefix-remap-source-names-in-output).
 
-Each successful platform job uploads only its versioned application assets and a platform checksum manifest. Development build folders and the portable ZIP staging folder are excluded. For version `1.3.2`, the application assets are:
+Each successful platform job uploads only its versioned application assets and a platform checksum manifest. Development build folders and the portable ZIP staging folder are excluded. For version `1.4.0`, the application assets are:
 
 | Platform                  | File                                                   |
 | ------------------------- | ------------------------------------------------------ |
-| Windows x64 installer     | `Repo-Creator-1.3.2-windows-x64-unsigned-setup.exe`    |
-| Windows x64 MSI           | `Repo-Creator-1.3.2-windows-x64-unsigned.msi`          |
-| Windows x64 portable app  | `Repo-Creator-1.3.2-windows-x64-unsigned-portable.zip` |
-| Apple Silicon installer   | `Repo-Creator-1.3.2-macos-arm64-adhoc.dmg`             |
-| Apple Silicon app archive | `Repo-Creator-1.3.2-macos-arm64-adhoc.app.tar.gz`      |
-| Intel Mac installer       | `Repo-Creator-1.3.2-macos-x64-adhoc.dmg`               |
-| Intel Mac app archive     | `Repo-Creator-1.3.2-macos-x64-adhoc.app.tar.gz`        |
+| Windows x64 installer     | `Repo-Creator-1.4.0-windows-x64-unsigned-setup.exe`    |
+| Windows x64 MSI           | `Repo-Creator-1.4.0-windows-x64-unsigned.msi`          |
+| Windows x64 portable app  | `Repo-Creator-1.4.0-windows-x64-unsigned-portable.zip` |
+| Apple Silicon installer   | `Repo-Creator-1.4.0-macos-arm64-adhoc.dmg`             |
+| Apple Silicon app archive | `Repo-Creator-1.4.0-macos-arm64-adhoc.app.tar.gz`      |
+| Intel Mac installer       | `Repo-Creator-1.4.0-macos-x64-adhoc.dmg`               |
+| Intel Mac app archive     | `Repo-Creator-1.4.0-macos-x64-adhoc.app.tar.gz`        |
 
 The portable ZIP contains the executable, license, third-party notices and short setup instructions. Packaging verifies every archive entry against its source bytes. Extract the entire ZIP before opening the executable. Installers and Mac app bundles include the license and notices as resources; CI compares the bundled Mac notices with the source and checks the MSI notice entries and Windows resource hashes. `SHA256SUMS-windows-x64.txt`, `SHA256SUMS-macos-arm64.txt` and `SHA256SUMS-macos-x64.txt` cover their respective platform downloads.
 
@@ -32,12 +32,12 @@ Actions artifacts are temporary test-build downloads and require repository acce
 
 ## Prepare an approved tag
 
-Do this only after the owner approves release preparation. Choose the exact reviewed commit, confirm all checks passed, and create/push `v1.3.2` using GitHub or Git. The tag must already exist on GitHub and point to a commit in the history of `main`. Do not move an existing release tag.
+Do this only after the owner approves release preparation. Choose the exact reviewed commit, confirm all checks passed, and create/push `v1.4.0` using GitHub or Git. The tag must already exist on GitHub and point to a commit in the history of `main`. Do not move an existing release tag.
 
-The application version must be `1.3.2` across the checked manifests and lockfiles. Validate it locally before requesting a tag:
+The application version must be `1.4.0` across the checked manifests and lockfiles. Validate it locally before requesting a tag:
 
 ```sh
-node scripts/release.mjs version --version 1.3.2 --tag v1.3.2
+node scripts/release.mjs version --version 1.4.0 --tag v1.4.0
 node --test scripts/release.test.mjs
 ```
 
@@ -45,20 +45,20 @@ node --test scripts/release.test.mjs
 
 From **Actions → Prepare release draft → Run workflow**, choose the workflow on `main`, then supply:
 
-- **version:** `1.3.2`
-- **tag:** `v1.3.2` (the existing approved tag)
+- **version:** `1.4.0`
+- **tag:** `v1.4.0` (the existing approved tag)
 - **create_draft:** leave false to prepare downloadable workflow artifacts without creating any release.
 - **publication_review_complete:** set true only after the owner has approved preparation and reviewed privacy, licensing and platform warnings; required when requesting a draft.
 
 The equivalent GitHub CLI command for preparing artifacts only is:
 
 ```sh
-gh workflow run release.yml --repo DefinitivedCode/RepoCreator --ref main -f version=1.3.2 -f tag=v1.3.2 -f create_draft=false -f publication_review_complete=false
+gh workflow run release.yml --repo DefinitivedCode/RepoCreator --ref main -f version=1.4.0 -f tag=v1.4.0 -f create_draft=false -f publication_review_complete=false
 ```
 
 For an explicitly approved draft, set both boolean inputs to `true`. This is preparation, not publication. The workflow resolves the existing tag to its immutable commit, repeats all three platform builds through the shared workflow, then verifies the complete seven-asset inventory and each platform's checksums. If any required build or check fails, it does not assemble a release or create a draft.
 
-The assembled Actions artifact is named `Repo-Creator-1.3.2-release-assets`. It contains the application assets, `LICENSE.txt`, `THIRD_PARTY_NOTICES.txt`, combined `SHA256SUMS.txt` and editable `RELEASE_NOTES.md`. The combined checksum file covers the application assets and notices. The notes file becomes draft release text rather than a downloadable release asset.
+The assembled Actions artifact is named `Repo-Creator-1.4.0-release-assets`. It contains the application assets, `LICENSE.txt`, `THIRD_PARTY_NOTICES.txt`, combined `SHA256SUMS.txt` and editable `RELEASE_NOTES.md`. The combined checksum file covers the application assets and notices. The notes file becomes draft release text rather than a downloadable release asset.
 
 With **create_draft** enabled, the final job refuses an existing draft or published release for that tag, then creates a draft with the verified assets. Concurrent preparations of the same tag run serially. Only this job has `contents: write`; checks and builds have `contents: read`. It uses the short-lived repository `GITHUB_TOKEN` and requires no external host, signing credential or personal access token. Repository policy must allow that token to create release drafts. There is no automatic publication or update service.
 

@@ -12,7 +12,7 @@ Mac builds are ad-hoc signed and not notarized. Follow the [Mac guide](macOS-tes
 
 ## Git or another tool is not detected
 
-Open **Setup & status**, use the relevant official installation link, then select **Recheck**. Reopen Repo Creator if the installer changed your environment.
+Open **Settings**, use the relevant official installation link, then select **Recheck**. Reopen Repo Creator if the installer changed your environment.
 
 Git is required for local creation. GitHub CLI and sign-in are required only for GitHub publishing. Coding assistants and VS Code are optional, so their absence does not prevent local creation or prompt generation.
 
@@ -20,7 +20,7 @@ On macOS, Finder-launched apps may have a different executable search path from 
 
 ## Commit identity is missing
 
-Enter the project's commit name and email in **Setup & status**, or configure Git using its [first-time setup guide](https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup). Project fields affect only the new repository. Choose an email you are comfortable recording in commits; GitHub documents [private no-reply addresses](https://docs.github.com/en/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address).
+Enter the project's commit name and email in **Settings**, or configure Git using its [first-time setup guide](https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup). Project fields affect only the new repository. Choose an email you are comfortable recording in commits; GitHub documents [private no-reply addresses](https://docs.github.com/en/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address).
 
 For a GitHub project, Repo Creator verifies the authenticated account and uses its no-reply email for the initial commit. It does not change global Git identity.
 

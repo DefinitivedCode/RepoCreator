@@ -337,9 +337,19 @@ try {
     .getByRole('button', { name: /Project with spaces/ })
     .first()
     .click();
+  const workspacePage = page.getByRole('main', { name: 'Project workspace' });
+  await expect(
+    workspacePage.getByRole('heading', { name: added.context.projectName, exact: true }),
+  ).toBeVisible();
   for (const appearance of ['light', 'dark']) {
     await page.getByRole('combobox', { name: /Appearance/ }).selectOption(appearance);
     await page.screenshot({ path: path.join(artifacts, `workspace-${appearance}.png`) });
+  }
+  await workspacePage.getByRole('button', { name: 'Commands', exact: true }).click();
+  await expect(page.getByLabel('long output', { exact: true })).toContainText('stream-start');
+  for (const appearance of ['light', 'dark']) {
+    await page.getByRole('combobox', { name: /Appearance/ }).selectOption(appearance);
+    await page.screenshot({ path: path.join(artifacts, `commands-${appearance}.png`) });
   }
   assert.deepEqual(pageErrors, []);
   checks.push('Production workspace rendered in dark and light modes without JavaScript errors');
