@@ -54,7 +54,7 @@ fn state_error() -> AppError {
     workspace::error("Command state is unavailable. Reopen the application.")
 }
 
-fn executable(value: &str, cwd: &Path) -> Result<PathBuf, AppError> {
+pub(crate) fn executable(value: &str, cwd: &Path) -> Result<PathBuf, AppError> {
     let path = Path::new(value);
     let resolved = if path.is_absolute() {
         Some(path.to_path_buf())
@@ -112,7 +112,9 @@ fn build_command(command: &ProjectCommand, cwd: &Path) -> Result<Command, AppErr
     Ok(process)
 }
 #[cfg(windows)]
-fn structured_windows_executable(path: PathBuf) -> Result<(PathBuf, Vec<PathBuf>), AppError> {
+pub(crate) fn structured_windows_executable(
+    path: PathBuf,
+) -> Result<(PathBuf, Vec<PathBuf>), AppError> {
     if !path
         .extension()
         .is_some_and(|ext| ext.eq_ignore_ascii_case("cmd") || ext.eq_ignore_ascii_case("bat"))
@@ -401,6 +403,7 @@ pub fn run_project_command(
     project_id: String,
     command_id: String,
     confirmed: bool,
+    expected: Option<ProjectCommand>,
     app: tauri::AppHandle,
     state: State<'_, Arc<CommandRunner>>,
 ) -> Result<CommandRun, AppError> {
@@ -410,6 +413,12 @@ pub fn run_project_command(
         .iter()
         .find(|command| command.id == command_id)
         .ok_or_else(|| workspace::error("This project command is unavailable."))?;
+    // A caller that showed the definition for confirmation runs only that definition.
+    if expected.is_some_and(|expected| expected != *command) {
+        return Err(workspace::error(
+            "This command changed after you confirmed it. Review it again; it did not run.",
+        ));
+    }
     let cwd = workspace::command_directory(&workspace::project_directory(&project)?, command)?;
     let run = state.start(&project_id, command, &cwd, confirmed)?;
     if command.imported {

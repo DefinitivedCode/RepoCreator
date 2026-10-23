@@ -394,14 +394,16 @@ pub fn save_project_commands(
         Ok(())
     })
 }
+/// Manifest reads stay bounded for command discovery and readiness inspection.
+pub(crate) const MANIFEST_LIMIT: usize = 1024 * 1024;
 fn manifest(path: &Path) -> Option<String> {
     let mut content = String::new();
     fs::File::open(path)
         .ok()?
-        .take(1024 * 1024 + 1)
+        .take(MANIFEST_LIMIT as u64 + 1)
         .read_to_string(&mut content)
         .ok()?;
-    (content.len() <= 1024 * 1024).then_some(content)
+    (content.len() <= MANIFEST_LIMIT).then_some(content)
 }
 pub(crate) fn suggestions(directory: &Path) -> Vec<ProjectCommand> {
     let mut commands = Vec::new();

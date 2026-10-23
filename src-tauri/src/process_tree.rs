@@ -104,6 +104,18 @@ mod platform {
                 windows_sys::Win32::System::JobObjects::TerminateJobObject(self.0, 1);
             }
         }
+        /// Stop owning the tree without ending processes that are still running.
+        pub fn release(self) {
+            unsafe {
+                let info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = zeroed();
+                SetInformationJobObject(
+                    self.0,
+                    JobObjectExtendedLimitInformation,
+                    &info as *const _ as _,
+                    size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+                );
+            }
+        }
     }
 }
 #[cfg(unix)]
@@ -128,6 +140,10 @@ mod platform {
             unsafe {
                 kill(-self.0, 9);
             }
+        }
+        /// Stop owning the group without ending processes that are still running.
+        pub fn release(self) {
+            std::mem::forget(self);
         }
     }
     impl Drop for Tree {

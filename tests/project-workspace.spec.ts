@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { prepare, createProject } from './fixtures';
 import type { RecentProject, ProjectCommand } from '../src/workspaceTypes';
+import type { ReadinessReport } from '../src/readinessModel';
 
 const project: RecentProject = {
   id: 'project-river',
@@ -42,10 +43,83 @@ const importedCommand: ProjectCommand = {
   imported: true,
 };
 
+const readinessReport: ReadinessReport = {
+  checks: [
+    {
+      id: 'project-type',
+      group: 'project',
+      title: 'Project type',
+      status: 'ready',
+      detail: 'Detected Node.js (npm).',
+      fix: null,
+      inferred: false,
+      network: false,
+    },
+    {
+      id: 'tool-node',
+      group: 'tools',
+      title: 'Node.js',
+      status: 'ready',
+      detail: 'Found at C:\\Tools\\node.exe.',
+      fix: null,
+      inferred: false,
+      network: false,
+    },
+    {
+      id: 'version-node',
+      group: 'requirements',
+      title: 'Node.js version',
+      status: 'notChecked',
+      detail: 'Requires Node.js >=22 (package.json engines). Run a full check to compare it.',
+      fix: null,
+      inferred: false,
+      network: false,
+    },
+    {
+      id: 'env',
+      group: 'configuration',
+      title: 'Local environment file',
+      status: 'attention',
+      detail: '.env.example exists but .env does not.',
+      fix: 'Copy-Item .env.example .env',
+      inferred: true,
+      network: false,
+    },
+    {
+      id: 'dependencies-node',
+      group: 'dependencies',
+      title: 'Node.js dependencies',
+      status: 'attention',
+      detail: "Dependencies don't appear to be installed.",
+      fix: 'npm install',
+      inferred: true,
+      network: false,
+    },
+    {
+      id: 'file-pyproject.toml',
+      group: 'project',
+      title: 'Read pyproject.toml',
+      status: 'couldNotCheck',
+      detail: 'pyproject.toml could not be read or parsed.',
+      fix: null,
+      inferred: false,
+      network: false,
+    },
+  ],
+};
+const readinessProbes = [
+  { id: 'node', label: 'node --version', network: false },
+  {
+    id: 'remote',
+    label: 'git ls-remote github.com/example/river-workbench.git HEAD',
+    network: true,
+  },
+];
+
 async function workspaceFixture(page: Page, missing = false) {
   await prepare(page, false, 'simple');
   await page.evaluate(
-    ({ project, importedCommand, missing }) => {
+    ({ project, importedCommand, missing, readinessReport, readinessProbes }) => {
       const state = { projects: [structuredClone(project)], exists: !missing, runs: [] as any[] };
       (window as any).workspaceState = state;
       const original = (window as any).__TAURI_INTERNALS__.invoke;
@@ -63,6 +137,10 @@ async function workspaceFixture(page: Page, missing = false) {
         'run_project_command',
         'list_command_runs',
         'stop_project_command',
+        'get_project_readiness',
+        'prepare_readiness_check',
+        'run_readiness_check',
+        'cancel_readiness_check',
       ];
       (window as any).__TAURI_INTERNALS__.invoke = async (command: string, payload: any) => {
         if (!workspaceCommands.includes(command)) return original(command, payload);
@@ -193,6 +271,63 @@ async function workspaceFixture(page: Page, missing = false) {
           return structuredClone(run);
         }
         if (command === 'list_command_runs') return structuredClone(state.runs);
+        if (command === 'get_project_readiness') return structuredClone(readinessReport);
+        if (command === 'prepare_readiness_check') {
+          const plans = ((window as any).readinessPlans ??= []);
+          plans.push(`plan-${plans.length + 1}`);
+          return { token: plans.at(-1), probes: structuredClone(readinessProbes) };
+        }
+        if (command === 'run_readiness_check') {
+          // Mirrors the native rule: only the latest reviewed, unchanged plan runs.
+          const plans = (window as any).readinessPlans ?? [];
+          if (payload.token !== plans.at(-1) || (window as any).planChangedOnce) {
+            (window as any).planChangedOnce = false;
+            (window as any).readinessPlans = [];
+            throw {
+              message: 'The project changed after you reviewed the full check.',
+              guidance: 'Review the updated list of programs and confirm again. Nothing ran.',
+            };
+          }
+          (window as any).readinessPlans = [];
+          (window as any).runningToken = payload.token;
+          if ((window as any).holdFullCheck)
+            await new Promise((resolve) => ((window as any).finishFullCheck = resolve));
+          return {
+            cancelled: !!(window as any).fullCheckCancelled,
+            checks: [
+              {
+                id: 'version-node',
+                group: 'requirements',
+                title: 'Node.js version',
+                status: 'attention',
+                detail: 'Node.js 20.11.1 is installed, but this project requires >=22.',
+                fix: 'Install a Node.js version matching >=22, then select Refresh.',
+                inferred: false,
+                network: false,
+              },
+              {
+                id: 'remote',
+                group: 'remote',
+                title: 'Git remote access',
+                status: 'ready',
+                detail: 'Reached github.com/example/river-workbench (origin).',
+                fix: null,
+                inferred: false,
+                network: true,
+              },
+            ],
+          };
+        }
+        if (command === 'cancel_readiness_check') {
+          // Like the native state, a cancel only affects the run for its token.
+          if (
+            payload.token === (window as any).runningToken &&
+            !(window as any).finishedBeforeCancel
+          )
+            (window as any).fullCheckCancelled = true;
+          (window as any).finishFullCheck?.();
+          return;
+        }
         if (command === 'stop_project_command') {
           Object.assign(
             state.runs.find((run) => run.id === payload.runId),
@@ -201,7 +336,7 @@ async function workspaceFixture(page: Page, missing = false) {
         }
       };
     },
-    { project, importedCommand, missing },
+    { project, importedCommand, missing, readinessReport, readinessProbes },
   );
   await page
     .getByRole('navigation', { name: 'Main navigation' })
@@ -695,4 +830,243 @@ test('refined workspace screens remain readable at default, minimum and wide dim
     animations: 'disabled',
     path: `artifacts/refinement-workspace/success-${testInfo.project.name}.png`,
   });
+});
+
+function calls(page: Page, command: string) {
+  return page.evaluate(
+    (command) => (window as any).testCalls.filter((call: any) => call.command === command),
+    command,
+  );
+}
+const savedCommands: ProjectCommand[] = [
+  { ...importedCommand, id: 'reviewed-build', imported: false },
+  { ...importedCommand, id: 'unreviewed-test', name: 'Test suite', category: 'test' },
+  {
+    ...importedCommand,
+    id: 'dev-server',
+    name: 'Development server',
+    category: 'development',
+    imported: false,
+    args: ['run', 'dev'],
+  },
+];
+
+test('readiness inspects automatically, separates states and copies suggested fixes', async ({
+  page,
+}, testInfo) => {
+  await workspaceFixture(page);
+  await openWorkspace(page);
+  const tab = page
+    .getByRole('group', { name: 'Project workspace sections' })
+    .getByRole('button', { name: 'Readiness, 2 need attention', exact: true });
+  await expect(tab).toBeVisible();
+  expect(await calls(page, 'get_project_readiness')).toHaveLength(1);
+  await tab.focus();
+  await page.keyboard.press('Enter');
+  await expect(tab).toHaveAttribute('aria-pressed', 'true');
+  const view = page.locator('.rc-readiness');
+  await expect(view.getByRole('heading', { name: 'Project readiness' })).toBeVisible();
+  await expect(view.getByRole('status').first()).toContainText('2 need attention');
+  await expect(view.getByRole('status').first()).toContainText('1 could not check');
+  await expect(view.getByRole('status').first()).toContainText('1 not checked');
+  for (const heading of ['Project', 'Development tools', 'Configuration files', 'Git'])
+    await expect(view.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+  const env = view.locator('.readiness-check').filter({ hasText: 'Local environment file' });
+  await expect(env).toContainText('Needs attention');
+  await expect(env).toContainText('Inferred');
+  await expect(view.locator('.readiness-check').filter({ hasText: 'Working tree' })).toContainText(
+    'Working tree clean on main',
+  );
+  await page
+    .getByRole('button', { name: 'Copy suggested fix for Local environment file', exact: true })
+    .click();
+  expect(await page.evaluate(() => (window as any).testCopied)).toBe('Copy-Item .env.example .env');
+  await view.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await expect.poll(async () => (await calls(page, 'get_project_readiness')).length).toBe(2);
+  expect(await calls(page, 'run_readiness_check')).toHaveLength(0);
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  mkdirSync('artifacts/workspace-ui', { recursive: true });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/readiness-${testInfo.project.name}.png`,
+  });
+});
+
+test('full check lists programs, never preselects commands and confirms project code', async ({
+  page,
+}, testInfo) => {
+  await workspaceFixture(page);
+  await page.evaluate((commands) => {
+    (window as any).workspaceState.projects[0].commands = commands;
+  }, savedCommands);
+  await openWorkspace(page);
+  await section(page, 'Readiness, 2 need attention');
+  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  const plan = page.getByRole('dialog', { name: 'Run full check' });
+  await expect(plan).toContainText('node --version');
+  await expect(plan.locator('li').filter({ hasText: 'git ls-remote' })).toContainText(
+    'Contacts the network',
+  );
+  const build = plan.getByRole('checkbox', { name: /Build application/ });
+  await expect(build).not.toBeChecked();
+  await expect(plan.getByRole('checkbox', { name: /Test suite/ })).toBeDisabled();
+  await expect(plan.getByRole('checkbox', { name: /Development server/ })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(plan).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  await page.getByRole('button', { name: 'Run checks', exact: true }).click();
+  const node = page.locator('.readiness-check').filter({ hasText: 'Node.js version' });
+  await expect(node).toContainText('Node.js 20.11.1 is installed');
+  await expect(node).toContainText('Full check');
+  await expect(
+    page.locator('.readiness-check').filter({ hasText: 'Git remote access' }),
+  ).toContainText('Network');
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+
+  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  await expect(build).not.toBeChecked();
+  await build.check();
+  await page.getByRole('button', { name: 'Review 1 command', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: 'Run project commands?' });
+  await expect(confirm).toContainText("These commands run this project's own code");
+  await expect(confirm).toContainText('npm run build');
+  await expect(confirm).toContainText('C:\\Projects\\River Workbench');
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/readiness-confirm-${testInfo.project.name}.png`,
+  });
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Review 1 command', exact: true }).click();
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  await page.getByRole('button', { name: 'Run 1 command', exact: true }).click();
+  await expect.poll(async () => (await calls(page, 'run_project_command')).length).toBe(1);
+  const [started] = await calls(page, 'run_project_command');
+  expect(started.payload).toMatchObject({
+    commandId: 'reviewed-build',
+    confirmed: false,
+    expected: { id: 'reviewed-build', args: ['run', 'build'] },
+  });
+  await page.evaluate(() => {
+    Object.assign((window as any).workspaceState.runs[0], {
+      status: 'succeeded',
+      exitCode: 0,
+      finishedAt: Date.now(),
+    });
+  });
+  await expect(
+    page.locator('.readiness-check').filter({ hasText: 'Build application · run' }),
+  ).toContainText('Finished successfully');
+  await expect(page.getByRole('status').first()).toContainText('Full check finished');
+});
+
+test('full check can be cancelled and stays usable at minimum and wide sizes', async ({ page }) => {
+  await workspaceFixture(page);
+  await page.evaluate((commands) => {
+    (window as any).workspaceState.projects[0].commands = commands;
+    (window as any).holdFullCheck = true;
+  }, savedCommands);
+  await openWorkspace(page);
+  await section(page, 'Readiness, 2 need attention');
+  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Build application/ }).check();
+  await page.getByRole('button', { name: 'Review 1 command', exact: true }).click();
+  await page.getByRole('button', { name: 'Run 1 command', exact: true }).click();
+  const progress = page.locator('.readiness-progress');
+  await expect(progress).toContainText('Running full check');
+  await expect(page.getByRole('button', { name: 'Run full check', exact: true })).toBeDisabled();
+  // Cancel while the backend is still validating and running probes.
+  await progress.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(progress).toHaveCount(0);
+  await expect(page.getByRole('status').first()).toContainText('Full check cancelled');
+  const [cancelled] = await calls(page, 'cancel_readiness_check');
+  const [run] = await calls(page, 'run_readiness_check');
+  expect(cancelled.payload.token).toBe(run.payload.token);
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  // A later full check starts normally.
+  await page.evaluate(() => {
+    (window as any).holdFullCheck = false;
+    (window as any).fullCheckCancelled = false;
+  });
+  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  await page.getByRole('button', { name: 'Run checks', exact: true }).click();
+  await expect(page.getByRole('status').first()).toContainText('Full check finished');
+  for (const size of [
+    { width: 820, height: 580 },
+    { width: 1500, height: 900 },
+  ]) {
+    await page.setViewportSize(size);
+    await expect(page.getByRole('button', { name: 'Run full check', exact: true })).toBeVisible();
+    expect(
+      await page
+        .getByRole('main', { name: 'Project workspace' })
+        .evaluate((element) => element.scrollWidth - element.clientWidth),
+    ).toBeLessThanOrEqual(0);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+    ).toBeLessThanOrEqual(0);
+  }
+});
+
+test('readiness waits for a missing project folder', async ({ page }) => {
+  await workspaceFixture(page, true);
+  await openWorkspace(page);
+  await section(page, 'Readiness');
+  await expect(page.getByText('Readiness needs the project folder')).toBeVisible();
+  expect(await calls(page, 'get_project_readiness')).toHaveLength(0);
+});
+
+test('a plan that changed after review runs nothing and must be confirmed again', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.evaluate((commands) => {
+    (window as any).workspaceState.projects[0].commands = commands;
+    (window as any).planChangedOnce = true;
+  }, savedCommands);
+  await openWorkspace(page);
+  await section(page, 'Readiness, 2 need attention');
+  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  const plan = page.getByRole('dialog', { name: 'Run full check' });
+  await expect(plan).toContainText('git ls-remote github.com/example/river-workbench.git HEAD');
+  await plan.getByRole('checkbox', { name: /Build application/ }).check();
+  await page.getByRole('button', { name: 'Review 1 command', exact: true }).click();
+  await page.getByRole('button', { name: 'Run 1 command', exact: true }).click();
+  await expect(plan).toBeVisible();
+  await expect(plan.getByRole('alert')).toContainText(
+    'The project changed after you reviewed the full check.',
+  );
+  await expect(plan.getByRole('checkbox', { name: /Build application/ })).not.toBeChecked();
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  expect(await calls(page, 'prepare_readiness_check')).toHaveLength(2);
+  await page.getByRole('button', { name: 'Run checks', exact: true }).click();
+  await expect(
+    page.locator('.readiness-check').filter({ hasText: 'Node.js version' }),
+  ).toContainText('Full check');
+  const runs = await calls(page, 'run_readiness_check');
+  expect(runs.map((call: any) => call.payload.token)).toEqual(['plan-1', 'plan-1']);
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+});
+
+test('a cancel that arrives after the backend finished reports the real outcome', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.evaluate(() => {
+    (window as any).holdFullCheck = true;
+    (window as any).finishedBeforeCancel = true;
+  });
+  await openWorkspace(page);
+  await section(page, 'Readiness, 2 need attention');
+  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  await page.getByRole('button', { name: 'Run checks', exact: true }).click();
+  await page
+    .locator('.readiness-progress')
+    .getByRole('button', { name: 'Cancel', exact: true })
+    .click();
+  // Every step completed, so the result is not presented as cancelled.
+  await expect(page.getByRole('status').first()).toContainText('Full check finished');
+  await expect(
+    page.locator('.readiness-check').filter({ hasText: 'Node.js version' }),
+  ).toContainText('Full check');
 });

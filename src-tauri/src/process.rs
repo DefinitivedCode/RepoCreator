@@ -1,7 +1,12 @@
+use crate::process_tree;
 use std::{
     io::Read,
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc, Mutex,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -10,13 +15,23 @@ use std::{
 pub enum Program {
     Git,
     Gh,
+    // Readiness version probes. They run only after an explicit full check.
+    Node,
+    Rustc,
+    Rustup,
+    Python,
 }
 
 impl Program {
-    fn executable(self) -> &'static str {
+    pub(crate) fn executable(self) -> &'static str {
         match self {
             Self::Git => "git",
             Self::Gh => "gh",
+            Self::Node => "node",
+            Self::Rustc => "rustc",
+            Self::Rustup => "rustup",
+            Self::Python if cfg!(windows) => "python",
+            Self::Python => "python3",
         }
     }
 }
@@ -215,6 +230,10 @@ pub fn command(program: Program, args: &[String], cwd: &Path) -> Command {
         .env("GH_HOST", "github.com")
         .env("GH_PROMPT_DISABLED", "1")
         .env("GH_NO_UPDATE_NOTIFIER", "1");
+    if matches!(program, Program::Rustc | Program::Rustup) {
+        // A version probe must never download a toolchain named by a project file.
+        command.env("RUSTUP_AUTO_INSTALL", "0");
+    }
     // A desktop launch must not inherit a caller's repository or injected Git config.
     for (key, _) in std::env::vars_os() {
         let name = key.to_string_lossy();
@@ -232,38 +251,130 @@ pub fn command(program: Program, args: &[String], cwd: &Path) -> Command {
 
 impl Runner for SystemRunner {
     fn run(&self, program: Program, args: &[String], cwd: &Path) -> Result<Output, String> {
-        if resolve_executable(program.executable()).is_none() {
-            return Err("unavailable".into());
-        }
-        let mut child = command(program, args, cwd)
-            .spawn()
-            .map_err(|_| "unavailable".to_string())?;
-        let stdout = child.stdout.take().ok_or("stdout unavailable")?;
-        let reader = thread::spawn(move || {
-            let mut bytes = Vec::new();
-            // Bound output memory. All commands in this app return small, structured output.
-            let _ = stdout.take(1024 * 1024).read_to_end(&mut bytes);
-            String::from_utf8_lossy(&bytes).trim().to_string()
-        });
-        let started = Instant::now();
-        let status = loop {
-            match child.try_wait() {
-                Ok(Some(status)) => break status,
-                Ok(None) if started.elapsed() < Duration::from_secs(120) => {
-                    thread::sleep(Duration::from_millis(40))
-                }
-                _ => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return Err("timed out".into());
+        // Existing Git and GitHub operations may leave helpers running after a
+        // normal exit; only a timeout ends their whole process tree.
+        run_bounded(program, args, cwd, Duration::from_secs(120), None, false)
+    }
+}
+
+/// Bounded execution with a caller-chosen limit and optional cancellation. Every
+/// descendant is ended when the run finishes, times out or is cancelled.
+pub struct BoundedRunner {
+    pub timeout: Duration,
+    pub cancel: Option<Arc<AtomicBool>>,
+}
+
+impl Runner for BoundedRunner {
+    fn run(&self, program: Program, args: &[String], cwd: &Path) -> Result<Output, String> {
+        run_bounded(
+            program,
+            args,
+            cwd,
+            self.timeout,
+            self.cancel.as_deref(),
+            true,
+        )
+    }
+}
+
+const OUTPUT_LIMIT: usize = 1024 * 1024;
+
+fn run_bounded(
+    program: Program,
+    args: &[String],
+    cwd: &Path,
+    timeout: Duration,
+    cancel: Option<&AtomicBool>,
+    end_descendants: bool,
+) -> Result<Output, String> {
+    if resolve_executable(program.executable()).is_none() {
+        return Err("unavailable".into());
+    }
+    let cancelled = || cancel.is_some_and(|flag| flag.load(Ordering::Acquire));
+    if cancelled() {
+        return Err("cancelled".into());
+    }
+    let mut process = command(program, args, cwd);
+    // The child and its descendants share a process group (Unix) or job (Windows).
+    let (mut child, tree) =
+        process_tree::spawn(&mut process).map_err(|_| "unavailable".to_string())?;
+    let Some(mut stdout) = child.stdout.take() else {
+        tree.terminate();
+        let _ = child.wait();
+        return Err("stdout unavailable".into());
+    };
+    // Output is collected incrementally so a descendant that keeps the pipe open
+    // cannot hold the caller past its deadline.
+    let collected = Arc::new(Mutex::new(Vec::new()));
+    let (finished, closed) = mpsc::channel::<()>();
+    {
+        let collected = collected.clone();
+        thread::spawn(move || {
+            let mut chunk = [0u8; 8192];
+            loop {
+                match stdout.read(&mut chunk) {
+                    Ok(0) | Err(_) => break,
+                    Ok(count) => {
+                        if let Ok(mut bytes) = collected.lock() {
+                            let room = OUTPUT_LIMIT.saturating_sub(bytes.len());
+                            bytes.extend_from_slice(&chunk[..count.min(room)]);
+                        }
+                    }
                 }
             }
-        };
-        Ok(Output {
-            success: status.success(),
-            stdout: reader.join().unwrap_or_default(),
-        })
+            let _ = finished.send(());
+        });
     }
+    let deadline = Instant::now() + timeout;
+    let stop = |reason: &str| {
+        tree.terminate();
+        reason.to_string()
+    };
+    let status = loop {
+        if cancelled() {
+            let reason = stop("cancelled");
+            let _ = child.wait();
+            return Err(reason);
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(40)),
+            _ => {
+                let reason = stop("timed out");
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(reason);
+            }
+        }
+    };
+    // The direct child has exited; its output is complete once every holder of
+    // the pipe has closed it. A descendant still holding it is ended at the
+    // deadline or on cancellation.
+    loop {
+        match closed.recv_timeout(Duration::from_millis(40)) {
+            Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+        }
+        if cancelled() {
+            return Err(stop("cancelled"));
+        }
+        if Instant::now() >= deadline {
+            return Err(stop("timed out"));
+        }
+    }
+    if end_descendants {
+        tree.terminate();
+    } else {
+        tree.release();
+    }
+    let bytes = collected
+        .lock()
+        .map(|bytes| bytes.clone())
+        .unwrap_or_default();
+    Ok(Output {
+        success: status.success(),
+        stdout: String::from_utf8_lossy(&bytes).trim().to_string(),
+    })
 }
 
 pub fn args(values: &[&str]) -> Vec<String> {
@@ -300,6 +411,71 @@ mod tests {
                 && !tool.name.is_empty()
                 && matches!(tool.status, "available" | "unavailable" | "not-checked")
         }));
+    }
+
+    // A Git shell alias exits at once while a background descendant keeps
+    // stdout open, then writes `late` unless its process tree was ended.
+    fn holding(delay: u32) -> Vec<String> {
+        args(&[
+            "-c",
+            &format!("alias.hold=!(sleep {delay}; echo late > late) & echo held"),
+            "hold",
+        ])
+    }
+    fn assert_descendant_ended(dir: &Path, delay: u32) {
+        thread::sleep(Duration::from_secs(u64::from(delay) + 1));
+        assert!(
+            !dir.join("late").exists(),
+            "the descendant outlived the run"
+        );
+    }
+
+    #[test]
+    fn inherited_stdout_cannot_hold_a_run_past_its_deadline() {
+        let dir = tempfile::tempdir().unwrap();
+        let runner = BoundedRunner {
+            timeout: Duration::from_secs(2),
+            cancel: None,
+        };
+        let started = Instant::now();
+        let result = runner.run(Program::Git, &holding(4), dir.path());
+        assert_eq!(result.unwrap_err(), "timed out");
+        assert!(started.elapsed() < Duration::from_secs(4));
+        assert_descendant_ended(dir.path(), 4);
+    }
+
+    #[test]
+    fn cancellation_ends_runs_and_descendants_holding_stdout() {
+        let dir = tempfile::tempdir().unwrap();
+        let cancel = Arc::new(AtomicBool::new(false));
+        let runner = BoundedRunner {
+            timeout: Duration::from_secs(30),
+            cancel: Some(cancel.clone()),
+        };
+        let trigger = cancel.clone();
+        let timer = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(600));
+            trigger.store(true, Ordering::Release);
+        });
+        let started = Instant::now();
+        let result = runner.run(Program::Git, &holding(4), dir.path());
+        timer.join().unwrap();
+        assert_eq!(result.unwrap_err(), "cancelled");
+        assert!(started.elapsed() < Duration::from_secs(3));
+        assert_descendant_ended(dir.path(), 4);
+        assert_eq!(
+            runner
+                .run(Program::Git, &args(&["--version"]), dir.path())
+                .unwrap_err(),
+            "cancelled"
+        );
+        let finished = BoundedRunner {
+            timeout: Duration::from_secs(30),
+            cancel: None,
+        }
+        .run(Program::Git, &args(&["--version"]), dir.path())
+        .unwrap();
+        assert!(finished.success && finished.stdout.starts_with("git version"));
     }
 
     #[cfg(target_os = "macos")]

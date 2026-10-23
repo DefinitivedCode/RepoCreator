@@ -16,14 +16,17 @@ impl GithubAccount {
     }
 }
 
+pub(crate) const ACCOUNT_ARGS: [&str; 4] = ["api", "user", "--jq", "{login: .login, id: .id}"];
+
 pub fn authenticated_account(runner: &dyn Runner, cwd: &Path) -> Result<GithubAccount, AppError> {
-    let output = runner
-        .run(
-            Program::Gh,
-            &args(&["api", "user", "--jq", "{login: .login, id: .id}"]),
-            cwd,
-        )
-        .map_err(|reason| {
+    account_from(runner.run(Program::Gh, &args(&ACCOUNT_ARGS), cwd))
+}
+
+/// Interprets the output of `gh` run with `ACCOUNT_ARGS`.
+pub(crate) fn account_from(
+    result: Result<crate::process::Output, String>,
+) -> Result<GithubAccount, AppError> {
+    let output = result.map_err(|reason| {
             if reason == "unavailable" {
                 AppError::new("GitHub CLI is unavailable.", "Install GitHub CLI from cli.github.com, reopen Repo Creator and connect your account.")
             } else {

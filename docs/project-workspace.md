@@ -65,7 +65,8 @@ Passive discovery checks filesystem locations only. It never starts an editor,
 assistant, terminal, browser, authentication flow, or `--help`/`--version` probe.
 Results use a short bounded cache; explicit refresh bypasses it. Antigravity's
 `agy` CLI and IDE are detected independently. Only choosing a launch action starts
-an external application.
+an external application. The Readiness full check described below is the only
+place that starts `--version` probes, and only after you choose **Run full check**.
 
 Choose a terminal preference and, when automatic discovery cannot find a tool,
 provide an absolute executable path under **Advanced Executable Configuration**
@@ -153,3 +154,65 @@ working directories. Imported commands are always marked for review. Shell
 commands and absolute executable locations may need editing on another platform.
 Review all authored text before sharing a preset; do not put secrets into command
 arguments, descriptions or shell text.
+
+## Check readiness
+
+**Readiness** explains whether a project appears ready to build and run. Each
+result is **Ready**, **Needs attention**, **Not checked** or **Could not check**,
+with a short explanation and, where possible, a suggested fix to copy. Repo
+Creator never applies a suggested fix. **Inferred** results rely on files being
+present rather than a verified state.
+
+The automatic inspection runs when the workspace opens and on **Refresh**. It
+reads a fixed set of files in the project root with the same 1 MiB limit as command
+discovery, and only files that resolve inside the project: `package.json`,
+lockfiles, `.nvmrc`/`.node-version`, `Cargo.toml`, `rust-toolchain(.toml)` and
+`pyproject.toml`. It locates Node.js, the package manager, Cargo, rustup and Python
+with passive discovery, checks for `.gitignore`, `node_modules` and `.env` beside
+an `.env.example` (existence only; `.env` contents are never read), validates saved
+executable commands and their working directories, and reuses the workspace Git
+status. It starts no programs, contacts no network service and writes nothing.
+Malformed or unreadable manifests, unreadable `.nvmrc`/`.node-version` files and
+requirements of the wrong type (for example a numeric `engines.node`,
+`rust-version` or toolchain `channel`, or `targets` that are not a list of target
+names) are reported as **Could not check**: the requirement is unknown, so neither
+tier reports that version as Ready, and an invalid toolchain never falls back to
+the default compiler. Yarn Plug'n'Play installs, Shell-mode commands and nested
+projects are not verified.
+
+**Run full check** first prepares a plan and lists exactly which programs will
+run, with their arguments, and which contact the network. Preparing reads the
+repository's remotes with read-only Git commands. Confirming runs that plan once:
+immediately before it runs, Repo Creator rebuilds the plan and refuses it if any
+program, argument, compared requirement or remote changed, for example because a
+project file was edited while the list was open. Nothing runs in that case; the
+updated list is shown for a new confirmation. Version probes (`node --version`, `rustc --version`, `python3
+--version` or `python --version` on Windows, and `rustup target list --installed`)
+run only for tools the project needs, from an empty temporary folder so project
+version-manager files cannot install runtimes, with a 20-second limit and bounded
+output. Rust probes disable rustup auto-installation, run a toolchain named by
+`rust-toolchain.toml` only after confirming it is already installed, and never run
+a project-defined toolchain `path`. On macOS, the `/usr/bin/python3` placeholder
+that offers to install developer tools is not started.
+
+The remote check reads the remote address from the repository, then runs
+`git ls-remote <address> HEAD` from the temporary folder with the existing
+non-interactive Git environment, so the project's own Git configuration cannot
+choose helpers or programs. Only network transports are contacted; local paths
+and helper transports are skipped. Addresses are shown without credentials. For
+GitHub remotes the existing GitHub CLI account check also runs. Each probe and all
+of its descendants run as one process group (macOS) or job (Windows). The time
+limit and **Cancel** cover the program's exit and its output: a background
+descendant that keeps the output open is ended rather than waited for, and
+descendants are ended when a probe finishes. **Cancel** applies from the moment
+you confirm, including while the plan is revalidated; a cancelled check starts no
+further programs or project commands and is reported as cancelled.
+
+Project commands are optional and never selected automatically. Only saved,
+enabled and already reviewed commands can be chosen; development servers and
+deployments are excluded. Before they run, a confirmation lists every command and
+working directory and explains that they run the project's own code with your
+permissions and may change files or use the network. Selected commands run one at
+a time through the normal command runner, only if each saved definition still
+matches what was confirmed, appear in **Commands**, and can be stopped with
+**Cancel**. Leaving the project cancels a running full check.

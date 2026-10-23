@@ -16,3 +16,6 @@ inherit the ordinary user environment, which can contain credentials; do not put
 secrets in saved command text, arguments or overrides. Export strips command
 environment values, but cannot reliably redact authored text or process output.
 Read the [execution model](docs/project-workspace.md) before sharing presets or logs.
+Readiness inspection reads project files without starting programs. Its full check
+starts tool version probes and remote access checks only after an explicit request,
+and project commands only after a separate confirmation.
