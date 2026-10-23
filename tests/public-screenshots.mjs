@@ -1,14 +1,14 @@
-// Capture the production UI with isolated, generic demonstration data.
-// No repository is created and no GitHub account is queried.
+// Capture the real Windows WebView2 app with isolated, fictional local data.
+// Build the intended source first; no UI mocks, model calls or remote repositories.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdir, mkdtemp, rm, rmdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium, expect } from '@playwright/test';
 
-assert.equal(process.platform, 'win32', 'Production screenshot capture uses Windows WebView2');
+assert.equal(process.platform, 'win32', 'Screenshot capture requires Windows WebView2');
 const root = path.resolve(import.meta.dirname, '..');
 const temporaryRoot = path.resolve(os.tmpdir());
 const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-public-'));
@@ -19,37 +19,84 @@ const executable =
   path.join(root, 'src-tauri', 'target', 'x86_64-pc-windows-msvc', 'release', 'repo-creator.exe');
 const endpointUrl = 'http://127.0.0.1:9225/json/version';
 const demonstrationDirectory = 'C:\\Projects';
+const project = path.join(demonstrationDirectory, 'field-notes');
 let child,
   browser,
-  createdDemonstrationDirectory = false;
+  page,
+  createdParent = false,
+  createdProject = false;
+const errors = [];
+const invoke = (command, args = {}) =>
+  page.evaluate(({ command, args }) => window.__TAURI_INTERNALS__.invoke(command, args), {
+    command,
+    args,
+  });
+const mainNavigation = () => page.getByRole('navigation', { name: 'Main navigation' });
+async function theme(appearance) {
+  await mainNavigation().getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
+  await page
+    .getByRole('radio', { name: appearance === 'dark' ? 'Dark' : 'Light', exact: true })
+    .check();
+  await expect(page.locator('html')).toHaveAttribute('data-appearance', appearance);
+}
+async function capture(name) {
+  const text = await page.locator('body').innerText();
+  assert(!text.toLowerCase().includes(os.userInfo().username.toLowerCase()));
+  assert(
+    !/[/\\]Users[/\\]|[/\\]home[/\\]|@|https:\/\/github\.com\//i.test(text),
+    'Private data in screenshot',
+  );
+  assert(
+    name.startsWith('configuration-') ||
+      name.startsWith('readiness-') ||
+      text.includes('C:\\Projects'),
+    'Visible demonstration paths must be generic',
+  );
+  assert.equal(
+    await page.locator('.brand-mark').count(),
+    1,
+    'Build Keystone integration before capture',
+  );
+  assert.deepEqual(await page.evaluate(() => ({ width: innerWidth, height: innerHeight })), {
+    width: 1100,
+    height: 740,
+  });
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+  });
+  await page.screenshot({ path: path.join(output, `${name}.png`), animations: 'disabled' });
+  console.log(`Captured ${name}`);
+}
 try {
   assert.equal(
     await fetch(endpointUrl, { signal: AbortSignal.timeout(1000) })
       .then(() => true)
       .catch(() => false),
     false,
-    'Screenshot debugging port must be unused',
+    'Capture port must be unused',
   );
   await mkdir(data, { recursive: true });
   await mkdir(output, { recursive: true });
-  // Preferences accept only existing folders. Keep the actual directory generic
-  // rather than allowing native fallback to the current user's Documents path.
   try {
     await mkdir(demonstrationDirectory);
-    createdDemonstrationDirectory = true;
+    createdParent = true;
   } catch (error) {
     if (error.code !== 'EEXIST') throw error;
   }
   await writeFile(
     path.join(data, 'preferences.json'),
     JSON.stringify({
-      schemaVersion: 4,
+      schemaVersion: 5,
       experienceMode: 'simple',
       parentPath: demonstrationDirectory,
       destination: 'local',
       appearance: 'light',
       accent: 'teal',
       customAccent: '#4FA69B',
+      updates: { channel: 'stable', automatic: false },
     }),
   );
   child = spawn(executable, [], {
@@ -74,11 +121,10 @@ try {
           .catch(() => null);
         return !!endpoint?.webSocketDebuggerUrl;
       },
-      { timeout: 30_000 },
+      { timeout: 30000 },
     )
     .toBe(true);
   browser = await chromium.connectOverCDP(endpoint.webSocketDebuggerUrl);
-  let page;
   await expect
     .poll(() => {
       page = browser
@@ -88,47 +134,148 @@ try {
       return !!page;
     })
     .toBe(true);
-  await page.getByLabel('Project name', { exact: true }).waitFor();
-  await expect(page.locator('.version')).toHaveText('1.4.0');
-  await page.getByLabel('Project name', { exact: true }).fill('weekend-notes');
-  await page.getByLabel('Starting point', { exact: true }).selectOption('experiment');
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30000 });
+  execFileSync(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-File',
+      path.join(root, 'tests', 'resize-window.ps1'),
+      '-ProcessId',
+      String(child.pid),
+      '-Width',
+      '1100',
+      '-Height',
+      '740',
+    ],
+    { windowsHide: true },
+  );
+  await page.getByLabel('Project name', { exact: true }).fill('field-notes');
+  await page.getByLabel('Starting point', { exact: true }).selectOption('website');
   await page
     .getByLabel('What are you making?', { exact: false })
-    .fill('Notes and reading experiments.');
+    .fill('Collect notes and small discoveries.');
+  await page.getByLabel('AI coding assistant', { exact: true }).selectOption('codex');
   await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
-  await page.getByRole('heading', { name: 'Overview', exact: true }).click();
-  const capture = async (name) => {
-    const text = await page.locator('body').innerText();
-    assert(!text.toLowerCase().includes(os.userInfo().username.toLowerCase()));
-    assert(!/[/\\]Users[/\\]|[/\\]home[/\\]|@|https:\/\/github\.com\//i.test(text));
-    assert(text.includes('C:\\Projects'));
-    await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
-    await page.screenshot({ path: path.join(output, name), animations: 'disabled' });
-  };
-  await capture('simple-mode.png');
+  for (const appearance of ['light', 'dark']) {
+    await theme(appearance);
+    await mainNavigation().getByRole('button', { name: 'New Project', exact: true }).click();
+    await page.getByRole('heading', { name: 'Overview', exact: true }).click();
+    await capture(`overview-${appearance}`);
+  }
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();
-  await page.getByLabel('Project name', { exact: true }).fill('reading-list');
-  await page.getByLabel('Project preset', { exact: true }).selectOption('website');
-  await page.getByLabel('Description', { exact: false }).fill('Explore a shared reading list.');
-  await page.getByLabel('AI coding assistant', { exact: true }).selectOption('claude');
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
-  await page.getByRole('heading', { name: 'Overview', exact: true }).click();
-  await capture('advanced-mode.png');
-  console.log('Captured the production Simple and Advanced UI with generic local-only data.');
+  await page
+    .getByRole('navigation', { name: 'Project setup' })
+    .getByRole('button', { name: 'Project Files', exact: true })
+    .click();
+  for (const appearance of ['light', 'dark']) {
+    await theme(appearance);
+    await mainNavigation().getByRole('button', { name: 'New Project', exact: true }).click();
+    await capture(`configuration-${appearance}`);
+  }
+  // This is a real local Git repository. It deliberately has no installed packages
+  // or .env, so Readiness shows authentic, actionable findings. Scripts never run.
+  await mkdir(project);
+  createdProject = true;
+  const manifest = {
+    name: 'field-notes',
+    private: true,
+    version: '0.1.0',
+    type: 'module',
+    description: 'A quiet place for notes, bookmarks and small discoveries.',
+    engines: { node: '>=22' },
+    scripts: { dev: 'vite', build: 'tsc -b && vite build', test: 'vitest run' },
+    dependencies: { react: '^19.0.0' },
+    devDependencies: { typescript: '^5.0.0', vite: '^6.0.0', vitest: '^3.0.0' },
+  };
+  await writeFile(path.join(project, 'package.json'), JSON.stringify(manifest, null, 2));
+  await writeFile(path.join(project, '.gitignore'), 'node_modules/\ndist/\n.env\n');
+  await writeFile(path.join(project, '.env.example'), 'VITE_NOTES_TITLE=Field Notes\n');
+  await writeFile(
+    path.join(project, 'README.md'),
+    '# Field Notes\n\nA local collection of ideas and discoveries.\n',
+  );
+  const git = (args) =>
+    execFileSync('git', ['-C', project, ...args], { windowsHide: true, stdio: 'ignore' });
+  git(['init', '-b', 'main']);
+  git(['add', '.']);
+  git([
+    '-c',
+    'user.name=Example Developer',
+    '-c',
+    'user.email=developer@example.invalid',
+    'commit',
+    '-m',
+    'Start Field Notes',
+  ]);
+  const added = await invoke('add_existing_project', { path: project });
+  await invoke('save_project_settings', {
+    id: added.id,
+    pinned: true,
+    technologies: { ids: ['typescript', 'react', 'vite'], custom: [] },
+    launcher: { terminal: 'auto', executables: {} },
+  });
+  const commands = [
+    ['dev', 'Development server', 'development'],
+    ['build', 'Build application', 'build'],
+  ].map(([id, name, category]) => ({
+    id,
+    name,
+    category,
+    mode: 'executable',
+    executable: 'npm',
+    args: ['run', id],
+    shellCommand: '',
+    workingDirectory: '.',
+    environment: {},
+    description: '',
+    enabled: true,
+    imported: false,
+  }));
+  await invoke('save_project_commands', { id: added.id, commands });
+  await mainNavigation().getByRole('button', { name: 'Projects', exact: true }).click();
+  await page.getByRole('button', { name: 'Open workspace', exact: true }).click();
+  const workspace = page.getByRole('main', { name: 'Project workspace' });
+  for (const appearance of ['light', 'dark']) {
+    await theme(appearance);
+    await mainNavigation().getByRole('button', { name: 'Projects', exact: true }).click();
+    await workspace.getByRole('button', { name: 'Commands', exact: true }).click();
+    await expect(workspace.getByText('Development server', { exact: true })).toBeVisible();
+    await capture(`workspace-${appearance}`);
+    await workspace.getByRole('button', { name: /^Readiness/ }).click();
+    await expect(
+      workspace.getByRole('button', { name: 'Run full check', exact: true }),
+    ).toBeEnabled();
+    await expect(
+      workspace.getByRole('heading', { name: 'Project readiness', exact: true }),
+    ).toBeVisible();
+    await workspace
+      .getByRole('heading', { name: 'Configuration files', exact: true })
+      .evaluate((element) => element.scrollIntoView({ block: 'start' }));
+    await capture(`readiness-${appearance}`);
+  }
+  assert.deepEqual(errors, []);
+  console.log(
+    'Eight real application captures completed; no project scripts, model calls or remote operations executed.',
+  );
 } finally {
   await browser?.close().catch(() => {});
   if (child?.pid && child.exitCode === null) {
-    const stopped = once(child, 'exit');
+    const exited = once(child, 'exit');
     child.kill();
-    await stopped;
+    await exited;
   }
   const resolved = path.resolve(temporary);
   assert.equal(path.dirname(resolved), temporaryRoot);
   assert(path.basename(resolved).startsWith('repo-creator-public-'));
   await rm(resolved, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 });
-  // Remove only the empty directory created by this process. Never remove contents.
-  if (createdDemonstrationDirectory)
+  if (createdProject) {
+    assert.equal(path.resolve(project), 'C:\\Projects\\field-notes');
+    await rm(project, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 });
+  }
+  if (createdParent)
     await rmdir(demonstrationDirectory).catch((error) => {
-      if (!['ENOTEMPTY', 'ENOENT'].includes(error.code)) throw error;
+      if (!['ENOENT', 'ENOTEMPTY'].includes(error.code)) throw error;
     });
 }
