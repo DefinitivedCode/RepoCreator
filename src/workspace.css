@@ -90,8 +90,11 @@
   letter-spacing: -0.35px;
   font-weight: 700;
 }
-.app-title > svg {
-  color: var(--accent);
+.brand-mark {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  background: var(--brand-mark) center / contain no-repeat;
 }
 .version {
   border: 0;

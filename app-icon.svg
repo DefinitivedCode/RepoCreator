@@ -1,9 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="72" fill="#242426"/>
-  <g fill="none" stroke="#eeeeef" stroke-width="27" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M166 144v224m180-224v44c0 62-44 89-106 89h-74"/>
-    <circle cx="166" cy="144" r="31" fill="#242426"/>
-    <circle cx="346" cy="144" r="31" fill="#242426"/>
-    <circle cx="166" cy="368" r="31" fill="#242426"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title"><title id="title">Repo Creator windows icon candidate</title><path fill="#F6F2E9" d="M64 64H800L960 224V960H64Z"/><g transform="translate(128 128) scale(12)"><g transform="translate(-2 0)"><path fill="#202B33" d="M8 8H28V20H20V32H36L60 56H42L26 40H20V56H8Z"/><path fill="#E87B40" d="M32 8H44L56 20V32H44V24L40 20H32Z"/></g></g></svg>

@@ -42,7 +42,12 @@
       "../THIRD_PARTY_NOTICES.txt": "THIRD_PARTY_NOTICES.txt"
     },
     "windows": {
-      "nsis": { "installMode": "currentUser", "displayLanguageSelector": false },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico"
+      },
       "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true }
     }
   }
