@@ -109,6 +109,26 @@ pub fn get_update_info() -> UpdateInfo {
         unavailable_reason: unavailable_reason(),
     }
 }
+fn release_link(value: &str) -> Result<tauri::Url, AppError> {
+    tauri::Url::parse(value)
+        .ok()
+        .filter(|url| {
+            ["http", "https"].contains(&url.scheme())
+                && url.host_str().is_some()
+                && url.username().is_empty()
+                && url.password().is_none()
+        })
+        .ok_or_else(|| error("This release-note link is not a web address."))
+}
+#[tauri::command]
+pub async fn open_update_link(url: String) -> Result<(), AppError> {
+    let url = release_link(&url)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        open::that(url.as_str()).map_err(|_| error("Could not open your browser."))
+    })
+    .await
+    .map_err(|_| error("Could not open your browser."))?
+}
 #[tauri::command]
 pub async fn set_update_preferences(
     updates: UpdatePreferences,
@@ -265,6 +285,25 @@ pub async fn install_update(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn release_notes_only_open_web_links() {
+        for value in [
+            "https://github.com/example/repo/releases",
+            "http://example.com/docs",
+        ] {
+            assert!(release_link(value).is_ok());
+        }
+        for value in [
+            "javascript:alert(1)",
+            "data:text/html,test",
+            "file:///tmp/test",
+            "https://user:secret@example.com",
+            "mailto:person@example.com",
+            "docs/setup.md",
+        ] {
+            assert!(release_link(value).is_err());
+        }
+    }
     #[test]
     fn update_operations_are_exclusive_and_cancellation_does_not_install() {
         let manager = UpdateManager::default();

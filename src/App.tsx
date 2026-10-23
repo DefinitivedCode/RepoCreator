@@ -3,6 +3,7 @@ import { Icon } from './icons';
 import { AdvancedPanel, FilePreview, IgnorePanel, type FileSection } from './ConfigurationPanels';
 import { PresetDialog } from './PresetDialog';
 import { FocusedFilePreview } from './FocusedFilePreview';
+import { GeneratedFilesDialog } from './GeneratedFilesDialog';
 import { AgentStudio, type AgentSection } from './AgentStudio';
 import { HandoffPanel } from './HandoffPanel';
 import { Projects } from './ProjectWorkspace';
@@ -41,6 +42,7 @@ export default function App() {
   const [presetId, setPresetId] = useState('');
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(true);
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ configuration: Configuration; id: string } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const simple = preferences?.experienceMode !== 'advanced';
@@ -88,7 +90,7 @@ export default function App() {
         <div className="app-title">
           <Icon name="repo" size={19} />
           <h1>Repo Creator</h1>
-          <span className="version">1.4.1</span>
+          {updates.info && <span className="version">{updates.info.currentVersion}</span>}
         </div>
         <nav className="app-navigation" aria-label="Main navigation">
           {(
@@ -345,14 +347,24 @@ export default function App() {
                   </h2>
                 </div>
                 {!contextualFiles && (
-                  <button
-                    type="button"
-                    className="text-button context-toggle"
-                    aria-pressed={contextOpen}
-                    onClick={() => setContextOpen(!contextOpen)}
-                  >
-                    {contextOpen ? 'Hide details' : 'Show details'}
-                  </button>
+                  <div className="workspace-heading-actions">
+                    <button
+                      type="button"
+                      className="text-button compact-preview-trigger"
+                      aria-haspopup="dialog"
+                      onClick={() => setPreviewPath('README.md')}
+                    >
+                      <Icon name="file" size={14} /> Preview files
+                    </button>
+                    <button
+                      type="button"
+                      className="text-button context-toggle"
+                      aria-pressed={contextOpen}
+                      onClick={() => setContextOpen(!contextOpen)}
+                    >
+                      {contextOpen ? 'Hide details' : 'Show details'}
+                    </button>
+                  </div>
                 )}
               </div>
               <fieldset disabled={creator.picking || creator.busy} className="workspace-fields">
@@ -537,6 +549,7 @@ export default function App() {
                   presetName={presetName}
                   presetDescription={preset?.description}
                   fileSection={fileSection}
+                  onPreview={setPreviewPath}
                 />
               </aside>
             )}
@@ -575,6 +588,13 @@ export default function App() {
             if (!presetOverride) setPresetId(id);
           }}
           onApply={apply}
+        />
+      )}
+      {previewPath && form && (
+        <GeneratedFilesDialog
+          creator={creator}
+          initialPath={previewPath}
+          onClose={() => setPreviewPath(null)}
         />
       )}
     </div>

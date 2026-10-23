@@ -41,8 +41,13 @@ export function Overview({
     <div className="overview-layout creation-overview">
       <div className="overview-identity two-columns">
         <label className="field">
-          <span className="control-label">Project name</span>
+          <span className="control-label" id="project-name-label">
+            Project name
+          </span>
           <input
+            id="project-name"
+            aria-labelledby="project-name-label"
+            aria-describedby="repository-name-help"
             autoFocus
             value={form.name}
             placeholder="my-project"
@@ -52,7 +57,7 @@ export function Overview({
             aria-invalid={!!form.name && !!nameError(form.name)}
             onChange={(e) => creator.update('name', e.target.value)}
           />
-          <span className="help" aria-live="polite">
+          <span className="help" id="repository-name-help" aria-live="polite">
             Repository name: {normalizeProjectName(form.name) || 'Enter a project name'}
           </span>
           {form.name && nameError(form.name) && (
@@ -403,12 +408,14 @@ export function Context({
   section,
   presetName,
   fileSection,
+  onPreview,
 }: {
   creator: Creator;
   section: Section;
   presetName: string;
   presetDescription?: string;
   fileSection?: string;
+  onPreview: (path: string) => void;
 }) {
   const form = creator.form!;
   const files = creator.files;
@@ -484,7 +491,14 @@ export function Context({
         <div className="context-live-preview">
           <h4>
             {preview.path}
-            <span>Preview</span>
+            <button
+              type="button"
+              className="text-button"
+              aria-haspopup="dialog"
+              onClick={() => onPreview(preview.path)}
+            >
+              Expand preview <Icon name="external" size={12} />
+            </button>
           </h4>
           <pre className="context-code" tabIndex={0} aria-label={`${preview.path} preview`}>
             {preview.content}

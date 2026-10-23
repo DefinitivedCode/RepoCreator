@@ -7,6 +7,7 @@ const mockSource = readFileSync('node_modules/@tauri-apps/api/mocks.js', 'utf8')
 );
 const ignores = JSON.parse(readFileSync('src-tauri/resources/ignore-presets.json', 'utf8'));
 const studio = JSON.parse(readFileSync('src-tauri/resources/agent-studio.json', 'utf8'));
+export const applicationVersion = JSON.parse(readFileSync('package.json', 'utf8')).version;
 
 export async function prepare(
   page: Page,
@@ -77,7 +78,8 @@ export async function prepare(
       if(command==='get_catalog' && sessionStorage.getItem('failBootstrap')==='true') throw {message:'Could not load saved settings.',guidance:'Retry loading the application.'};
       if (command === 'get_catalog') return {studio,ignorePresets: ignores,builtInPresets: builtIns,defaultConfiguration: configuration};
       if (command === 'get_preferences') return structuredClone(preferences);
-      if (command === 'get_update_info') return {currentVersion: '1.4.1', configured: true};
+      if (command === 'get_update_info') return {currentVersion: window.testCurrentVersion || ${JSON.stringify(applicationVersion)}, configured: true};
+      if (command === 'open_update_link') return;
       if (command === 'set_update_preferences') { if(window.testUpdateSaveError) throw {message:'Could not save update settings.'}; preferences.updates=payload.updates; return structuredClone(preferences); }
       if (command === 'check_for_updates') {
         if(window.testUpdateError) throw {message:window.testUpdateError};

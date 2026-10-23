@@ -58,7 +58,7 @@ export function StudioAdvanced({
   return (
     <details className="studio-subsection studio-advanced">
       <summary>Advanced AI configuration</summary>
-      <div className="studio-section-body">
+      <div className="studio-section-body advanced-configuration-grid">
         <section className="settings-section">
           <h3>
             Project context <span className="help">optional, user-authored</span>

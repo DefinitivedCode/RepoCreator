@@ -446,6 +446,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             updates::get_update_info,
+            updates::open_update_link,
             updates::set_update_preferences,
             updates::check_for_updates,
             updates::download_update,

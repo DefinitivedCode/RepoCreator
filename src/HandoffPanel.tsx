@@ -248,7 +248,7 @@ export function PromptWorkspace({
     <section className="handoff-panel" aria-labelledby="handoff-heading">
       <div className="section-heading">
         <div>
-          <h2 id="handoff-heading">Plan with AI</h2>
+          <h3 id="handoff-heading">Plan with AI</h3>
           <p className="help">
             Create a prompt locally, review it, then paste it into your preferred chatbot. No
             project information is sent automatically.

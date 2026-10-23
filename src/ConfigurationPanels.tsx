@@ -18,6 +18,7 @@ export function FilePreview({
   error,
   expanded = false,
   created = false,
+  initialPath = 'README.md',
 }: {
   name: string;
   files: GeneratedFile[];
@@ -25,8 +26,9 @@ export function FilePreview({
   error: string;
   expanded?: boolean;
   created?: boolean;
+  initialPath?: string;
 }) {
-  const [selected, setSelected] = useState('README.md');
+  const [selected, setSelected] = useState(initialPath);
   const [search, setSearch] = useState('');
   const file = files.find((file) => file.path === selected) ?? files[0];
   interface TreeNode {

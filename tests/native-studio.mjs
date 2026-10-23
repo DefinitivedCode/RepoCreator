@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 export async function configureNativeStudio({ page, invoke, verifyOverview }) {
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();
   await page.getByLabel('Project preset', { exact: true }).selectOption('tauri');
-  await page.getByLabel('Project name', { exact: true }).fill('native-advanced');
+  await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('native-advanced');
   const description = 'Production workspace verification with six optional assistants.';
   await page.getByRole('textbox', { name: 'Description', exact: false }).fill(description);
   await verifyOverview?.('advanced');
@@ -69,7 +69,9 @@ export async function configureNativeStudio({ page, invoke, verifyOverview }) {
     .fill('Preserve keyboard navigation and public component contracts.');
   await page.getByRole('button', { name: 'Add scoped rule', exact: true }).click();
   await page.getByRole('button', { name: 'Simple', exact: true }).click();
-  await expect(page.getByLabel('Project name', { exact: true })).toHaveValue('native-advanced');
+  await expect(page.getByRole('textbox', { name: 'Project name', exact: true })).toHaveValue(
+    'native-advanced',
+  );
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();
   await nav.getByRole('button', { name: 'AI Agents', exact: true }).click();
   await tabs.getByRole('button', { name: 'Assistants', exact: true }).click();

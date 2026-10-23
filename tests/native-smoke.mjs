@@ -12,6 +12,9 @@ import { configureNativeStudio } from './native-studio.mjs';
 
 assert.equal(process.platform, 'win32', 'This smoke test requires Windows WebView2');
 const root = path.resolve(import.meta.dirname, '..');
+const applicationVersion = JSON.parse(
+  await readFile(path.join(root, 'package.json'), 'utf8'),
+).version;
 const temporaryRoot = path.resolve(os.tmpdir());
 const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-v1.4.0-'));
 const parent = path.join(temporary, 'Projects with spaces 日本語');
@@ -19,7 +22,7 @@ const settingsDirectory = path.join(temporary, 'isolated-app-data');
 const executable =
   process.env.REPO_CREATOR_SMOKE_EXE ||
   path.join(root, 'src-tauri', 'target', 'release', 'repo-creator.exe');
-const screenshots = path.join(root, 'artifacts', 'native-v1.4.0');
+const screenshots = path.join(root, 'artifacts', `native-v${applicationVersion}`);
 const names = ['preferences.json', 'preferences.json.bak', 'history.json', 'window.json'];
 const backups = new Map();
 let child,
@@ -248,7 +251,9 @@ if (-not [SmokeClose]::PostMessage($owned.MainWindowHandle, 0x0010, [IntPtr]::Ze
     })
     .toBe(true);
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30000 });
+  await page
+    .getByRole('textbox', { name: 'Project name', exact: true })
+    .waitFor({ timeout: 30000 });
   await expect
     .poll(() => page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
     .toEqual(wanted);
@@ -465,8 +470,12 @@ try {
   check(page, 'Production application page must load');
   page.on('pageerror', (error) => errors.push(error.message));
   page.setDefaultTimeout(15_000);
-  await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30_000 });
+  await page
+    .getByRole('textbox', { name: 'Project name', exact: true })
+    .waitFor({ timeout: 30_000 });
   assert.equal((await invoke('get_preferences')).schemaVersion, 5);
+  assert.equal((await invoke('get_update_info')).currentVersion, applicationVersion);
+  await expect(page.locator('.app-header .version')).toHaveText(applicationVersion);
   await expect(page.getByRole('button', { name: 'Simple', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -474,7 +483,7 @@ try {
   hostDisplay = await readHostDisplay();
   await screenshot('first-launch-monitor-bounds');
   await page.getByLabel('Starting point', { exact: true }).selectOption('blank');
-  await page.getByLabel('Project name', { exact: true }).fill('native-blank');
+  await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('native-blank');
   await identityIfNeeded();
   await verifyOverview('simple');
   await page.getByRole('button', { name: 'Browse technologies', exact: true }).click();
@@ -509,7 +518,7 @@ try {
   );
   await page.getByRole('button', { name: 'Create Another', exact: true }).click();
   await page.getByLabel('Starting point', { exact: true }).selectOption('experiment');
-  await page.getByLabel('Project name', { exact: true }).fill('native-experiment');
+  await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('native-experiment');
   const description = 'Explore a small local idea with a realistic first version.';
   await page.getByRole('textbox', { name: 'What are you making?', exact: false }).fill(description);
   await page.getByLabel('AI coding assistant', { exact: true }).selectOption('claude');
@@ -570,7 +579,7 @@ try {
   ])
     check(byPath[required], required);
   await page.getByRole('button', { name: 'Create Another', exact: true }).click();
-  await page.getByLabel('Project name', { exact: true }).fill('native-advanced');
+  await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('native-advanced');
   await page
     .getByRole('navigation', { name: 'Project setup' })
     .getByRole('button', { name: 'Review', exact: true })
@@ -591,7 +600,7 @@ try {
     if (error.code !== 'ENOENT') throw error;
   });
   const report = {
-    version: '1.4.0',
+    version: applicationVersion,
     checks: [
       'Production WebView2 and native IPC',
       'Simple Blank empty initial commit',

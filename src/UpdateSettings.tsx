@@ -1,5 +1,8 @@
 import type { Updates } from './useUpdates';
+import { lazy, Suspense } from 'react';
 import './updates.css';
+
+const ReleaseNotes = lazy(() => import('./ReleaseNotes'));
 
 export function UpdateSettings({ updates }: { updates: Updates }) {
   const { info, settings, offer, phase, progress, busy } = updates;
@@ -57,7 +60,15 @@ export function UpdateSettings({ updates }: { updates: Updates }) {
         <section className="update-offer" aria-label="Available update">
           <h4>Repo Creator {offer.version}</h4>
           <h5>Release notes</h5>
-          <pre className="update-notes">{offer.notes}</pre>
+          <Suspense
+            fallback={
+              <p className="help" role="status">
+                Loading release notes…
+              </p>
+            }
+          >
+            <ReleaseNotes>{offer.notes}</ReleaseNotes>
+          </Suspense>
           {phase === 'downloading' && (
             <div role="status">
               <p>

@@ -9,6 +9,9 @@ import path from 'node:path';
 
 assert.equal(process.platform, 'win32');
 const root = path.resolve(import.meta.dirname, '..');
+const applicationVersion = JSON.parse(
+  await readFile(path.join(root, 'package.json'), 'utf8'),
+).version;
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'repo-creator-workspace-'));
 const project = path.join(temporary, 'Project with spaces 日本語');
 const data = path.join(temporary, 'app-data');
@@ -155,8 +158,12 @@ try {
     })
     .toBe(true);
   page.on('pageerror', (error) => pageErrors.push(error.message));
-  await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30000 });
+  await page
+    .getByRole('textbox', { name: 'Project name', exact: true })
+    .waitFor({ timeout: 30000 });
   await expect(page.locator('.app-header').getByRole('combobox')).toHaveCount(0);
+  assert.equal((await invoke('get_update_info')).currentVersion, applicationVersion);
+  await expect(page.locator('.app-header .version')).toHaveText(applicationVersion);
   const freshPreferences = await invoke('get_preferences');
   assert.equal(freshPreferences.accent, 'teal');
   assert.equal(freshPreferences.customAccent, '#4FA69B');
@@ -487,7 +494,12 @@ try {
   assert.equal(saved.projects[0].pinned, true);
   assert.equal(saved.projects[0].commands.length, values.length);
   checks.push('Local preferences and commands persisted outside project source');
-  const report = { version: '1.4.0', platform: 'Windows native WebView2', checks, artifacts };
+  const report = {
+    version: applicationVersion,
+    platform: 'Windows native WebView2',
+    checks,
+    artifacts,
+  };
   await writeFile(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {
