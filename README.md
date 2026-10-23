@@ -5,16 +5,22 @@
 </picture>
 
 <p align="center">
-  <a href="https://github.com/DefinitivedCode/RepoCreator/actions/workflows/windows.yml"><img alt="Desktop CI on main" src="https://img.shields.io/github/actions/workflow/status/DefinitivedCode/RepoCreator/windows.yml?branch=main&amp;label=CI&amp;style=flat&amp;labelColor=202B33&amp;color=58646B"></a>
-  <a href="https://github.com/DefinitivedCode/RepoCreator/releases"><img alt="Latest release, including prereleases" src="https://img.shields.io/github/v/release/DefinitivedCode/RepoCreator?include_prereleases&amp;sort=semver&amp;label=release&amp;style=flat&amp;labelColor=202B33&amp;color=58646B"></a>
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/DefinitivedCode/RepoCreator?style=flat&amp;labelColor=202B33&amp;color=58646B"></a>
-  <a href="#download"><img alt="For Windows and macOS" src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-58646B?style=flat&amp;labelColor=202B33"></a>
-  <a href="docs/development.md"><img alt="Built with Tauri 2" src="https://img.shields.io/badge/Tauri-2-58646B?style=flat&amp;labelColor=202B33"></a>
+  <a href="https://github.com/DefinitivedCode/RepoCreator/actions/workflows/windows.yml"><img alt="Desktop CI on main" src="https://img.shields.io/github/actions/workflow/status/DefinitivedCode/RepoCreator/windows.yml?branch=main&amp;label=CI&amp;style=flat&amp;labelColor=202B33"></a>
+  <a href="https://github.com/DefinitivedCode/RepoCreator/releases"><img alt="Latest release, including prereleases" src="https://img.shields.io/github/v/release/DefinitivedCode/RepoCreator?include_prereleases&amp;sort=semver&amp;label=release&amp;style=flat&amp;labelColor=202B33&amp;color=E87B40"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/DefinitivedCode/RepoCreator?style=flat&amp;labelColor=202B33&amp;color=4E7C82"></a>
+  <a href="#download"><img alt="For Windows and macOS" src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-607D94?style=flat&amp;labelColor=202B33"></a>
+  <a href="docs/development.md"><img alt="Built with Tauri 2" src="https://img.shields.io/badge/Tauri-2-89785D?style=flat&amp;labelColor=202B33"></a>
 </p>
 
 A desktop workspace for starting Git repositories and returning to the projects you already have. Choose a stack, review the files, and create locally. Publish to GitHub when you're ready.
 
-**[Download](#download)** · **[Get started](#your-first-project)** · **[Documentation](docs/README.md)**
+<p align="center">
+  <strong><a href="#download">Download</a></strong>
+  &ensp; · &ensp;
+  <strong><a href="#your-first-project">Get started</a></strong>
+  &ensp; · &ensp;
+  <strong><a href="docs/README.md">Documentation</a></strong>
+</p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/overview-dark.png">
@@ -129,4 +135,14 @@ See [development and checks](docs/development.md) and [CONTRIBUTING.md](CONTRIBU
 
 ---
 
-[MIT License](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.txt) · [Documentation](docs/README.md)
+<p align="center">
+  <sub>Repo Creator · Make room for your next project.</sub>
+</p>
+
+<p align="center">
+  <a href="LICENSE">MIT License</a>
+  &emsp;
+  <a href="THIRD_PARTY_NOTICES.txt">Third-party notices</a>
+  &emsp;
+  <a href="docs/README.md">Documentation</a>
+</p>
