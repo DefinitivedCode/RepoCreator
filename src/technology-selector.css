@@ -26,12 +26,14 @@
 .technology-chips {
   display: flex;
   gap: 4px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: thin;
+  flex-wrap: wrap;
+  max-height: 58px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2px;
   min-width: 0;
 }
-button.technology-chip {
+.desktop-app button.technology-chip {
   flex: 0 0 auto;
   min-height: 25px;
   padding: 3px 7px;
@@ -249,6 +251,7 @@ dialog.technology-dialog[open] {
 }
 .technology-dialog-chips {
   flex: 1;
+  max-height: 82px;
 }
 .technology-custom-row {
   display: flex;

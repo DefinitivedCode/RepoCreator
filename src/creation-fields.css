@@ -108,17 +108,26 @@
   color: var(--muted);
   font-weight: 400;
 }
-.creation-context .context-code {
+.desktop-app .creation-context .context-code {
   margin: 0;
   min-height: 80px;
   max-height: 220px;
   padding: 12px;
-  font-size: 11px;
+  font-size: 12px;
   overflow: auto;
   border: 1px solid var(--separator);
   border-radius: 3px;
   background: var(--background);
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+.context-live-preview h4 {
+  flex-wrap: wrap;
+}
+.context-live-preview h4 .text-button {
+  font-size: 11px;
+  font-weight: 400;
 }
 .context-stack {
   padding-top: 4px;
@@ -157,6 +166,12 @@
   flex-direction: column;
   gap: 16px;
   max-width: 900px;
+}
+.desktop-app .settings-page > * {
+  max-width: 1000px;
+}
+.setup-identity > .two-columns {
+  max-width: 800px;
 }
 .setup-summary {
   display: flex;
@@ -291,6 +306,10 @@
 .setup-account > p {
   font-size: 13px;
   color: var(--muted);
+}
+.setup-account {
+  display: grid;
+  gap: 12px;
 }
 .setup-tools-note {
   margin: 0;

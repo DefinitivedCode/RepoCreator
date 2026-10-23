@@ -29,8 +29,10 @@ test('agent selection, rules, specialists, scoped configuration and previews rea
     .fill('Keep café 🦀 exact.\n<script>window.injected = true</script>');
   await agentTab(page, 'Specialists & Skills');
   await page.locator('.specialist-panel > summary').click();
-  for (const role of await page.locator('.studio-role-list').getByRole('checkbox').all())
-    await role.check();
+  const specialistRoles = page.locator('.studio-role-list').getByRole('checkbox');
+  // all() does not wait for the opening disclosure to expose its controls.
+  await expect(specialistRoles).toHaveCount(7);
+  for (const role of await specialistRoles.all()) await role.check();
   await agentTab(page, 'Advanced');
   await page.getByText('Advanced AI configuration', { exact: true }).click();
   await page.getByLabel('Codex project configuration', { exact: true }).check();

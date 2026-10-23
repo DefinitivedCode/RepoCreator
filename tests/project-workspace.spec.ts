@@ -426,7 +426,10 @@ test('discovery requires command and directory review, streams output and stops 
   await expect(page.locator('.run-summary')).toContainText('exit 2');
   await expect(page.getByLabel('Build application output')).toContainText('Compilation failed');
   mkdirSync('artifacts/workspace-ui', { recursive: true });
-  await page.screenshot({ path: `artifacts/workspace-ui/commands-${testInfo.project.name}.png` });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/commands-${testInfo.project.name}.png`,
+  });
   const calls = await page.evaluate(() => (window as any).testCalls);
   expect(calls.filter((call: any) => call.command === 'run_project_command')).toHaveLength(2);
   expect(calls.find((call: any) => call.command === 'run_project_command').payload.confirmed).toBe(
@@ -436,7 +439,7 @@ test('discovery requires command and directory review, streams output and stops 
 
 test('command editor preserves structured arguments and shell mode, reorder and saved state', async ({
   page,
-}) => {
+}, info) => {
   await workspaceFixture(page);
   await openWorkspace(page);
   await section(page, 'Commands');
@@ -448,6 +451,23 @@ test('command editor preserves structured arguments and shell mode, reorder and 
     .fill('--test\nfolder with spaces/test.js');
   await page.getByLabel('Working directory', { exact: true }).fill('frontend');
   await page.getByLabel('Environment overrides · non-secret values only').fill('NODE_ENV=test');
+  mkdirSync('artifacts/workspace-ui', { recursive: true });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/command-editor-${info.project.name}.png`,
+  });
+  await page.setViewportSize({ width: 820, height: 580 });
+  const dialog = page.getByRole('dialog');
+  await page.getByRole('button', { name: 'Save command', exact: true }).scrollIntoViewIfNeeded();
+  expect(await dialog.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+  await expect(page.getByRole('button', { name: 'Save command', exact: true })).toBeInViewport({
+    ratio: 1,
+  });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/command-editor-minimum-${info.project.name}.png`,
+  });
+  await page.setViewportSize({ width: 1100, height: 740 });
   await page.getByRole('button', { name: 'Save command', exact: true }).click();
   await expect(page.locator('.command-card')).toContainText('folder with spaces/test.js');
   await page.getByRole('button', { name: 'Add command', exact: true }).click();
@@ -542,7 +562,10 @@ test('success launcher keeps base actions unique and handoff fully visible at th
       .locator('.completion-content')
       .evaluate((element) => element.scrollHeight - element.clientHeight),
   ).toBeLessThanOrEqual(1);
-  await page.screenshot({ path: `artifacts/workspace-ui/success-${testInfo.project.name}.png` });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/success-${testInfo.project.name}.png`,
+  });
 });
 
 test('workspace layout keeps the default Simple creation screen contained and fits the minimum window', async ({
@@ -557,18 +580,33 @@ test('workspace layout keeps the default Simple creation screen contained and fi
       .evaluate((element) => element.scrollHeight - element.clientHeight),
   ).toBeLessThanOrEqual(1);
   mkdirSync('artifacts/workspace-ui', { recursive: true });
-  await page.screenshot({ path: `artifacts/workspace-ui/new-${testInfo.project.name}.png` });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/new-${testInfo.project.name}.png`,
+  });
   await workspaceFixture(page);
-  await page.screenshot({ path: `artifacts/workspace-ui/library-${testInfo.project.name}.png` });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/library-${testInfo.project.name}.png`,
+  });
   await openWorkspace(page);
-  await page.screenshot({ path: `artifacts/workspace-ui/overview-${testInfo.project.name}.png` });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/overview-${testInfo.project.name}.png`,
+  });
   await section(page, 'Open');
-  await page.screenshot({ path: `artifacts/workspace-ui/tools-${testInfo.project.name}.png` });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/tools-${testInfo.project.name}.png`,
+  });
   await page.setViewportSize({ width: 820, height: 580 });
   await section(page, 'Commands');
   await expect(page.getByRole('button', { name: 'Add command', exact: true })).toBeVisible();
   expect(await page.locator('body').evaluate((element) => element.scrollWidth)).toBe(820);
-  await page.screenshot({ path: `artifacts/workspace-ui/minimum-${testInfo.project.name}.png` });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `artifacts/workspace-ui/minimum-${testInfo.project.name}.png`,
+  });
 });
 
 test('refined workspace screens remain readable at default, minimum and wide dimensions', async ({
@@ -577,15 +615,18 @@ test('refined workspace screens remain readable at default, minimum and wide dim
   mkdirSync('artifacts/refinement-workspace', { recursive: true });
   await workspaceFixture(page);
   await page.screenshot({
+    animations: 'disabled',
     path: `artifacts/refinement-workspace/library-${testInfo.project.name}.png`,
   });
   await openWorkspace(page);
   await page.screenshot({
+    animations: 'disabled',
     path: `artifacts/refinement-workspace/overview-${testInfo.project.name}.png`,
   });
   await section(page, 'Open');
   await expect(page.locator('.available-tool')).toHaveCount(4);
   await page.screenshot({
+    animations: 'disabled',
     path: `artifacts/refinement-workspace/open-${testInfo.project.name}.png`,
   });
   await section(page, 'Commands');
@@ -595,16 +636,19 @@ test('refined workspace screens remain readable at default, minimum and wide dim
     'C:\\Projects\\River Workbench',
   );
   await page.screenshot({
+    animations: 'disabled',
     path: `artifacts/refinement-workspace/commands-${testInfo.project.name}.png`,
   });
   await section(page, 'Project Settings');
   await expect(page.locator('.advanced-executables > summary')).toBeInViewport({ ratio: 1 });
   await page.screenshot({
+    animations: 'disabled',
     path: `artifacts/refinement-workspace/settings-${testInfo.project.name}.png`,
   });
   await page.locator('.advanced-executables > summary').click();
   await page.getByLabel('VS Code executable').scrollIntoViewIfNeeded();
   await page.screenshot({
+    animations: 'disabled',
     path: `artifacts/refinement-workspace/advanced-${testInfo.project.name}.png`,
   });
   for (const size of [
@@ -648,6 +692,7 @@ test('refined workspace screens remain readable at default, minimum and wide dim
     page.getByRole('button', { name: 'Open project workspace', exact: true }),
   ).toBeVisible();
   await page.screenshot({
+    animations: 'disabled',
     path: `artifacts/refinement-workspace/success-${testInfo.project.name}.png`,
   });
 });

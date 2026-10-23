@@ -3,10 +3,10 @@
   gap: 16px;
   max-width: 720px;
 }
-.update-settings h3,
-.update-settings h4,
-.update-settings h5,
-.update-settings p {
+.desktop-app .update-settings > div > h3,
+.desktop-app .update-settings > div > p,
+.desktop-app .update-settings > p,
+.desktop-app .update-offer > :is(h4, h5, p) {
   margin: 0;
 }
 .update-offer {
@@ -14,12 +14,56 @@
   gap: 12px;
 }
 .update-notes {
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
-  max-height: 240px;
+  max-height: min(42vh, 360px);
   overflow: auto;
   font: inherit;
   margin: 0;
+  padding: 16px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius);
+  background: var(--surface);
+  line-height: 1.65;
+  scroll-padding: 16px;
+}
+.update-notes > * + * {
+  margin-top: 12px;
+}
+.desktop-app .update-notes :is(h1, h2, h3, h4, h5, h6) {
+  font-size: 14px;
+  line-height: 1.4;
+  margin-block: 16px 8px;
+  letter-spacing: 0;
+}
+.desktop-app .update-notes > :first-child {
+  margin-top: 0;
+}
+.update-notes :is(ul, ol) {
+  padding-left: 22px;
+  margin-bottom: 0;
+}
+.update-notes li + li {
+  margin-top: 4px;
+}
+.update-notes pre {
+  padding: 10px;
+  background: var(--secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.update-notes :not(pre) > code {
+  padding: 1px 4px;
+  background: var(--secondary);
+  border-radius: 2px;
+}
+.update-notes blockquote {
+  margin-inline: 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+}
+.update-notes a {
+  text-underline-offset: 3px;
 }
 .update-settings progress {
   width: 100%;
