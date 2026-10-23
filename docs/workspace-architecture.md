@@ -33,6 +33,9 @@ Native commands:
 | `run_project_command`      | `projectId`, `commandId`, `confirmed`      | CommandRun                                                        |
 | `list_command_runs`        | `projectId`                                | CommandRun[]                                                      |
 | `stop_project_command`     | `runId`                                    | void                                                              |
+| `get_project_readiness`    | `id`                                       | `{ checks, probes }` from read-only inspection                    |
+| `run_readiness_check`      | `id`                                       | `{ checks, cancelled }` from the user-started full check          |
+| `cancel_readiness_check`   | `id`                                       | void                                                              |
 
 The frontend polls bounded run snapshots while the commands view is open. Native
 reader threads collect stdout and stderr without blocking the UI. Imported

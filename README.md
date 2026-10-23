@@ -18,6 +18,7 @@ A desktop application for creating and configuring Git repositories on Windows a
 - Keep a searchable project library with pinned projects and local workspaces.
 - Open editors, terminals and supported coding assistants in the project folder.
 - Save project commands, follow live output and stop running processes.
+- Check whether a project looks ready to build and run, with suggested fixes.
 
 ## Download
 

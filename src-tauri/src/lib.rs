@@ -11,6 +11,7 @@ mod preferences;
 mod preset_commands;
 mod process;
 mod process_tree;
+mod readiness;
 mod repository;
 mod settings_commands;
 mod technologies;
@@ -430,6 +431,7 @@ pub fn run() {
                 busy: AtomicBool::new(false),
             }));
             app.manage(Arc::new(command_runner::CommandRunner::default()));
+            app.manage(Arc::new(readiness::ReadinessChecks::default()));
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -483,6 +485,9 @@ pub fn run() {
             command_runner::run_project_command,
             command_runner::list_command_runs,
             command_runner::stop_project_command,
+            readiness::get_project_readiness,
+            readiness::run_readiness_check,
+            readiness::cancel_readiness_check,
             settings_commands::get_catalog,
             settings_commands::preview_files,
             settings_commands::save_configuration,

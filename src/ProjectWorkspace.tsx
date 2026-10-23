@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './icons';
+import { WorkspaceDialog } from './WorkspaceDialog';
+import { Readiness, readinessChecks, useReadiness } from './Readiness';
+import { countLabel, summarize } from './readinessModel';
 import { appError, displayPath } from './validation';
 import { PromptWorkspace } from './HandoffPanel';
 import { TechnologySelector } from './WorkspaceFields';
@@ -312,6 +315,8 @@ function ProjectWorkspace({
     }
   }
   const project = workspace?.project;
+  const readiness = useReadiness(project, !!workspace?.exists);
+  const attention = workspace ? summarize(readinessChecks(readiness, workspace)).attention : 0;
   return (
     <main className="project-workspace-page rc-project-workspace" aria-label="Project workspace">
       {error && (
@@ -354,18 +359,29 @@ function ProjectWorkspace({
               ['overview', 'Overview'],
               ['open', 'Open'],
               ['commands', 'Commands'],
+              ['readiness', 'Readiness'],
               ['settings', 'Project Settings'],
             ].map(([value, label]) => (
               <button
                 type="button"
                 key={value}
                 aria-pressed={tab === value}
+                aria-label={
+                  value === 'readiness' && attention > 0
+                    ? `${label}, ${countLabel('attention', attention)}`
+                    : undefined
+                }
                 onClick={() => {
                   setTab(value);
                   setHandoff(false);
                 }}
               >
                 {label}
+                {value === 'readiness' && attention > 0 && (
+                  <span className="tab-count" aria-hidden="true">
+                    {attention}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -485,6 +501,15 @@ function ProjectWorkspace({
                 onChange={(next) => setWorkspace({ ...workspace, project: normalize(next) })}
                 presets={commandPresets}
                 onSavePreset={onSaveCommandPreset}
+              />
+            )}
+            {tab === 'readiness' && (
+              <Readiness
+                project={project}
+                workspace={workspace}
+                readiness={readiness}
+                copy={copy}
+                onOpenCommands={() => setTab('commands')}
               />
             )}
             {tab === 'settings' && (
@@ -1482,37 +1507,6 @@ function Commands({
         </WorkspaceDialog>
       )}
     </section>
-  );
-}
-
-function WorkspaceDialog({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: ReactNode;
-  onClose: () => void;
-}) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
-  return (
-    <dialog
-      className="workspace-dialog rc-workspace-dialog"
-      ref={dialog}
-      onCancel={onClose}
-      aria-label={title}
-    >
-      <div className="dialog-heading">
-        <h2>{title}</h2>
-        <button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose}>
-          <Icon name="close" size={17} />
-        </button>
-      </div>
-      {children}
-    </dialog>
   );
 }
 

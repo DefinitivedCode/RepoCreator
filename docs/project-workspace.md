@@ -65,7 +65,8 @@ Passive discovery checks filesystem locations only. It never starts an editor,
 assistant, terminal, browser, authentication flow, or `--help`/`--version` probe.
 Results use a short bounded cache; explicit refresh bypasses it. Antigravity's
 `agy` CLI and IDE are detected independently. Only choosing a launch action starts
-an external application.
+an external application. The Readiness full check described below is the only
+place that starts `--version` probes, and only after you choose **Run full check**.
 
 Choose a terminal preference and, when automatic discovery cannot find a tool,
 provide an absolute executable path under **Advanced Executable Configuration**
@@ -153,3 +154,49 @@ working directories. Imported commands are always marked for review. Shell
 commands and absolute executable locations may need editing on another platform.
 Review all authored text before sharing a preset; do not put secrets into command
 arguments, descriptions or shell text.
+
+## Check readiness
+
+**Readiness** explains whether a project appears ready to build and run. Each
+result is **Ready**, **Needs attention**, **Not checked** or **Could not check**,
+with a short explanation and, where possible, a suggested fix to copy. Repo
+Creator never applies a suggested fix. **Inferred** results rely on files being
+present rather than a verified state.
+
+The automatic inspection runs when the workspace opens and on **Refresh**. It
+reads a fixed set of files in the project root with the same 1 MiB limit as command
+discovery, and only files that resolve inside the project: `package.json`,
+lockfiles, `.nvmrc`/`.node-version`, `Cargo.toml`, `rust-toolchain(.toml)` and
+`pyproject.toml`. It locates Node.js, the package manager, Cargo, rustup and Python
+with passive discovery, checks for `.gitignore`, `node_modules` and `.env` beside
+an `.env.example` (existence only; `.env` contents are never read), validates saved
+executable commands and their working directories, and reuses the workspace Git
+status. It starts no programs, contacts no network service and writes nothing.
+Malformed or unreadable manifests are reported as **Could not check**. Yarn
+Plug'n'Play installs, Shell-mode commands and nested projects are not verified.
+
+**Run full check** first lists exactly which programs will run and which contact
+the network. Version probes (`node --version`, `rustc --version`, `python3
+--version` or `python --version` on Windows, and `rustup target list --installed`)
+run only for tools the project needs, from an empty temporary folder so project
+version-manager files cannot install runtimes, with a 20-second limit and bounded
+output. Rust probes disable rustup auto-installation, run a toolchain named by
+`rust-toolchain.toml` only after confirming it is already installed, and never run
+a project-defined toolchain `path`. On macOS, the `/usr/bin/python3` placeholder
+that offers to install developer tools is not started.
+
+The remote check reads the remote address from the repository, then runs
+`git ls-remote <address> HEAD` from the temporary folder with the existing
+non-interactive Git environment, so the project's own Git configuration cannot
+choose helpers or programs. Only network transports are contacted; local paths
+and helper transports are skipped. Addresses are shown without credentials. For
+GitHub remotes the existing GitHub CLI account check also runs. Cancelling stops
+the remaining steps; an in-progress probe ends within its time limit.
+
+Project commands are optional and never selected automatically. Only saved,
+enabled and already reviewed commands can be chosen; development servers and
+deployments are excluded. Before they run, a confirmation lists every command and
+working directory and explains that they run the project's own code with your
+permissions and may change files or use the network. Selected commands run one at
+a time through the normal command runner, appear in **Commands**, and can be
+stopped with **Cancel**. Leaving the project cancels a running full check.

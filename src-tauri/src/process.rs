@@ -10,13 +10,23 @@ use std::{
 pub enum Program {
     Git,
     Gh,
+    // Readiness version probes. They run only after an explicit full check.
+    Node,
+    Rustc,
+    Rustup,
+    Python,
 }
 
 impl Program {
-    fn executable(self) -> &'static str {
+    pub(crate) fn executable(self) -> &'static str {
         match self {
             Self::Git => "git",
             Self::Gh => "gh",
+            Self::Node => "node",
+            Self::Rustc => "rustc",
+            Self::Rustup => "rustup",
+            Self::Python if cfg!(windows) => "python",
+            Self::Python => "python3",
         }
     }
 }
@@ -215,6 +225,10 @@ pub fn command(program: Program, args: &[String], cwd: &Path) -> Command {
         .env("GH_HOST", "github.com")
         .env("GH_PROMPT_DISABLED", "1")
         .env("GH_NO_UPDATE_NOTIFIER", "1");
+    if matches!(program, Program::Rustc | Program::Rustup) {
+        // A version probe must never download a toolchain named by a project file.
+        command.env("RUSTUP_AUTO_INSTALL", "0");
+    }
     // A desktop launch must not inherit a caller's repository or injected Git config.
     for (key, _) in std::env::vars_os() {
         let name = key.to_string_lossy();
@@ -232,38 +246,54 @@ pub fn command(program: Program, args: &[String], cwd: &Path) -> Command {
 
 impl Runner for SystemRunner {
     fn run(&self, program: Program, args: &[String], cwd: &Path) -> Result<Output, String> {
-        if resolve_executable(program.executable()).is_none() {
-            return Err("unavailable".into());
-        }
-        let mut child = command(program, args, cwd)
-            .spawn()
-            .map_err(|_| "unavailable".to_string())?;
-        let stdout = child.stdout.take().ok_or("stdout unavailable")?;
-        let reader = thread::spawn(move || {
-            let mut bytes = Vec::new();
-            // Bound output memory. All commands in this app return small, structured output.
-            let _ = stdout.take(1024 * 1024).read_to_end(&mut bytes);
-            String::from_utf8_lossy(&bytes).trim().to_string()
-        });
-        let started = Instant::now();
-        let status = loop {
-            match child.try_wait() {
-                Ok(Some(status)) => break status,
-                Ok(None) if started.elapsed() < Duration::from_secs(120) => {
-                    thread::sleep(Duration::from_millis(40))
-                }
-                _ => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return Err("timed out".into());
-                }
-            }
-        };
-        Ok(Output {
-            success: status.success(),
-            stdout: reader.join().unwrap_or_default(),
-        })
+        run_bounded(program, args, cwd, Duration::from_secs(120))
     }
+}
+
+/// The same bounded execution as `SystemRunner`, with a shorter caller-chosen timeout.
+pub struct BoundedRunner(pub Duration);
+
+impl Runner for BoundedRunner {
+    fn run(&self, program: Program, args: &[String], cwd: &Path) -> Result<Output, String> {
+        run_bounded(program, args, cwd, self.0)
+    }
+}
+
+fn run_bounded(
+    program: Program,
+    args: &[String],
+    cwd: &Path,
+    timeout: Duration,
+) -> Result<Output, String> {
+    if resolve_executable(program.executable()).is_none() {
+        return Err("unavailable".into());
+    }
+    let mut child = command(program, args, cwd)
+        .spawn()
+        .map_err(|_| "unavailable".to_string())?;
+    let stdout = child.stdout.take().ok_or("stdout unavailable")?;
+    let reader = thread::spawn(move || {
+        let mut bytes = Vec::new();
+        // Bound output memory. All commands in this app return small, structured output.
+        let _ = stdout.take(1024 * 1024).read_to_end(&mut bytes);
+        String::from_utf8_lossy(&bytes).trim().to_string()
+    });
+    let started = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if started.elapsed() < timeout => thread::sleep(Duration::from_millis(40)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err("timed out".into());
+            }
+        }
+    };
+    Ok(Output {
+        success: status.success(),
+        stdout: reader.join().unwrap_or_default(),
+    })
 }
 
 pub fn args(values: &[&str]) -> Vec<String> {
