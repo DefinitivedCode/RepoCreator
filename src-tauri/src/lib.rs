@@ -486,6 +486,7 @@ pub fn run() {
             command_runner::list_command_runs,
             command_runner::stop_project_command,
             readiness::get_project_readiness,
+            readiness::prepare_readiness_check,
             readiness::run_readiness_check,
             readiness::cancel_readiness_check,
             settings_commands::get_catalog,

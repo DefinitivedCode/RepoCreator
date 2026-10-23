@@ -18,12 +18,14 @@ import {
   errorText,
   gitCheck,
   groupChecks,
+  isPlan,
   isReport,
   mergeChecks,
   statusLabels,
   summarize,
   type FullReadinessReport,
   type ReadinessCheck,
+  type ReadinessPlan,
   type ReadinessReport,
   type ReadinessStatus,
 } from './readinessModel';
@@ -122,10 +124,12 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
   async function runCommand(projectId: string, command: ProjectCommand) {
     let run: CommandRun;
     try {
+      // The backend runs it only if the saved definition still matches what was confirmed.
       run = await invoke<CommandRun>('run_project_command', {
         projectId,
         commandId: command.id,
         confirmed: false,
+        expected: command,
       });
     } catch (value) {
       return commandResult(command, null, errorText(value));
@@ -151,8 +155,18 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
     currentRun.current = '';
     return commandResult(command, run);
   }
-  async function runFull(commands: ProjectCommand[]) {
-    if (!id || running.current) return;
+  async function prepare(): Promise<ReadinessPlan | string> {
+    if (!id) return 'Readiness information is unavailable.';
+    try {
+      const plan = await invoke<ReadinessPlan>('prepare_readiness_check', { id });
+      return isPlan(plan) ? plan : 'The full check could not be prepared.';
+    } catch (value) {
+      return errorText(value);
+    }
+  }
+  /** Returns an error when the reviewed plan was rejected before anything ran. */
+  async function runFull(token: string, commands: ProjectCommand[]): Promise<string | null> {
+    if (!id || running.current) return null;
     running.current = true;
     cancelled.current = false;
     setError('');
@@ -165,13 +179,17 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
     let results: ReadinessCheck[] = [];
     let interrupted = false;
     try {
-      const result = await invoke<FullReadinessReport>('run_readiness_check', { id });
+      const result = await invoke<FullReadinessReport>('run_readiness_check', { id, token });
       if (result && Array.isArray(result.checks)) {
         results = result.checks.map((check) => ({ ...check, fullCheck: true }));
         interrupted = !!result.cancelled;
       }
     } catch (value) {
-      if (mounted.current) setError(errorText(value));
+      // A stale or unknown plan ran nothing; the user reviews again before commands run.
+      running.current = false;
+      if (mounted.current)
+        setFull({ running: false, step: '', finishedAt: null, cancelled: false });
+      return errorText(value);
     }
     if (mounted.current) setVerified(results);
     for (const command of commands) {
@@ -188,6 +206,7 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
         finishedAt: Date.now(),
         cancelled: interrupted || cancelled.current,
       });
+    return null;
   }
   async function cancel() {
     cancelled.current = true;
@@ -204,7 +223,8 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
     checkedAt,
     full,
     refresh: () => void inspect(true),
-    runFull: (commands: ProjectCommand[]) => void runFull(commands),
+    prepare,
+    runFull,
     cancel: () => void cancel(),
   };
 }
@@ -231,6 +251,9 @@ export function Readiness({
   onOpenCommands: () => void;
 }) {
   const [stage, setStage] = useState<'closed' | 'plan' | 'confirm'>('closed');
+  const [plan, setPlan] = useState<ReadinessPlan | null>(null);
+  const [notice, setNotice] = useState('');
+  const [preparing, setPreparing] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [copied, setCopied] = useState('');
   if (!workspace.exists)
@@ -245,7 +268,7 @@ export function Readiness({
     );
   const checks = readinessChecks(readiness, workspace);
   const counts = summarize(checks);
-  const probes = readiness.report?.probes ?? [];
+  const probes = plan?.probes ?? [];
   const chosen = project.commands.filter(
     (command) => selected.includes(command.id) && !commandEligibility(command),
   );
@@ -254,11 +277,30 @@ export function Readiness({
   function close() {
     setStage('closed');
     setSelected([]);
+    setPlan(null);
+    setNotice('');
   }
-  function start() {
+  async function review(message = '') {
+    setPreparing(true);
+    const prepared = await readiness.prepare();
+    setPreparing(false);
+    if (typeof prepared === 'string') {
+      close();
+      setNotice(prepared);
+      return;
+    }
+    setPlan(prepared);
+    setNotice(message);
+    setStage('plan');
+  }
+  async function start() {
+    if (!plan) return;
     const commands = chosen;
+    const token = plan.token;
     close();
-    readiness.runFull(commands);
+    const rejected = await readiness.runFull(token, commands);
+    // Nothing ran: show the current plan and require a fresh confirmation.
+    if (rejected) await review(rejected);
   }
   async function copyFix(check: ReadinessCheck) {
     if (!check.fix) return;
@@ -289,10 +331,10 @@ export function Readiness({
           <button
             type="button"
             className="primary"
-            disabled={full.running || !readiness.report}
-            onClick={() => setStage('plan')}
+            disabled={full.running || preparing || !readiness.report}
+            onClick={() => void review()}
           >
-            Run full check
+            {preparing ? 'Preparing…' : 'Run full check'}
           </button>
         </div>
       </div>
@@ -333,9 +375,9 @@ export function Readiness({
           </button>
         </div>
       )}
-      {readiness.error && (
+      {(readiness.error || (stage === 'closed' && notice)) && (
         <p role="alert" className="field-error">
-          {readiness.error}
+          {readiness.error || notice}
         </p>
       )}
       {groupChecks(checks).map((section) => (
@@ -398,11 +440,17 @@ export function Readiness({
       ))}
       {stage === 'plan' && (
         <WorkspaceDialog title="Run full check" onClose={close}>
+          {notice && (
+            <p role="alert" className="field-error">
+              {notice}
+            </p>
+          )}
           <p className="help">
             The full check starts only the programs listed here. It never installs anything or
             applies a suggested fix. You can cancel it at any time.
           </p>
           <h3 className="readiness-dialog-heading">Programs that will run</h3>
+          {!probes.length && <p className="help">No programs need to run for this project.</p>}
           <ul className="readiness-probes">
             {probes.map((probe) => (
               <li key={probe.id}>
@@ -464,7 +512,7 @@ export function Readiness({
             <button
               type="button"
               className="primary"
-              onClick={() => (chosen.length ? setStage('confirm') : start())}
+              onClick={() => (chosen.length ? setStage('confirm') : void start())}
             >
               {chosen.length ? `Review ${commandCount}` : 'Run checks'}
             </button>
@@ -504,7 +552,7 @@ export function Readiness({
             <button type="button" onClick={() => setStage('plan')}>
               Back
             </button>
-            <button type="button" className="primary" onClick={start}>
+            <button type="button" className="primary" onClick={() => void start()}>
               Run {commandCount}
             </button>
           </div>

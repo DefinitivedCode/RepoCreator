@@ -172,11 +172,21 @@ with passive discovery, checks for `.gitignore`, `node_modules` and `.env` besid
 an `.env.example` (existence only; `.env` contents are never read), validates saved
 executable commands and their working directories, and reuses the workspace Git
 status. It starts no programs, contacts no network service and writes nothing.
-Malformed or unreadable manifests are reported as **Could not check**. Yarn
-Plug'n'Play installs, Shell-mode commands and nested projects are not verified.
+Malformed or unreadable manifests, unreadable `.nvmrc`/`.node-version` files and
+requirements of the wrong type (for example a numeric `engines.node`,
+`rust-version` or toolchain `channel`, or `targets` that are not a list of target
+names) are reported as **Could not check**: the requirement is unknown, so neither
+tier reports that version as Ready, and an invalid toolchain never falls back to
+the default compiler. Yarn Plug'n'Play installs, Shell-mode commands and nested
+projects are not verified.
 
-**Run full check** first lists exactly which programs will run and which contact
-the network. Version probes (`node --version`, `rustc --version`, `python3
+**Run full check** first prepares a plan and lists exactly which programs will
+run, with their arguments, and which contact the network. Preparing reads the
+repository's remotes with read-only Git commands. Confirming runs that plan once:
+immediately before it runs, Repo Creator rebuilds the plan and refuses it if any
+program, argument, compared requirement or remote changed, for example because a
+project file was edited while the list was open. Nothing runs in that case; the
+updated list is shown for a new confirmation. Version probes (`node --version`, `rustc --version`, `python3
 --version` or `python --version` on Windows, and `rustup target list --installed`)
 run only for tools the project needs, from an empty temporary folder so project
 version-manager files cannot install runtimes, with a 20-second limit and bounded
@@ -190,13 +200,17 @@ The remote check reads the remote address from the repository, then runs
 non-interactive Git environment, so the project's own Git configuration cannot
 choose helpers or programs. Only network transports are contacted; local paths
 and helper transports are skipped. Addresses are shown without credentials. For
-GitHub remotes the existing GitHub CLI account check also runs. Cancelling stops
-the remaining steps; an in-progress probe ends within its time limit.
+GitHub remotes the existing GitHub CLI account check also runs. Each probe and all
+of its descendants run as one process group (macOS) or job (Windows). The time
+limit and **Cancel** cover the program's exit and its output: a background
+descendant that keeps the output open is ended rather than waited for, and
+descendants are ended when a probe finishes.
 
 Project commands are optional and never selected automatically. Only saved,
 enabled and already reviewed commands can be chosen; development servers and
 deployments are excluded. Before they run, a confirmation lists every command and
 working directory and explains that they run the project's own code with your
 permissions and may change files or use the network. Selected commands run one at
-a time through the normal command runner, appear in **Commands**, and can be
-stopped with **Cancel**. Leaving the project cancels a running full check.
+a time through the normal command runner, only if each saved definition still
+matches what was confirmed, appear in **Commands**, and can be stopped with
+**Cancel**. Leaving the project cancels a running full check.

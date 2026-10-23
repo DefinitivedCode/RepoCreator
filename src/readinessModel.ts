@@ -32,6 +32,10 @@ export interface ReadinessProbe {
 }
 export interface ReadinessReport {
   checks: ReadinessCheck[];
+}
+/** The exact programs a full check will run; the token confirms this plan only. */
+export interface ReadinessPlan {
+  token: string;
   probes: ReadinessProbe[];
 }
 export interface FullReadinessReport {
@@ -69,10 +73,15 @@ export function errorText(error: unknown): string {
 }
 export function isReport(value: unknown): value is ReadinessReport {
   return (
+    typeof value === 'object' && value !== null && Array.isArray((value as ReadinessReport).checks)
+  );
+}
+export function isPlan(value: unknown): value is ReadinessPlan {
+  return (
     typeof value === 'object' &&
     value !== null &&
-    Array.isArray((value as ReadinessReport).checks) &&
-    Array.isArray((value as ReadinessReport).probes)
+    typeof (value as ReadinessPlan).token === 'string' &&
+    Array.isArray((value as ReadinessPlan).probes)
   );
 }
 

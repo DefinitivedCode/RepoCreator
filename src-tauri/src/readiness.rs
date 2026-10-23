@@ -14,7 +14,7 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex,
     },
     time::Duration,
@@ -42,7 +42,7 @@ pub enum Status {
     CouldNotCheck,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Check {
     pub id: String,
@@ -88,7 +88,7 @@ impl Check {
     }
 }
 
-/// A program the full check would start, listed before the user runs it.
+/// A program the full check will start, as listed to the user before it runs.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Probe {
@@ -101,7 +101,6 @@ pub struct Probe {
 #[serde(rename_all = "camelCase")]
 pub struct Report {
     pub checks: Vec<Check>,
-    pub probes: Vec<Probe>,
 }
 
 #[derive(Debug, Serialize)]
@@ -181,16 +180,27 @@ fn shown(path: &Path) -> String {
     clean(&text, 400)
 }
 
+/// A declared requirement: absent, a value to compare, or present but unusable.
+#[derive(Clone, Debug, Default, PartialEq)]
+enum Declared {
+    #[default]
+    Absent,
+    Value(String),
+    /// Present but unreadable or of the wrong type, so the requirement is unknown.
+    Invalid(String),
+}
 #[derive(Default)]
 struct Node {
     manager: &'static str,
     declared_manager: bool,
+    /// package.json was read and parsed.
+    manifest: bool,
     lockfiles: Vec<&'static str>,
-    requirements: Vec<(&'static str, String)>,
+    requirements: Vec<(&'static str, Declared)>,
     dependencies: bool,
     plug_n_play: bool,
 }
-#[derive(Default, PartialEq, Debug)]
+#[derive(Clone, Default, PartialEq, Debug)]
 enum Toolchain {
     #[default]
     Default,
@@ -200,14 +210,15 @@ enum Toolchain {
 }
 #[derive(Default)]
 struct Rust {
-    rust_version: Option<String>,
+    rust_version: Declared,
     toolchain: Toolchain,
     toolchain_file: &'static str,
     targets: Vec<String>,
+    targets_error: Option<String>,
 }
 #[derive(Default)]
 struct Python {
-    requires: Option<String>,
+    requires: Declared,
 }
 #[derive(Default)]
 struct Facts {
@@ -257,11 +268,13 @@ fn node_facts(root: &Path, facts: &mut Facts) {
             .ok()
             .filter(|value| value.is_object()),
     };
-    if value.is_none() {
+    let manifest = value.is_some();
+    if !manifest {
         facts.problems.push(unreadable("package.json"));
     }
     let value = value.unwrap_or_default();
     let mut node = Node {
+        manifest,
         lockfiles: LOCKFILES
             .iter()
             .filter(|(file, _)| root.join(file).is_file())
@@ -294,20 +307,114 @@ fn node_facts(root: &Path, facts: &mut Facts) {
         .or(declared)
         .unwrap_or("npm");
     node.declared_manager = declared == Some(node.manager);
-    if let Some(range) = value["engines"]["node"].as_str() {
-        node.requirements
-            .push(("package.json engines", clean(range, 100)));
+    // An unreadable manifest or wrongly typed range leaves the requirement unknown.
+    let engines = match value.get("engines") {
+        _ if !manifest => Some(Err("package.json could not be read")),
+        None => None,
+        Some(engines) if !engines.is_object() => {
+            Some(Err("engines in package.json is not an object"))
+        }
+        Some(engines) => engines.get("node").map(|range| {
+            range
+                .as_str()
+                .ok_or("engines.node in package.json is not a version range")
+        }),
+    };
+    match engines {
+        None => {}
+        Some(Ok(range)) => node
+            .requirements
+            .push(("package.json engines", Declared::Value(clean(range, 100)))),
+        Some(Err(reason)) => node
+            .requirements
+            .push(("package.json engines", Declared::Invalid(reason.into()))),
     }
     for file in [".nvmrc", ".node-version"] {
-        if let FileRead::Text(text) = read_scoped(root, file) {
-            if let Some(line) = first_line(&text) {
-                node.requirements.push((file, line));
-            }
-        }
+        let declared = match read_scoped(root, file) {
+            FileRead::Missing => continue,
+            FileRead::Unreadable => Declared::Invalid(format!("{file} could not be read")),
+            FileRead::Text(text) => match first_line(&text) {
+                Some(line) => Declared::Value(line),
+                None => Declared::Invalid(format!("{file} doesn't name a version")),
+            },
+        };
+        node.requirements.push((file, declared));
     }
     facts.node = Some(node);
 }
 
+fn rust_version(manifest: &toml::Value) -> Declared {
+    let inherited = manifest
+        .get("workspace")
+        .and_then(|w| w.get("package"))
+        .and_then(|p| p.get("rust-version"));
+    let value =
+        match manifest.get("package") {
+            // A package uses the workspace value only when it opts in.
+            Some(package) => match package.get("rust-version") {
+                None => return Declared::Absent,
+                Some(value) if value.get("workspace").is_some() => match inherited {
+                    Some(value) => value,
+                    None => return Declared::Invalid(
+                        "Cargo.toml inherits rust-version from a workspace that doesn't declare it"
+                            .into(),
+                    ),
+                },
+                Some(value) => value,
+            },
+            None => match inherited {
+                Some(value) => value,
+                None => return Declared::Absent,
+            },
+        };
+    match value.as_str() {
+        Some(version)
+            if parse_version(version).is_some()
+                && version.bytes().all(|c| c.is_ascii_digit() || c == b'.') =>
+        {
+            Declared::Value(clean(version, 40))
+        }
+        _ => Declared::Invalid("rust-version in Cargo.toml is not a version number".into()),
+    }
+}
+/// Fields of a TOML `[toolchain]` table are validated by type; nothing falls back silently.
+fn toml_toolchain(toolchain: &toml::Value, file: &str, rust: &mut Rust) -> Toolchain {
+    let Some(table) = toolchain.as_table() else {
+        return Toolchain::Invalid;
+    };
+    match table.get("targets") {
+        None => {}
+        Some(toml::Value::Array(items)) if items.len() <= 32 => {
+            match items
+                .iter()
+                .map(|item| item.as_str().filter(|t| valid_target(t)).map(str::to_string))
+                .collect::<Option<Vec<_>>>()
+            {
+                Some(targets) => rust.targets = targets,
+                None => {
+                    rust.targets_error = Some(format!(
+                        "{file} lists targets that aren't valid target names, so required targets are unknown."
+                    ))
+                }
+            }
+        }
+        Some(_) => {
+            rust.targets_error = Some(format!(
+                "targets in {file} must be a list of up to 32 target names, so required targets are unknown."
+            ))
+        }
+    }
+    if table.contains_key("path") {
+        return Toolchain::CustomPath;
+    }
+    match table.get("channel") {
+        None => Toolchain::Default,
+        Some(toml::Value::String(channel)) if valid_channel(channel) => {
+            Toolchain::Channel(channel.clone())
+        }
+        Some(_) => Toolchain::Invalid,
+    }
+}
 fn rust_facts(root: &Path, facts: &mut Facts) {
     let manifest = match read_scoped(root, "Cargo.toml") {
         FileRead::Missing => return,
@@ -317,18 +424,13 @@ fn rust_facts(root: &Path, facts: &mut Facts) {
     let mut rust = Rust::default();
     match &manifest {
         Some(value) if value.get("package").is_some() || value.get("workspace").is_some() => {
-            let package = value.get("package").and_then(|p| p.get("rust-version"));
-            let inherited = value
-                .get("workspace")
-                .and_then(|w| w.get("package"))
-                .and_then(|p| p.get("rust-version"));
-            rust.rust_version = package
-                .and_then(|v| v.as_str())
-                .or_else(|| inherited.and_then(|v| v.as_str()))
-                .map(|v| clean(v, 40));
+            rust.rust_version = rust_version(value);
         }
         Some(_) => return,
-        None => facts.problems.push(unreadable("Cargo.toml")),
+        None => {
+            facts.problems.push(unreadable("Cargo.toml"));
+            rust.rust_version = Declared::Invalid("Cargo.toml could not be read".into());
+        }
     }
     // rustup prefers the legacy file when both exist.
     for file in ["rust-toolchain", "rust-toolchain.toml"] {
@@ -344,31 +446,7 @@ fn rust_facts(root: &Path, facts: &mut Facts) {
         rust.toolchain_file = file;
         rust.toolchain = match toml::from_str::<toml::Value>(&text) {
             Ok(value) if value.get("toolchain").is_some() => {
-                let toolchain = &value["toolchain"];
-                rust.targets = toolchain
-                    .get("targets")
-                    .and_then(|t| t.as_array())
-                    .map(|targets| {
-                        targets
-                            .iter()
-                            .filter_map(|t| t.as_str())
-                            .filter(|t| valid_target(t))
-                            .take(32)
-                            .map(str::to_string)
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                if toolchain.get("path").is_some() {
-                    Toolchain::CustomPath
-                } else {
-                    match toolchain.get("channel").and_then(|c| c.as_str()) {
-                        Some(channel) if valid_channel(channel) => {
-                            Toolchain::Channel(channel.into())
-                        }
-                        Some(_) => Toolchain::Invalid,
-                        None => Toolchain::Default,
-                    }
-                }
+                toml_toolchain(&value["toolchain"], file, &mut rust)
             }
             _ if file == "rust-toolchain" => match first_line(&text) {
                 Some(line) if line.contains(['/', '\\']) || line.starts_with('.') => {
@@ -389,23 +467,23 @@ fn python_facts(root: &Path, facts: &mut Facts) {
     let markers = ["pytest.ini", "requirements.txt"]
         .iter()
         .any(|file| root.join(file).is_file());
+    let unreadable_project = |facts: &mut Facts| {
+        facts.problems.push(unreadable("pyproject.toml"));
+        Declared::Invalid("pyproject.toml could not be read".into())
+    };
     let requires = match pyproject {
         FileRead::Missing if !markers => return,
-        FileRead::Missing => None,
-        FileRead::Unreadable => {
-            facts.problems.push(unreadable("pyproject.toml"));
-            None
-        }
+        FileRead::Missing => Declared::Absent,
+        FileRead::Unreadable => unreadable_project(facts),
         FileRead::Text(text) => match toml::from_str::<toml::Value>(&text) {
-            Ok(value) => value
-                .get("project")
-                .and_then(|p| p.get("requires-python"))
-                .and_then(|v| v.as_str())
-                .map(|v| clean(v, 100)),
-            Err(_) => {
-                facts.problems.push(unreadable("pyproject.toml"));
-                None
-            }
+            Ok(value) => match value.get("project").and_then(|p| p.get("requires-python")) {
+                None => Declared::Absent,
+                Some(toml::Value::String(value)) => Declared::Value(clean(value, 100)),
+                Some(_) => Declared::Invalid(
+                    "requires-python in pyproject.toml is not a version specifier".into(),
+                ),
+            },
+            Err(_) => unreadable_project(facts),
         },
     };
     facts.python = Some(Python { requires });
@@ -445,18 +523,41 @@ fn python_name() -> &'static str {
 fn requirement_checks(facts: &Facts, checks: &mut Vec<Check>) {
     let pending = "Run a full check to compare it with the installed version.";
     if let Some(node) = &facts.node {
-        if !node.requirements.is_empty() {
-            let declared = node
-                .requirements
+        let check = Check::new("version-node", "requirements", "Node.js version");
+        let invalid: Vec<&str> = node
+            .requirements
+            .iter()
+            .filter_map(|(_, declared)| match declared {
+                Declared::Invalid(reason) => Some(reason.as_str()),
+                _ => None,
+            })
+            .collect();
+        let ranges: Vec<(&str, &str)> = node
+            .requirements
+            .iter()
+            .filter_map(|(source, declared)| match declared {
+                Declared::Value(range) => Some((*source, range.as_str())),
+                _ => None,
+            })
+            .collect();
+        let declared = ranges
+            .iter()
+            .map(|(source, range)| format!("{range} ({source})"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        if !invalid.is_empty() {
+            checks.push(check.status(
+                Status::CouldNotCheck,
+                format!(
+                    "{}, so the required Node.js version is unknown.",
+                    invalid.join("; ")
+                ),
+            ));
+        } else if !ranges.is_empty() {
+            let comparable = ranges
                 .iter()
-                .map(|(source, value)| format!("{value} ({source})"))
-                .collect::<Vec<_>>()
-                .join(", ");
-            let comparable = node
-                .requirements
-                .iter()
-                .all(|(_, value)| node_satisfies([0, 0, 0], value).is_some());
-            checks.push(Check::new("version-node", "requirements", "Node.js version").status(
+                .all(|(_, range)| node_satisfies([0, 0, 0], range).is_some());
+            checks.push(check.status(
                 Status::NotChecked,
                 if comparable {
                     format!("Requires Node.js {declared}. {pending}")
@@ -468,60 +569,68 @@ fn requirement_checks(facts: &Facts, checks: &mut Vec<Check>) {
     }
     if let Some(rust) = &facts.rust {
         let file = rust.toolchain_file;
+        let toolchain = Check::new("toolchain-rust", "requirements", "Rust toolchain");
         match &rust.toolchain {
-            Toolchain::Default => {}
-            Toolchain::Channel(channel) => checks.push(
-                Check::new("toolchain-rust", "requirements", "Rust toolchain").status(
-                    Status::NotChecked,
-                    format!("{file} selects the {channel} toolchain. {}", "Run a full check to confirm it's installed."),
-                ),
-            ),
-            Toolchain::CustomPath => checks.push(
-                Check::new("toolchain-rust", "requirements", "Rust toolchain").status(
-                    Status::NotChecked,
-                    format!("{file} points to a custom toolchain folder. Repo Creator doesn't run programs from a project-defined toolchain."),
-                ),
-            ),
-            Toolchain::Invalid => checks.push(
-                Check::new("toolchain-rust", "requirements", "Rust toolchain").status(
-                    Status::CouldNotCheck,
-                    format!("{file} could not be read or names an unsupported toolchain."),
-                ),
-            ),
+            Toolchain::Default if file.is_empty() => {}
+            Toolchain::Default => checks.push(toolchain.status(
+                Status::NotChecked,
+                format!("{file} doesn't name a channel, so the default toolchain applies. Run a full check to see its version."),
+            )),
+            Toolchain::Channel(channel) => checks.push(toolchain.status(
+                Status::NotChecked,
+                format!("{file} selects the {channel} toolchain. Run a full check to confirm it's installed."),
+            )),
+            Toolchain::CustomPath => checks.push(toolchain.status(
+                Status::NotChecked,
+                format!("{file} points to a custom toolchain folder. Repo Creator doesn't run programs from a project-defined toolchain."),
+            )),
+            Toolchain::Invalid => checks.push(toolchain.status(
+                Status::CouldNotCheck,
+                format!("{file} could not be read or its channel isn't a valid toolchain name, so the toolchain is unknown."),
+            )),
         }
-        if let Some(version) = &rust.rust_version {
-            checks.push(
-                Check::new("version-rust", "requirements", "Rust version").status(
-                    Status::NotChecked,
-                    format!(
-                        "Requires Rust {version} or newer (Cargo.toml rust-version). {pending}"
-                    ),
-                ),
-            );
+        let version = Check::new("version-rust", "requirements", "Rust version");
+        match &rust.rust_version {
+            Declared::Absent => {}
+            Declared::Value(required) => checks.push(version.status(
+                Status::NotChecked,
+                format!("Requires Rust {required} or newer (Cargo.toml rust-version). {pending}"),
+            )),
+            Declared::Invalid(reason) => checks.push(version.status(
+                Status::CouldNotCheck,
+                format!("{reason}, so the required Rust version is unknown."),
+            )),
         }
-        if !rust.targets.is_empty() {
-            checks.push(
-                Check::new("targets-rust", "requirements", "Rust targets").status(
-                    Status::NotChecked,
-                    format!(
-                        "{file} requires {}. Run a full check to confirm they're installed.",
-                        rust.targets.join(", ")
-                    ),
+        let targets = Check::new("targets-rust", "requirements", "Rust targets");
+        if let Some(error) = &rust.targets_error {
+            checks.push(targets.status(Status::CouldNotCheck, error.clone()));
+        } else if !rust.targets.is_empty() {
+            checks.push(targets.status(
+                Status::NotChecked,
+                format!(
+                    "{file} requires {}. Run a full check to confirm they're installed.",
+                    rust.targets.join(", ")
                 ),
-            );
+            ));
         }
     }
-    if let Some(requires) = facts.python.as_ref().and_then(|p| p.requires.as_ref()) {
-        checks.push(
-            Check::new("version-python", "requirements", "Python version").status(
+    if let Some(python) = &facts.python {
+        let check = Check::new("version-python", "requirements", "Python version");
+        match &python.requires {
+            Declared::Absent => {}
+            Declared::Value(requires) => checks.push(check.status(
                 Status::NotChecked,
                 if python_satisfies([0, 0, 0], requires).is_some() {
                     format!("Requires Python {requires} (pyproject.toml). {pending}")
                 } else {
                     format!("Requires Python {requires} (pyproject.toml). Repo Creator can't compare this requirement automatically.")
                 },
-            ),
-        );
+            )),
+            Declared::Invalid(reason) => checks.push(check.status(
+                Status::CouldNotCheck,
+                format!("{reason}, so the required Python version is unknown."),
+            )),
+        }
     }
 }
 
@@ -589,7 +698,12 @@ fn dependency_checks(root: &Path, facts: &Facts, checks: &mut Vec<Check>) {
         return;
     };
     let check = Check::new("dependencies-node", "dependencies", "Node.js dependencies");
-    checks.push(if !node.dependencies {
+    checks.push(if !node.manifest {
+        check.status(
+            Status::CouldNotCheck,
+            "package.json could not be read, so dependencies weren't checked.",
+        )
+    } else if !node.dependencies {
         check.status(Status::Ready, "package.json declares no dependencies.")
     } else if node.plug_n_play {
         check.status(
@@ -661,44 +775,6 @@ fn command_check(root: &Path, command: &ProjectCommand) -> Check {
                 "Install {executable}, or edit the command to use its full path."
             )),
     }
-}
-
-fn planned_probes(facts: &Facts, env: &Environment) -> Vec<Probe> {
-    let mut probes = Vec::new();
-    let mut add = |id, label: String, network| probes.push(Probe { id, label, network });
-    if facts
-        .node
-        .as_ref()
-        .is_some_and(|n| n.manager != "bun" || !n.requirements.is_empty())
-        && (env.find)("node").is_some()
-    {
-        add("node", "node --version".into(), false);
-    }
-    if let Some(rust) = &facts.rust {
-        let prefix = match &rust.toolchain {
-            Toolchain::Channel(channel) => format!("+{channel} "),
-            Toolchain::Default => String::new(),
-            _ => "-".into(),
-        };
-        if prefix != "-" && (env.find)("rustc").is_some() {
-            add("rustc", format!("rustc {prefix}--version"), false);
-            if !rust.targets.is_empty() && (env.find)("rustup").is_some() {
-                add("rustup", "rustup target list --installed".into(), false);
-            }
-        }
-    }
-    if facts.python.is_some() && !env.python_stub && (env.find)(python_name()).is_some() {
-        add("python", format!("{} --version", python_name()), false);
-    }
-    add(
-        "remote",
-        "git remote, git config and git ls-remote <remote> HEAD from a neutral folder".into(),
-        true,
-    );
-    if (env.find)("gh").is_some() {
-        add("github", "gh api user (GitHub remotes only)".into(), true);
-    }
-    probes
 }
 
 pub(crate) fn inspect(root: &Path, commands: &[ProjectCommand], env: &Environment) -> Report {
@@ -783,10 +859,7 @@ pub(crate) fn inspect(root: &Path, commands: &[ProjectCommand], env: &Environmen
             .take(64)
             .map(|command| command_check(&root, command)),
     );
-    Report {
-        probes: planned_probes(&facts, env),
-        checks,
-    }
+    Report { checks }
 }
 
 // Versions are compared as major.minor.patch. Pre-release forms are not guessed.
@@ -981,21 +1054,12 @@ fn developer_tools_stub() -> bool {
         .iter()
         .any(|path| Path::new(path).exists())
 }
-fn probe_version(
-    runner: &dyn Runner,
-    program: Program,
-    arguments: &[&str],
-    cwd: &Path,
-) -> Result<Version, &'static str> {
-    let output = runner
-        .run(program, &args(arguments), cwd)
-        .map_err(|reason| {
-            if reason == "timed out" {
-                "timed out"
-            } else {
-                "unavailable"
-            }
-        })?;
+fn version_of(result: Result<process::Output, String>) -> Result<Version, &'static str> {
+    let output = result.map_err(|reason| match reason.as_str() {
+        "timed out" => "timed out",
+        "cancelled" => "cancelled",
+        _ => "unavailable",
+    })?;
     if !output.success {
         return Err("failed");
     }
@@ -1019,209 +1083,6 @@ fn probe_failure(check: Check, program: &str, reason: &str) -> Check {
         "timed out" => check.status(Status::CouldNotCheck, format!("{program} didn't respond in time.")),
         _ => check.status(Status::CouldNotCheck, format!("{program} didn't report a version.")),
     }
-}
-
-fn node_version(facts: &Facts, runner: &dyn Runner, neutral: &Path) -> Option<Check> {
-    let node = facts.node.as_ref()?;
-    let check = Check::new("version-node", "requirements", "Node.js version");
-    // A neutral folder keeps project version-manager files from installing runtimes.
-    let version = match probe_version(runner, Program::Node, &["--version"], neutral) {
-        Ok(version) => version,
-        Err(reason) => return Some(probe_failure(check, "node", reason)),
-    };
-    let installed = shown_version(version);
-    let mut unknown = Vec::new();
-    for (source, range) in &node.requirements {
-        match node_satisfies(version, range) {
-            Some(true) => {}
-            Some(false) => {
-                return Some(
-                    check
-                        .status(Status::Attention, format!("Node.js {installed} is installed, but this project requires {range} ({source})."))
-                        .fix(format!("Install a Node.js version matching {range}, then select Refresh.")),
-                )
-            }
-            None => unknown.push(format!("{range} ({source})")),
-        }
-    }
-    Some(if !unknown.is_empty() {
-        check.status(
-            Status::CouldNotCheck,
-            format!(
-                "Node.js {installed} is installed. Repo Creator couldn't evaluate {}.",
-                unknown.join(", ")
-            ),
-        )
-    } else if node.requirements.is_empty() {
-        check.status(Status::Ready, format!("Node.js {installed} is installed."))
-    } else {
-        check.status(
-            Status::Ready,
-            format!("Node.js {installed} meets this project's requirement."),
-        )
-    })
-}
-
-fn rust_checks(
-    facts: &Facts,
-    env: &Environment,
-    runner: &dyn Runner,
-    neutral: &Path,
-    cancel: &AtomicBool,
-) -> Vec<Check> {
-    let Some(rust) = &facts.rust else {
-        return Vec::new();
-    };
-    let mut checks = Vec::new();
-    let toolchain = Check::new("toolchain-rust", "requirements", "Rust toolchain");
-    let version = Check::new("version-rust", "requirements", "Rust version");
-    let rustup = (env.find)("rustup").is_some();
-    let channel = match &rust.toolchain {
-        Toolchain::Channel(channel) => {
-            if !rustup {
-                checks.push(
-                    toolchain
-                        .status(
-                            Status::CouldNotCheck,
-                            format!(
-                                "{} selects {channel}, but rustup wasn't found.",
-                                rust.toolchain_file
-                            ),
-                        )
-                        .fix("Install rustup from https://rustup.rs"),
-                );
-                checks.push(
-                    version.status(Status::NotChecked, "Install the project's toolchain first."),
-                );
-                return checks;
-            }
-            match toolchain_installed(channel, env.rustup_home.as_deref()) {
-                Some(true) => Some(channel.as_str()),
-                Some(false) => {
-                    checks.push(
-                        toolchain
-                            .status(
-                                Status::Attention,
-                                format!(
-                                    "The {channel} toolchain from {} isn't installed.",
-                                    rust.toolchain_file
-                                ),
-                            )
-                            .fix(format!("rustup toolchain install {channel}")),
-                    );
-                    checks.push(
-                        version
-                            .status(Status::NotChecked, "Install the project's toolchain first."),
-                    );
-                    return checks;
-                }
-                None => {
-                    // Without confirming the toolchain exists, running it could make
-                    // older rustup versions download it.
-                    checks.push(toolchain.status(Status::CouldNotCheck, format!("Couldn't confirm that the {channel} toolchain is installed, so it wasn't run.")));
-                    return checks;
-                }
-            }
-        }
-        Toolchain::Default => None,
-        _ => return checks,
-    };
-    if cancel.load(Ordering::Acquire) {
-        return checks;
-    }
-    let plus = channel.map(|c| format!("+{c}"));
-    let mut arguments: Vec<&str> = plus.iter().map(String::as_str).collect();
-    arguments.push("--version");
-    let installed = match probe_version(runner, Program::Rustc, &arguments, neutral) {
-        Ok(installed) => installed,
-        Err(reason) => {
-            checks.push(probe_failure(version, "rustc", reason));
-            return checks;
-        }
-    };
-    let shown = shown_version(installed);
-    if let Some(channel) = channel {
-        checks.push(toolchain.status(
-            Status::Ready,
-            format!("The {channel} toolchain is installed (rustc {shown})."),
-        ));
-    }
-    checks.push(match rust.rust_version.as_deref() {
-        Some(required) => match parse_version(required) {
-            Some(minimum) if installed >= minimum => version.status(Status::Ready, format!("rustc {shown} meets rust-version {required}.")),
-            Some(_) => version.status(Status::Attention, format!("rustc {shown} is installed, but Cargo.toml requires Rust {required} or newer.")).fix(match channel {
-                Some(_) => format!("Update the toolchain in {} to {required} or newer.", rust.toolchain_file),
-                None => "rustup update stable".into(),
-            }),
-            None => version.status(Status::CouldNotCheck, format!("rustc {shown} is installed. Repo Creator couldn't read rust-version {required}.")),
-        },
-        None => version.status(Status::Ready, format!("rustc {shown} is installed.")),
-    });
-    if rust.targets.is_empty() || !rustup || cancel.load(Ordering::Acquire) {
-        return checks;
-    }
-    let targets = Check::new("targets-rust", "requirements", "Rust targets");
-    let mut arguments = vec!["target", "list", "--installed"];
-    if let Some(channel) = channel {
-        arguments.extend(["--toolchain", channel]);
-    }
-    checks.push(match runner.run(Program::Rustup, &args(&arguments), neutral) {
-        Ok(output) if output.success => {
-            let installed: Vec<&str> = output.stdout.lines().map(str::trim).collect();
-            let missing: Vec<&String> = rust.targets.iter().filter(|t| !installed.contains(&t.as_str())).collect();
-            match missing.first() {
-                None => targets.status(Status::Ready, format!("Required targets are installed: {}.", rust.targets.join(", "))),
-                Some(first) => {
-                    let toolchain = channel.map(|c| format!(" --toolchain {c}")).unwrap_or_default();
-                    targets.status(Status::Attention, format!("Rust is installed, but the target {} required by {} is missing.", missing.iter().map(|t| t.as_str()).collect::<Vec<_>>().join(", "), rust.toolchain_file)).fix(format!("rustup target add {first}{toolchain}"))
-                }
-            }
-        }
-        Ok(_) => targets.status(Status::CouldNotCheck, "rustup couldn't list installed targets."),
-        Err(reason) => probe_failure(targets, "rustup", &reason),
-    });
-    checks
-}
-
-fn python_version(
-    facts: &Facts,
-    env: &Environment,
-    runner: &dyn Runner,
-    neutral: &Path,
-) -> Option<Check> {
-    let python = facts.python.as_ref()?;
-    let check = Check::new("version-python", "requirements", "Python version");
-    if env.python_stub {
-        return Some(probe_failure(check, python_name(), "stub"));
-    }
-    let version = match probe_version(runner, Program::Python, &["--version"], neutral) {
-        Ok(version) => version,
-        Err(reason) => return Some(probe_failure(check, python_name(), reason)),
-    };
-    let installed = shown_version(version);
-    Some(match python.requires.as_deref() {
-        None => check.status(Status::Ready, format!("Python {installed} is installed.")),
-        Some(requires) => match python_satisfies(version, requires) {
-            Some(true) => check.status(
-                Status::Ready,
-                format!("Python {installed} meets requires-python {requires}."),
-            ),
-            Some(false) => check
-                .status(
-                    Status::Attention,
-                    format!(
-                        "Python {installed} is installed, but this project requires {requires}."
-                    ),
-                )
-                .fix(format!("Install a Python version matching {requires}.")),
-            None => check.status(
-                Status::CouldNotCheck,
-                format!(
-                    "Python {installed} is installed. Repo Creator couldn't evaluate {requires}."
-                ),
-            ),
-        },
-    })
 }
 
 /// Remote URLs may contain credentials. Only network transports are contacted and
@@ -1258,22 +1119,160 @@ fn remote_target(url: &str) -> Option<(String, String)> {
     }
     Some((host.to_ascii_lowercase(), format!("{host}:{path}")))
 }
-fn remote_checks(
-    root: &Path,
-    env: &Environment,
-    local: &dyn Runner,
-    remote: &dyn Runner,
-    neutral: &Path,
-    cancel: &AtomicBool,
-) -> Vec<Check> {
+
+/// What results are compared against, captured when the plan is prepared.
+#[derive(Clone, Debug, Default, PartialEq)]
+struct Inputs {
+    node: Vec<(&'static str, Declared)>,
+    rust_version: Declared,
+    channel: Option<String>,
+    toolchain_file: &'static str,
+    targets: Vec<String>,
+    python: Declared,
+    /// The displayed address and name of the contacted remote.
+    remote: Option<(String, String)>,
+}
+/// One program the full check starts, exactly as it was listed to the user.
+#[derive(Clone, Debug, PartialEq)]
+struct Step {
+    id: &'static str,
+    program: Program,
+    args: Vec<String>,
+    label: String,
+    network: bool,
+}
+/// A reviewed full check. It runs only if rebuilding it immediately before
+/// execution produces an identical plan.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct Plan {
+    steps: Vec<Step>,
+    /// Results decided without starting a program.
+    decided: Vec<Check>,
+    inputs: Inputs,
+}
+impl Plan {
+    fn step(
+        &mut self,
+        id: &'static str,
+        program: Program,
+        args: Vec<String>,
+        label: String,
+        network: bool,
+    ) {
+        self.steps.push(Step {
+            id,
+            program,
+            args,
+            label,
+            network,
+        });
+    }
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanView {
+    pub token: String,
+    pub probes: Vec<Probe>,
+}
+
+fn rust_plan(rust: &Rust, env: &Environment, plan: &mut Plan) {
+    plan.inputs.rust_version = rust.rust_version.clone();
+    plan.inputs.toolchain_file = rust.toolchain_file;
+    if (env.find)("rustc").is_none() {
+        return;
+    }
+    let file = rust.toolchain_file;
+    let toolchain = Check::new("toolchain-rust", "requirements", "Rust toolchain");
+    let version = Check::new("version-rust", "requirements", "Rust version");
+    let compare_later = |plan: &mut Plan| {
+        if rust.rust_version != Declared::Absent {
+            plan.decided.push(version.clone().status(
+                Status::NotChecked,
+                "The project's toolchain isn't available to run, so its version wasn't compared.",
+            ));
+        }
+    };
+    let rustup = (env.find)("rustup").is_some();
+    let channel = match &rust.toolchain {
+        Toolchain::Default => None,
+        // Tier 1 explains an unusable toolchain file; no compiler is run for it.
+        Toolchain::CustomPath | Toolchain::Invalid => return compare_later(plan),
+        Toolchain::Channel(channel) if !rustup => {
+            plan.decided.push(
+                toolchain
+                    .status(
+                        Status::CouldNotCheck,
+                        format!("{file} selects {channel}, but rustup wasn't found."),
+                    )
+                    .fix("Install rustup from https://rustup.rs"),
+            );
+            return compare_later(plan);
+        }
+        Toolchain::Channel(channel) => {
+            match toolchain_installed(channel, env.rustup_home.as_deref()) {
+                Some(true) => Some(channel.clone()),
+                Some(false) => {
+                    plan.decided.push(
+                        toolchain
+                            .status(
+                                Status::Attention,
+                                format!("The {channel} toolchain from {file} isn't installed."),
+                            )
+                            .fix(format!("rustup toolchain install {channel}")),
+                    );
+                    return compare_later(plan);
+                }
+                None => {
+                    // Running an unconfirmed toolchain could make older rustup versions download it.
+                    plan.decided.push(toolchain.status(
+                    Status::CouldNotCheck,
+                    format!("Couldn't confirm that the {channel} toolchain is installed, so it wasn't run."),
+                ));
+                    return compare_later(plan);
+                }
+            }
+        }
+    };
+    plan.inputs.channel = channel.clone();
+    let mut arguments: Vec<String> = channel.iter().map(|c| format!("+{c}")).collect();
+    arguments.push("--version".into());
+    let label = format!("rustc {}", arguments.join(" "));
+    plan.step("rustc", Program::Rustc, arguments, label, false);
+    if rust.targets_error.is_some() || rust.targets.is_empty() {
+        return;
+    }
+    plan.inputs.targets = rust.targets.clone();
+    if rustup {
+        let mut arguments = args(&["target", "list", "--installed"]);
+        if let Some(channel) = &channel {
+            arguments.extend(["--toolchain".into(), channel.clone()]);
+        }
+        let label = format!("rustup {}", arguments.join(" "));
+        plan.step("rustup", Program::Rustup, arguments, label, false);
+    } else {
+        plan.decided.push(
+            Check::new("targets-rust", "requirements", "Rust targets")
+                .status(
+                    Status::CouldNotCheck,
+                    "rustup wasn't found, so installed targets couldn't be listed.",
+                )
+                .fix("Install rustup from https://rustup.rs"),
+        );
+    }
+}
+
+fn remote_plan(root: &Path, env: &Environment, local: &dyn Runner, plan: &mut Plan) {
     let check = Check::new("remote", "remote", "Git remote access").network();
+    let mut decide =
+        |status, detail: String| plan.decided.push(check.clone().status(status, detail));
+    // Reading remotes and configuration runs no repository-configured programs.
     let names = match local.run(Program::Git, &args(&["remote"]), root) {
         Ok(output) if output.success => output.stdout,
         _ => {
-            return vec![check.status(
+            return decide(
                 Status::CouldNotCheck,
-                "Couldn't list this repository's remotes.",
-            )]
+                "Couldn't list this repository's remotes.".into(),
+            )
         }
     };
     let names: Vec<&str> = names
@@ -1292,135 +1291,409 @@ fn remote_checks(
         .find(|name| **name == "origin")
         .or(names.first())
     else {
-        return vec![check.status(
+        return decide(
             Status::NotChecked,
-            "No Git remote is configured, so nothing was contacted.",
-        )];
+            "No Git remote is configured, so nothing was contacted.".into(),
+        );
     };
-    // Reading configuration runs no repository-configured programs.
     let url = match local.run(
         Program::Git,
         &args(&["config", "--get", &format!("remote.{name}.url")]),
         root,
     ) {
-        Ok(output) if output.success => output.stdout,
+        Ok(output) if output.success => output.stdout.trim().to_string(),
         _ => {
-            return vec![check.status(
+            return decide(
                 Status::CouldNotCheck,
                 format!("Couldn't read the address of remote {name}."),
-            )]
+            )
         }
     };
-    let Some((host, display)) = remote_target(url.trim()) else {
-        return vec![check.status(
+    let Some((host, display)) = remote_target(&url) else {
+        return decide(
             Status::NotChecked,
             format!(
                 "Remote {name} uses a local path or unsupported transport, so it wasn't contacted."
             ),
-        )];
+        );
     };
     let display = clean(&display, 200);
-    if cancel.load(Ordering::Acquire) {
-        return Vec::new();
-    }
-    // Contact the remote from a neutral folder with the validated address, so the
-    // project's own Git configuration cannot select programs or helpers.
-    let mut arguments = Vec::new();
+    // Only the user's own configuration may choose an SSH command.
     let custom_ssh = local
         .run(
             Program::Git,
-            &args(&["config", "--get", "core.sshCommand"]),
-            neutral,
+            &args(&["config", "--global", "--get", "core.sshCommand"]),
+            root,
         )
         .is_ok_and(|output| output.success && !output.stdout.is_empty());
+    let mut arguments = Vec::new();
     if !custom_ssh {
         arguments.extend(args(&["-c", "core.sshCommand=ssh -o BatchMode=yes"]));
     }
-    arguments.extend(args(&["ls-remote", url.trim(), "HEAD"]));
-    let mut checks = vec![match remote.run(Program::Git, &arguments, neutral) {
-        Ok(output) if output.success => check.status(Status::Ready, format!("Reached {display} ({name}) with your Git credentials.")),
-        Ok(_) => check.status(Status::Attention, format!("Couldn't access {display} ({name}). Check the address, your connection and your Git sign-in.")).fix(format!("git ls-remote {name}")),
-        Err(reason) if reason == "timed out" => check.status(Status::CouldNotCheck, format!("{display} didn't respond within {} seconds.", REMOTE_TIMEOUT.as_secs())),
-        Err(_) => check.status(Status::CouldNotCheck, "Git could not be started."),
-    }];
-    if host == "github.com" && !cancel.load(Ordering::Acquire) {
-        let github = Check::new("github", "remote", "GitHub CLI sign-in").network();
-        checks.push(if (env.find)("gh").is_none() {
-            github.status(
-                Status::NotChecked,
-                "GitHub CLI isn't installed. It's needed only for Repo Creator's GitHub features.",
-            )
+    arguments.extend(["ls-remote".into(), url, "HEAD".into()]);
+    plan.inputs.remote = Some((display.clone(), name.to_string()));
+    plan.step(
+        "remote",
+        Program::Git,
+        arguments,
+        format!("git ls-remote {display} HEAD"),
+        true,
+    );
+    if host == "github.com" {
+        if (env.find)("gh").is_some() {
+            plan.step(
+                "github",
+                Program::Gh,
+                args(&github::ACCOUNT_ARGS),
+                "gh api user (GitHub CLI sign-in)".into(),
+                true,
+            );
         } else {
-            match github::authenticated_account(remote, neutral) {
-                Ok(account) => github.status(
-                    Status::Ready,
-                    format!("GitHub CLI is signed in as {}.", account.login),
-                ),
-                Err(error) => github
-                    .status(Status::Attention, error.message)
-                    .fix("gh auth login"),
-            }
-        });
+            plan.decided.push(
+                Check::new("github", "remote", "GitHub CLI sign-in")
+                    .network()
+                    .status(
+                        Status::NotChecked,
+                        "GitHub CLI isn't installed. It's needed only for Repo Creator's GitHub features.",
+                    ),
+            );
+        }
     }
-    checks
 }
 
-pub(crate) struct Probes<'a> {
-    pub local: &'a dyn Runner,
-    pub versions: &'a dyn Runner,
-    pub remote: &'a dyn Runner,
-    pub neutral: &'a Path,
-}
-pub(crate) fn full_check(
-    root: &Path,
-    env: &Environment,
-    probes: &Probes,
-    cancel: &AtomicBool,
-) -> Vec<Check> {
+/// Builds the exact full check: every program with its arguments, results that
+/// need no program, and the requirements results are compared against.
+pub(crate) fn prepare(root: &Path, env: &Environment, local: &dyn Runner) -> Plan {
     let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     let facts = facts(&root);
-    // Only programs listed to the user before the check can run.
-    let plan = planned_probes(&facts, env);
-    let planned = |id: &str| plan.iter().any(|probe| probe.id == id);
-    let stopped = || cancel.load(Ordering::Acquire);
+    let mut plan = Plan::default();
+    if let Some(node) = &facts.node {
+        plan.inputs.node = node.requirements.clone();
+        if (node.manager != "bun" || !node.requirements.is_empty()) && (env.find)("node").is_some()
+        {
+            plan.step(
+                "node",
+                Program::Node,
+                args(&["--version"]),
+                "node --version".into(),
+                false,
+            );
+        }
+    }
+    if let Some(rust) = &facts.rust {
+        rust_plan(rust, env, &mut plan);
+    }
+    if let Some(python) = &facts.python {
+        plan.inputs.python = python.requires.clone();
+        if (env.find)(python_name()).is_some() {
+            if env.python_stub {
+                plan.decided.push(probe_failure(
+                    Check::new("version-python", "requirements", "Python version"),
+                    python_name(),
+                    "stub",
+                ));
+            } else {
+                plan.step(
+                    "python",
+                    Program::Python,
+                    args(&["--version"]),
+                    format!("{} --version", python_name()),
+                    false,
+                );
+            }
+        }
+    }
+    remote_plan(&root, env, local, &mut plan);
+    plan
+}
+
+fn node_result(inputs: &Inputs, version: Result<Version, &str>) -> Check {
+    let check = Check::new("version-node", "requirements", "Node.js version");
+    let version = match version {
+        Ok(version) => version,
+        Err(reason) => return probe_failure(check, "node", reason),
+    };
+    let installed = shown_version(version);
+    let mut unknown = Vec::new();
+    for (source, declared) in &inputs.node {
+        match declared {
+            Declared::Value(range) => match node_satisfies(version, range) {
+                Some(true) => {}
+                Some(false) => {
+                    return check
+                        .status(Status::Attention, format!("Node.js {installed} is installed, but this project requires {range} ({source})."))
+                        .fix(format!("Install a Node.js version matching {range}, then select Refresh."))
+                }
+                None => unknown.push(format!("{range} ({source}) can't be evaluated")),
+            },
+            Declared::Invalid(reason) => unknown.push(reason.clone()),
+            Declared::Absent => {}
+        }
+    }
+    if !unknown.is_empty() {
+        check.status(
+            Status::CouldNotCheck,
+            format!(
+                "Node.js {installed} is installed, but it couldn't be compared: {}.",
+                unknown.join("; ")
+            ),
+        )
+    } else if inputs.node.is_empty() {
+        check.status(Status::Ready, format!("Node.js {installed} is installed."))
+    } else {
+        check.status(
+            Status::Ready,
+            format!("Node.js {installed} meets this project's requirement."),
+        )
+    }
+}
+fn rust_result(inputs: &Inputs, version: Result<Version, &str>) -> Vec<Check> {
+    let toolchain = Check::new("toolchain-rust", "requirements", "Rust toolchain");
+    let check = Check::new("version-rust", "requirements", "Rust version");
+    let installed = match version {
+        Ok(installed) => installed,
+        Err(reason) => {
+            let mut checks = vec![probe_failure(check, "rustc", reason)];
+            if let Some(channel) = &inputs.channel {
+                checks.push(toolchain.status(
+                    Status::CouldNotCheck,
+                    format!("rustc for the {channel} toolchain didn't report a version."),
+                ));
+            }
+            return checks;
+        }
+    };
+    let shown = shown_version(installed);
     let mut checks = Vec::new();
-    if planned("node") && !stopped() {
-        checks.extend(node_version(&facts, probes.versions, probes.neutral));
-    }
-    if planned("rustc") && !stopped() {
-        checks.extend(rust_checks(
-            &facts,
-            env,
-            probes.versions,
-            probes.neutral,
-            cancel,
+    if let Some(channel) = &inputs.channel {
+        checks.push(toolchain.status(
+            Status::Ready,
+            format!("The {channel} toolchain is installed (rustc {shown})."),
         ));
     }
-    if (planned("python") || env.python_stub) && !stopped() {
-        checks.extend(python_version(&facts, env, probes.versions, probes.neutral));
+    checks.push(match &inputs.rust_version {
+        Declared::Value(required) => match parse_version(required) {
+            Some(minimum) if installed >= minimum => check.status(
+                Status::Ready,
+                format!("rustc {shown} meets rust-version {required}."),
+            ),
+            Some(_) => check
+                .status(
+                    Status::Attention,
+                    format!("rustc {shown} is installed, but Cargo.toml requires Rust {required} or newer."),
+                )
+                .fix(match &inputs.channel {
+                    Some(_) => format!(
+                        "Update the toolchain in {} to {required} or newer.",
+                        inputs.toolchain_file
+                    ),
+                    None => "rustup update".into(),
+                }),
+            None => check.status(
+                Status::CouldNotCheck,
+                format!("rustc {shown} is installed. Repo Creator couldn't read rust-version {required}."),
+            ),
+        },
+        Declared::Invalid(reason) => check.status(
+            Status::CouldNotCheck,
+            format!("rustc {shown} is installed, but it couldn't be compared: {reason}."),
+        ),
+        Declared::Absent => check.status(Status::Ready, format!("rustc {shown} is installed.")),
+    });
+    checks
+}
+fn targets_result(inputs: &Inputs, result: Result<process::Output, String>) -> Check {
+    let check = Check::new("targets-rust", "requirements", "Rust targets");
+    match result {
+        Ok(output) if output.success => {
+            let installed: Vec<&str> = output.stdout.lines().map(str::trim).collect();
+            let missing: Vec<&str> = inputs
+                .targets
+                .iter()
+                .map(String::as_str)
+                .filter(|target| !installed.contains(target))
+                .collect();
+            match missing.first() {
+                None => check.status(
+                    Status::Ready,
+                    format!(
+                        "Required targets are installed: {}.",
+                        inputs.targets.join(", ")
+                    ),
+                ),
+                Some(first) => {
+                    let toolchain = inputs
+                        .channel
+                        .as_ref()
+                        .map(|c| format!(" --toolchain {c}"))
+                        .unwrap_or_default();
+                    check
+                        .status(
+                            Status::Attention,
+                            format!(
+                                "Rust is installed, but the target {} required by {} is missing.",
+                                missing.join(", "),
+                                inputs.toolchain_file
+                            ),
+                        )
+                        .fix(format!("rustup target add {first}{toolchain}"))
+                }
+            }
+        }
+        Err(reason) if reason == "timed out" => {
+            check.status(Status::CouldNotCheck, "rustup didn't respond in time.")
+        }
+        _ => check.status(
+            Status::CouldNotCheck,
+            "rustup couldn't list installed targets.",
+        ),
     }
-    if planned("remote") && !stopped() {
-        checks.extend(remote_checks(
-            &root,
-            env,
-            probes.local,
-            probes.remote,
-            probes.neutral,
-            cancel,
-        ));
+}
+fn python_result(inputs: &Inputs, version: Result<Version, &str>) -> Check {
+    let check = Check::new("version-python", "requirements", "Python version");
+    let version = match version {
+        Ok(version) => version,
+        Err(reason) => return probe_failure(check, python_name(), reason),
+    };
+    let installed = shown_version(version);
+    match &inputs.python {
+        Declared::Absent => {
+            check.status(Status::Ready, format!("Python {installed} is installed."))
+        }
+        Declared::Value(requires) => match python_satisfies(version, requires) {
+            Some(true) => check.status(
+                Status::Ready,
+                format!("Python {installed} meets requires-python {requires}."),
+            ),
+            Some(false) => check
+                .status(
+                    Status::Attention,
+                    format!(
+                        "Python {installed} is installed, but this project requires {requires}."
+                    ),
+                )
+                .fix(format!("Install a Python version matching {requires}.")),
+            None => check.status(
+                Status::CouldNotCheck,
+                format!(
+                    "Python {installed} is installed. Repo Creator couldn't evaluate {requires}."
+                ),
+            ),
+        },
+        Declared::Invalid(reason) => check.status(
+            Status::CouldNotCheck,
+            format!("Python {installed} is installed, but it couldn't be compared: {reason}."),
+        ),
+    }
+}
+fn remote_result(inputs: &Inputs, result: Result<process::Output, String>) -> Check {
+    let check = Check::new("remote", "remote", "Git remote access").network();
+    let (display, name) = inputs.remote.clone().unwrap_or_default();
+    match result {
+        Ok(output) if output.success => check.status(
+            Status::Ready,
+            format!("Reached {display} ({name}) with your Git credentials."),
+        ),
+        Ok(_) => check
+            .status(
+                Status::Attention,
+                format!("Couldn't access {display} ({name}). Check the address, your connection and your Git sign-in."),
+            )
+            .fix(format!("git ls-remote {name}")),
+        Err(reason) if reason == "timed out" => check.status(
+            Status::CouldNotCheck,
+            format!(
+                "{display} didn't respond within {} seconds.",
+                REMOTE_TIMEOUT.as_secs()
+            ),
+        ),
+        Err(_) => check.status(Status::CouldNotCheck, "Git could not be started."),
+    }
+}
+fn github_result(result: Result<process::Output, String>) -> Check {
+    let check = Check::new("github", "remote", "GitHub CLI sign-in").network();
+    match github::account_from(result) {
+        Ok(account) => check.status(
+            Status::Ready,
+            format!("GitHub CLI is signed in as {}.", account.login),
+        ),
+        Err(error) => check
+            .status(Status::Attention, error.message)
+            .fix("gh auth login"),
+    }
+}
+
+/// Runs exactly the reviewed steps and nothing else; project files are not reread.
+pub(crate) fn execute(
+    plan: &Plan,
+    versions: &dyn Runner,
+    remote: &dyn Runner,
+    neutral: &Path,
+    cancel: &AtomicBool,
+) -> Vec<Check> {
+    let mut checks = plan.decided.clone();
+    for step in &plan.steps {
+        if cancel.load(Ordering::Acquire) {
+            break;
+        }
+        // Every program runs in an empty folder, so project version-manager files
+        // and repository configuration cannot affect it.
+        let runner = if step.network { remote } else { versions };
+        let result = runner.run(step.program, &step.args, neutral);
+        if matches!(&result, Err(reason) if reason == "cancelled") {
+            break;
+        }
+        let inputs = &plan.inputs;
+        match step.id {
+            "node" => checks.push(node_result(inputs, version_of(result))),
+            "rustc" => checks.extend(rust_result(inputs, version_of(result))),
+            "rustup" => checks.push(targets_result(inputs, result)),
+            "python" => checks.push(python_result(inputs, version_of(result))),
+            "remote" => checks.push(remote_result(inputs, result)),
+            "github" => checks.push(github_result(result)),
+            _ => {}
+        }
     }
     checks
 }
 
+static NEXT_PLAN: AtomicU64 = AtomicU64::new(1);
 #[derive(Default)]
 pub struct ReadinessChecks {
     active: Mutex<HashMap<String, Arc<AtomicBool>>>,
+    reviewed: Mutex<HashMap<String, (String, Plan)>>,
 }
 fn state_error() -> AppError {
     AppError::new(
         "Readiness state is unavailable.",
         "Reopen the project workspace. No command ran.",
     )
+}
+fn stale_plan() -> AppError {
+    AppError::new(
+        "The project changed after you reviewed the full check.",
+        "Review the updated list of programs and confirm again. Nothing ran.",
+    )
+}
+impl ReadinessChecks {
+    /// Stores a plan for review and returns the token that confirms it.
+    pub(crate) fn review(&self, id: &str, plan: Plan) -> Result<String, AppError> {
+        let token = format!("plan-{}", NEXT_PLAN.fetch_add(1, Ordering::Relaxed));
+        self.reviewed
+            .lock()
+            .map_err(|_| state_error())?
+            .insert(id.into(), (token.clone(), plan));
+        Ok(token)
+    }
+    /// Consumes a reviewed plan. It is returned only for the matching token and
+    /// only when a plan rebuilt now is identical; any change requires a new review.
+    pub(crate) fn confirm(&self, id: &str, token: &str, current: &Plan) -> Result<Plan, AppError> {
+        let reviewed = self.reviewed.lock().map_err(|_| state_error())?.remove(id);
+        match reviewed {
+            Some((expected, plan)) if expected == token && plan == *current => Ok(plan),
+            _ => Err(stale_plan()),
+        }
+    }
 }
 
 #[tauri::command(async)]
@@ -1429,14 +1702,46 @@ pub fn get_project_readiness(id: String, app: tauri::AppHandle) -> Result<Report
     let root = workspace::project_directory(&project)?;
     Ok(inspect(&root, &project.commands, &Environment::system()))
 }
+fn local_runner() -> BoundedRunner {
+    BoundedRunner {
+        timeout: PROBE_TIMEOUT,
+        cancel: None,
+    }
+}
+#[tauri::command(async)]
+pub fn prepare_readiness_check(
+    id: String,
+    app: tauri::AppHandle,
+    state: State<'_, Arc<ReadinessChecks>>,
+) -> Result<PlanView, AppError> {
+    let project = handoff::find_project(&app, &id)?;
+    let root = workspace::project_directory(&project)?;
+    let plan = prepare(&root, &Environment::system(), &local_runner());
+    let probes = plan
+        .steps
+        .iter()
+        .map(|step| Probe {
+            id: step.id,
+            label: step.label.clone(),
+            network: step.network,
+        })
+        .collect();
+    Ok(PlanView {
+        token: state.review(&id, plan)?,
+        probes,
+    })
+}
 #[tauri::command(async)]
 pub fn run_readiness_check(
     id: String,
+    token: String,
     app: tauri::AppHandle,
     state: State<'_, Arc<ReadinessChecks>>,
 ) -> Result<FullReport, AppError> {
     let project = handoff::find_project(&app, &id)?;
     let root = workspace::project_directory(&project)?;
+    let current = prepare(&root, &Environment::system(), &local_runner());
+    let plan = state.confirm(&id, &token, &current)?;
     let cancel = Arc::new(AtomicBool::new(false));
     {
         let mut active = state.active.lock().map_err(|_| state_error())?;
@@ -1450,15 +1755,17 @@ pub fn run_readiness_check(
     }
     let neutral = tempfile::tempdir();
     let checks = neutral.as_ref().map(|neutral| {
-        full_check(
-            &root,
-            &Environment::system(),
-            &Probes {
-                local: &BoundedRunner(PROBE_TIMEOUT),
-                versions: &BoundedRunner(PROBE_TIMEOUT),
-                remote: &BoundedRunner(REMOTE_TIMEOUT),
-                neutral: neutral.path(),
+        execute(
+            &plan,
+            &BoundedRunner {
+                timeout: PROBE_TIMEOUT,
+                cancel: Some(cancel.clone()),
             },
+            &BoundedRunner {
+                timeout: REMOTE_TIMEOUT,
+                cancel: Some(cancel.clone()),
+            },
+            neutral.path(),
             &cancel,
         )
     });
@@ -1557,6 +1864,17 @@ mod tests {
         }
     }
 
+    /// Plan labels for a project whose remote is unavailable.
+    fn labels(root: &Path, env: &Environment) -> Vec<String> {
+        let local = Fixture::new(|_, _| Err("unavailable".into()));
+        prepare(root, env, &local)
+            .steps
+            .iter()
+            .filter(|step| step.id != "remote")
+            .map(|step| step.label.clone())
+            .collect()
+    }
+
     #[test]
     fn node_projects_report_tools_requirements_configuration_and_dependencies() {
         let dir = tempfile::tempdir().unwrap();
@@ -1596,9 +1914,8 @@ mod tests {
         assert!(env.inferred);
         assert!(env.fix.as_deref().unwrap().contains(".env.example .env"));
         assert_eq!(find(checks, "gitignore").status, Status::Attention);
-        assert!(report.probes.iter().any(|p| p.label == "node --version"));
-        assert!(report.probes.iter().any(|p| p.id == "remote" && p.network));
-        assert!(!report.probes.iter().any(|p| p.id == "github"));
+        let plan = labels(root, &environment(&finder));
+        assert_eq!(plan, ["node --version"]);
 
         fs::create_dir(root.join("node_modules")).unwrap();
         write(root, ".env", "API_TOKEN=secret-value\n");
@@ -1694,7 +2011,9 @@ mod tests {
             find(&checks, "file-package.json").status,
             Status::CouldNotCheck
         );
-        assert!(!checks.iter().any(|c| c.id == "version-node"));
+        let version = find(&checks, "version-node");
+        assert_eq!(version.status, Status::CouldNotCheck);
+        assert!(!version.detail.contains("99"));
     }
 
     #[test]
@@ -1717,18 +2036,40 @@ mod tests {
             find(&report.checks, "toolchain-rust").status,
             Status::NotChecked
         );
-        assert!(find(&report.checks, "targets-rust")
-            .detail
-            .contains("aarch64-apple-darwin"));
         assert!(!find(&report.checks, "targets-rust")
             .detail
             .contains("bad target"));
         assert!(find(&report.checks, "version-rust").detail.contains("1.90"));
-        assert!(report
-            .probes
-            .iter()
-            .any(|p| p.label == "rustc +1.91.0 --version"));
-        assert!(report.probes.iter().any(|p| p.id == "rustup"));
+        let rustup = tempfile::tempdir().unwrap();
+        fs::create_dir_all(
+            rustup
+                .path()
+                .join("toolchains/1.91.0-x86_64-pc-windows-msvc"),
+        )
+        .unwrap();
+        let installed = Environment {
+            find: &finder,
+            rustup_home: Some(rustup.path().to_path_buf()),
+            python_stub: false,
+        };
+        // An invalid target name makes the whole declaration unknown rather than shorter.
+        assert_eq!(
+            find(&report.checks, "targets-rust").status,
+            Status::CouldNotCheck
+        );
+        assert_eq!(labels(root, &installed), ["rustc +1.91.0 --version"]);
+        write(
+            root,
+            "rust-toolchain.toml",
+            "[toolchain]\nchannel='1.91.0'\ntargets=['aarch64-apple-darwin']\n",
+        );
+        assert_eq!(
+            labels(root, &installed),
+            [
+                "rustc +1.91.0 --version",
+                "rustup target list --installed --toolchain 1.91.0"
+            ]
+        );
 
         write(
             root,
@@ -1743,17 +2084,16 @@ mod tests {
         assert!(find(&report.checks, "toolchain-rust")
             .detail
             .contains("custom toolchain"));
-        assert!(!report.probes.iter().any(|p| p.id == "rustc"));
+        assert!(labels(root, &installed).is_empty());
         write(root, "rust-toolchain", "../outside/toolchain\n");
-        let report = inspect(root, &[], &environment(&finder));
-        assert!(!report.probes.iter().any(|p| p.id == "rustc"));
+        assert!(labels(root, &installed).is_empty());
         write(root, "rust-toolchain", "stable; touch pwned\n");
         let report = inspect(root, &[], &environment(&finder));
         assert_eq!(
             find(&report.checks, "toolchain-rust").status,
             Status::CouldNotCheck
         );
-        assert!(!report.probes.iter().any(|p| p.id == "rustc"));
+        assert!(labels(root, &installed).is_empty());
         assert!(valid_channel("nightly-2026-01-01-aarch64-apple-darwin"));
         assert!(!valid_channel("../stable"));
     }
@@ -1885,8 +2225,18 @@ mod tests {
         (tempfile::tempdir().unwrap(), rustup)
     }
 
+    fn github_remote() -> Fixture {
+        Fixture::new(|_, args| match args[0].as_str() {
+            "remote" => ok("upstream\norigin"),
+            "config" if args[2] == "remote.origin.url" => {
+                ok("https://person:secret-token@github.com/example/app.git")
+            }
+            _ => Err("unavailable".into()),
+        })
+    }
+
     #[test]
-    fn full_check_compares_versions_in_a_neutral_folder_and_only_runs_planned_programs() {
+    fn full_check_runs_exactly_the_reviewed_steps_in_a_neutral_folder() {
         let project = mixed_project();
         let (neutral, rustup) = neutral_and_rustup(true);
         let finder = tools(vec![
@@ -1903,6 +2253,20 @@ mod tests {
             rustup_home: Some(rustup.path().to_path_buf()),
             python_stub: false,
         };
+        let plan = prepare(project.path(), &env, &github_remote());
+        let shown: Vec<&str> = plan.steps.iter().map(|step| step.label.as_str()).collect();
+        assert_eq!(
+            shown,
+            [
+                "node --version",
+                "rustc +1.91.0 --version",
+                "rustup target list --installed --toolchain 1.91.0",
+                &format!("{} --version", python_name()),
+                "git ls-remote github.com/example/app.git HEAD",
+                "gh api user (GitHub CLI sign-in)",
+            ]
+        );
+        assert!(shown.iter().all(|label| !label.contains("secret-token")));
         let versions = Fixture::new(|program, args| match program {
             Program::Node => ok("v20.11.1"),
             Program::Rustc => ok("rustc 1.91.0 (abc 2026-01-01)"),
@@ -1910,29 +2274,23 @@ mod tests {
             Program::Python => ok("Python 3.12.4"),
             _ => Err("unexpected".into()),
         });
-        let local = Fixture::new(|_, args| match args[0].as_str() {
-            "remote" => ok("upstream\norigin"),
-            "config" if args[2] == "remote.origin.url" => {
-                ok("https://person:secret-token@github.com/example/app.git")
-            }
-            _ => Err("unavailable".into()),
-        });
         let remote = Fixture::new(|program, _| match program {
             Program::Git => ok("abc\tHEAD"),
             Program::Gh => ok(r#"{"login":"example","id":7}"#),
             _ => Err("unexpected".into()),
         });
-        let cancel = AtomicBool::new(false);
-        let checks = full_check(
+        // Project files changing after review cannot add programs to this run.
+        write(
             project.path(),
-            &env,
-            &Probes {
-                local: &local,
-                versions: &versions,
-                remote: &remote,
-                neutral: neutral.path(),
-            },
-            &cancel,
+            "pyproject.toml",
+            "[project]\nrequires-python='>=3.13'\n",
+        );
+        let checks = execute(
+            &plan,
+            &versions,
+            &remote,
+            neutral.path(),
+            &AtomicBool::new(false),
         );
         let node = find(&checks, "version-node");
         assert_eq!(node.status, Status::Attention);
@@ -1957,16 +2315,27 @@ mod tests {
         assert!(access.detail.contains("github.com/example/app.git"));
         assert_eq!(find(&checks, "github").status, Status::Ready);
         assert!(checks.iter().all(|c| !c.detail.contains("secret-token")));
-
-        for (_, _, cwd) in versions.calls().iter().chain(remote.calls().iter()) {
-            assert_eq!(cwd, neutral.path(), "probes must not run in the project");
-        }
-        let rustc = versions
-            .calls()
-            .into_iter()
-            .find(|(p, ..)| *p == Program::Rustc)
-            .unwrap();
-        assert_eq!(rustc.1, ["+1.91.0", "--version"]);
+        let ran: Vec<(Program, Vec<String>, PathBuf)> =
+            versions.calls().into_iter().chain(remote.calls()).collect();
+        let reviewed: Vec<(Program, Vec<String>, PathBuf)> = plan
+            .steps
+            .iter()
+            .map(|step| {
+                (
+                    step.program,
+                    step.args.clone(),
+                    neutral.path().to_path_buf(),
+                )
+            })
+            .collect();
+        let mut ran_sorted = ran.clone();
+        let mut reviewed_sorted = reviewed.clone();
+        ran_sorted.sort_by_key(|(_, args, _)| args.join(" "));
+        reviewed_sorted.sort_by_key(|(_, args, _)| args.join(" "));
+        assert_eq!(
+            ran_sorted, reviewed_sorted,
+            "only reviewed programs and arguments run"
+        );
         let ls_remote = remote
             .calls()
             .into_iter()
@@ -1982,21 +2351,69 @@ mod tests {
                 "HEAD"
             ]
         );
-        let plan: Vec<&str> = inspect(project.path(), &[], &env)
-            .probes
-            .iter()
-            .map(|p| p.id)
-            .collect();
-        for (program, ..) in versions.calls() {
-            let id = match program {
-                Program::Node => "node",
-                Program::Rustc => "rustc",
-                Program::Rustup => "rustup",
-                Program::Python => "python",
-                _ => "unexpected",
-            };
-            assert!(plan.contains(&id), "{id} was not listed before running");
+        assert_eq!(
+            remote
+                .calls()
+                .into_iter()
+                .find(|(p, ..)| *p == Program::Gh)
+                .unwrap()
+                .1,
+            github::ACCOUNT_ARGS
+        );
+    }
+
+    #[test]
+    fn reviewed_plans_run_once_and_only_while_unchanged() {
+        let project = mixed_project();
+        let (_, rustup) = neutral_and_rustup(true);
+        let finder = tools(vec!["node", "rustc", "rustup", python_name(), "gh"]);
+        let env = Environment {
+            find: &finder,
+            rustup_home: Some(rustup.path().to_path_buf()),
+            python_stub: false,
+        };
+        let state = ReadinessChecks::default();
+        let reviewed = prepare(project.path(), &env, &github_remote());
+        let token = state.review("project", reviewed.clone()).unwrap();
+        assert!(state.confirm("project", "plan-guess", &reviewed).is_err());
+        // A rejected confirmation consumes the review; a new review is required.
+        assert!(state.confirm("project", &token, &reviewed).is_err());
+        let token = state.review("project", reviewed.clone()).unwrap();
+        assert_eq!(
+            state.confirm("project", &token, &reviewed).unwrap(),
+            reviewed
+        );
+        assert!(
+            state.confirm("project", &token, &reviewed).is_err(),
+            "single use"
+        );
+
+        // Metadata edited while the confirmation is open: new targets would add
+        // undisclosed arguments, and a new requirement changes what is compared.
+        for (file, text) in [
+            (
+                "rust-toolchain.toml",
+                "[toolchain]\nchannel='1.91.0'\ntargets=['wasm32-unknown-unknown','aarch64-apple-darwin']\n",
+            ),
+            ("package.json", r#"{"engines":{"node":">=24"}}"#),
+        ] {
+            let project = mixed_project();
+            let reviewed = prepare(project.path(), &env, &github_remote());
+            let token = state.review("project", reviewed).unwrap();
+            write(project.path(), file, text);
+            let current = prepare(project.path(), &env, &github_remote());
+            assert!(state.confirm("project", &token, &current).is_err(), "{file}");
         }
+        // A changed remote address is also a different plan.
+        let reviewed = prepare(project.path(), &env, &github_remote());
+        let token = state.review("project", reviewed).unwrap();
+        let moved = Fixture::new(|_, args| match args[0].as_str() {
+            "remote" => ok("origin"),
+            "config" if args[2] == "remote.origin.url" => ok("git@example.com:other/app.git"),
+            _ => Err("unavailable".into()),
+        });
+        let current = prepare(project.path(), &env, &moved);
+        assert!(state.confirm("project", &token, &current).is_err());
     }
 
     #[test]
@@ -2019,13 +2436,21 @@ mod tests {
             _ => Err("unavailable".into()),
         });
         let remote = Fixture::new(|_, _| Err("unexpected".into()));
-        let probes = Probes {
-            local: &local,
-            versions: &versions,
-            remote: &remote,
-            neutral: neutral.path(),
-        };
-        let checks = full_check(project.path(), &env, &probes, &AtomicBool::new(false));
+        let plan = prepare(project.path(), &env, &local);
+        assert_eq!(
+            plan.steps
+                .iter()
+                .map(|s| s.label.as_str())
+                .collect::<Vec<_>>(),
+            ["node --version"]
+        );
+        let checks = execute(
+            &plan,
+            &versions,
+            &remote,
+            neutral.path(),
+            &AtomicBool::new(false),
+        );
         assert_eq!(find(&checks, "version-node").status, Status::CouldNotCheck);
         let toolchain = find(&checks, "toolchain-rust");
         assert_eq!(toolchain.status, Status::Attention);
@@ -2033,6 +2458,7 @@ mod tests {
             toolchain.fix.as_deref(),
             Some("rustup toolchain install 1.91.0")
         );
+        assert_eq!(find(&checks, "version-rust").status, Status::NotChecked);
         assert_eq!(find(&checks, "version-python").status, Status::NotChecked);
         assert_eq!(find(&checks, "remote").status, Status::NotChecked);
         assert!(versions.calls().iter().all(|(p, ..)| *p == Program::Node));
@@ -2043,17 +2469,267 @@ mod tests {
             rustup_home: None,
             python_stub: true,
         };
-        let checks = full_check(project.path(), &unknown, &probes, &AtomicBool::new(false));
+        let plan = prepare(project.path(), &unknown, &local);
         assert_eq!(
-            find(&checks, "toolchain-rust").status,
+            find(&plan.decided, "toolchain-rust").status,
             Status::CouldNotCheck
         );
-        assert!(versions.calls().iter().all(|(p, ..)| *p == Program::Node));
+        assert!(!plan.steps.iter().any(|s| s.program == Program::Rustc));
 
-        let before = versions.calls().len() + local.calls().len();
-        let cancelled = full_check(project.path(), &env, &probes, &AtomicBool::new(true));
-        assert!(cancelled.is_empty());
-        assert_eq!(versions.calls().len() + local.calls().len(), before);
+        let before = versions.calls().len();
+        let cancelled = execute(
+            &plan,
+            &versions,
+            &remote,
+            neutral.path(),
+            &AtomicBool::new(true),
+        );
+        assert_eq!(cancelled, plan.decided);
+        assert_eq!(versions.calls().len(), before);
+        let interrupted = Fixture::new(|_, _| Err("cancelled".into()));
+        let partial = execute(
+            &plan,
+            &interrupted,
+            &remote,
+            neutral.path(),
+            &AtomicBool::new(false),
+        );
+        assert!(!partial.iter().any(|c| c.id == "version-node"));
+    }
+
+    #[test]
+    fn unreadable_or_mistyped_node_requirements_are_never_ready() {
+        let finder = tools(vec!["node"]);
+        let env = environment(&finder);
+        let node = |installed: &str| {
+            Fixture::new({
+                let installed = installed.to_string();
+                move |_, _| ok(&installed)
+            })
+        };
+        let none = Fixture::new(|_, _| Err("unavailable".into()));
+        let neutral = tempfile::tempdir().unwrap();
+        type Arrange = Box<dyn Fn(&Path)>;
+        let cases: [(&str, Arrange); 5] = [
+            (
+                ".nvmrc is a folder",
+                Box::new(|root: &Path| fs::create_dir(root.join(".nvmrc")).unwrap()),
+            ),
+            (
+                "empty .node-version",
+                Box::new(|root: &Path| write(root, ".node-version", "# no version\n")),
+            ),
+            (
+                "engines.node is a number",
+                Box::new(|root: &Path| write(root, "package.json", r#"{"engines":{"node":22}}"#)),
+            ),
+            (
+                "engines is a string",
+                Box::new(|root: &Path| write(root, "package.json", r#"{"engines":"node 22"}"#)),
+            ),
+            (
+                "malformed package.json",
+                Box::new(|root: &Path| write(root, "package.json", "{ \"engines\": ")),
+            ),
+        ];
+        for (name, arrange) in cases {
+            let dir = tempfile::tempdir().unwrap();
+            write(dir.path(), "package.json", r#"{"engines":{"node":">=20"}}"#);
+            arrange(dir.path());
+            let tier1 = inspect(dir.path(), &[], &env).checks;
+            assert_eq!(
+                find(&tier1, "version-node").status,
+                Status::CouldNotCheck,
+                "{name}"
+            );
+            let plan = prepare(dir.path(), &env, &none);
+            let checks = execute(
+                &plan,
+                &node("v22.4.0"),
+                &none,
+                neutral.path(),
+                &AtomicBool::new(false),
+            );
+            assert_eq!(
+                find(&checks, "version-node").status,
+                Status::CouldNotCheck,
+                "{name}"
+            );
+            // A definite mismatch with a readable range is still reported.
+            let checks = execute(
+                &plan,
+                &node("v18.0.0"),
+                &none,
+                neutral.path(),
+                &AtomicBool::new(false),
+            );
+            if name.contains(".nvmrc") || name.contains("node-version") {
+                assert_eq!(
+                    find(&checks, "version-node").status,
+                    Status::Attention,
+                    "{name}"
+                );
+            } else {
+                assert_ne!(
+                    find(&checks, "version-node").status,
+                    Status::Ready,
+                    "{name}"
+                );
+            }
+        }
+        let dir = tempfile::tempdir().unwrap();
+        write(dir.path(), "package.json", "[1, 2]");
+        let checks = inspect(dir.path(), &[], &env).checks;
+        assert_eq!(
+            find(&checks, "dependencies-node").status,
+            Status::CouldNotCheck
+        );
+        assert_eq!(find(&checks, "version-node").status, Status::CouldNotCheck);
+    }
+
+    #[test]
+    fn mistyped_rust_toolchain_and_version_declarations_are_reported() {
+        let finder = tools(vec!["cargo", "rustc", "rustup"]);
+        let rustup = tempfile::tempdir().unwrap();
+        fs::create_dir_all(rustup.path().join("toolchains/stable-aarch64-apple-darwin")).unwrap();
+        let env = Environment {
+            find: &finder,
+            rustup_home: Some(rustup.path().to_path_buf()),
+            python_stub: false,
+        };
+        let none = Fixture::new(|_, _| Err("unavailable".into()));
+        for (toolchain, expect_toolchain, expect_targets) in [
+            (
+                "[toolchain]\nchannel=1.80\n",
+                Some(Status::CouldNotCheck),
+                None,
+            ),
+            (
+                "[toolchain]\nchannel=['stable']\n",
+                Some(Status::CouldNotCheck),
+                None,
+            ),
+            ("toolchain='stable'\n", Some(Status::CouldNotCheck), None),
+            (
+                "[toolchain]\nchannel='stable'\ntargets='wasm32-unknown-unknown'\n",
+                None,
+                Some(Status::CouldNotCheck),
+            ),
+            (
+                "[toolchain]\nchannel='stable'\ntargets=[42]\n",
+                None,
+                Some(Status::CouldNotCheck),
+            ),
+            (
+                "[toolchain]\nchannel='stable'\ntargets=['../evil']\n",
+                None,
+                Some(Status::CouldNotCheck),
+            ),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            write(
+                dir.path(),
+                "Cargo.toml",
+                "[package]\nname='app'\nversion='0.1.0'\n",
+            );
+            write(dir.path(), "rust-toolchain.toml", toolchain);
+            let checks = inspect(dir.path(), &[], &env).checks;
+            if let Some(status) = expect_toolchain {
+                assert_eq!(
+                    find(&checks, "toolchain-rust").status,
+                    status,
+                    "{toolchain}"
+                );
+                // No fallback to the default compiler.
+                assert!(
+                    prepare(dir.path(), &env, &none)
+                        .steps
+                        .iter()
+                        .all(|s| s.program != Program::Rustc),
+                    "{toolchain}"
+                );
+            }
+            if let Some(status) = expect_targets {
+                assert_eq!(find(&checks, "targets-rust").status, status, "{toolchain}");
+                let plan = prepare(dir.path(), &env, &none);
+                assert!(
+                    plan.steps.iter().all(|s| s.program != Program::Rustup),
+                    "{toolchain}"
+                );
+            }
+            assert!(
+                checks.iter().all(|c| c.status != Status::Ready
+                    || !c.id.contains("rust")
+                    || c.id == "tool-rustup"),
+                "{toolchain}"
+            );
+        }
+        let neutral = tempfile::tempdir().unwrap();
+        let rustc = Fixture::new(|_, _| ok("rustc 1.99.0 (abc)"));
+        for manifest in [
+            "[package]\nname='app'\nversion='0.1.0'\nrust-version=1.70\n",
+            "[package]\nname='app'\nversion='0.1.0'\nrust-version='latest'\n",
+            "[package]\nname='app'\nversion='0.1.0'\nrust-version.workspace=true\n",
+            "[package\nname='broken'",
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            write(dir.path(), "Cargo.toml", manifest);
+            let checks = inspect(dir.path(), &[], &env).checks;
+            assert_eq!(
+                find(&checks, "version-rust").status,
+                Status::CouldNotCheck,
+                "{manifest}"
+            );
+            let plan = prepare(dir.path(), &env, &none);
+            let checks = execute(
+                &plan,
+                &rustc,
+                &none,
+                neutral.path(),
+                &AtomicBool::new(false),
+            );
+            assert_eq!(
+                find(&checks, "version-rust").status,
+                Status::CouldNotCheck,
+                "{manifest}"
+            );
+        }
+        let dir = tempfile::tempdir().unwrap();
+        write(
+            dir.path(),
+            "Cargo.toml",
+            "[workspace]\n[workspace.package]\nrust-version='1.90'\n",
+        );
+        let checks = inspect(dir.path(), &[], &env).checks;
+        assert_eq!(find(&checks, "version-rust").status, Status::NotChecked);
+        let dir = tempfile::tempdir().unwrap();
+        write(
+            dir.path(),
+            "pyproject.toml",
+            "[project]\nrequires-python=3.11\n",
+        );
+        let python_tools = tools(vec![python_name()]);
+        let python = Environment {
+            find: &python_tools,
+            rustup_home: None,
+            python_stub: false,
+        };
+        assert_eq!(
+            find(&inspect(dir.path(), &[], &python).checks, "version-python").status,
+            Status::CouldNotCheck
+        );
+        let plan = prepare(dir.path(), &python, &none);
+        let checks = execute(
+            &plan,
+            &Fixture::new(|_, _| ok("Python 3.12.0")),
+            &none,
+            neutral.path(),
+            &AtomicBool::new(false),
+        );
+        assert_eq!(
+            find(&checks, "version-python").status,
+            Status::CouldNotCheck
+        );
     }
 
     #[test]

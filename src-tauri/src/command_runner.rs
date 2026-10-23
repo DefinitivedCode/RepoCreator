@@ -403,6 +403,7 @@ pub fn run_project_command(
     project_id: String,
     command_id: String,
     confirmed: bool,
+    expected: Option<ProjectCommand>,
     app: tauri::AppHandle,
     state: State<'_, Arc<CommandRunner>>,
 ) -> Result<CommandRun, AppError> {
@@ -412,6 +413,12 @@ pub fn run_project_command(
         .iter()
         .find(|command| command.id == command_id)
         .ok_or_else(|| workspace::error("This project command is unavailable."))?;
+    // A caller that showed the definition for confirmation runs only that definition.
+    if expected.is_some_and(|expected| expected != *command) {
+        return Err(workspace::error(
+            "This command changed after you confirmed it. Review it again; it did not run.",
+        ));
+    }
     let cwd = workspace::command_directory(&workspace::project_directory(&project)?, command)?;
     let run = state.start(&project_id, command, &cwd, confirmed)?;
     if command.imported {

@@ -5,6 +5,7 @@ import {
   commandResult,
   gitCheck,
   groupChecks,
+  isPlan,
   isReport,
   mergeChecks,
   summarize,
@@ -118,7 +119,9 @@ describe('readiness model', () => {
 
   it('rejects responses that are not readiness reports', () => {
     expect(isReport(undefined)).toBe(false);
-    expect(isReport({ checks: [] })).toBe(false);
-    expect(isReport({ checks: [], probes: [] })).toBe(true);
+    expect(isReport({ probes: [] })).toBe(false);
+    expect(isReport({ checks: [] })).toBe(true);
+    expect(isPlan({ probes: [] })).toBe(false);
+    expect(isPlan({ token: 'plan-1', probes: [] })).toBe(true);
   });
 });

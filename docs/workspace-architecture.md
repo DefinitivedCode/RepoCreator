@@ -19,23 +19,24 @@ write source files when opening a project.
 
 Native commands:
 
-| Command                    | Arguments                                  | Result                                                            |
-| -------------------------- | ------------------------------------------ | ----------------------------------------------------------------- |
-| `list_recent_projects`     | none                                       | RecentProject[]                                                   |
-| `add_existing_project`     | optional `path` (otherwise native picker)  | RecentProject or null                                             |
-| `get_project_workspace`    | `id`                                       | `{ platform, project, exists, gitStatus, branch }`                |
-| `save_project_settings`    | `id`, `pinned`, `technologies`, `launcher` | RecentProject                                                     |
-| `relocate_project`         | `id` (native picker)                       | RecentProject or null                                             |
-| `save_project_commands`    | `id`, `commands`                           | RecentProject                                                     |
-| `suggest_project_commands` | `id`                                       | ProjectCommand[]                                                  |
-| `get_project_tools`        | `id`, optional `refresh`                   | `{id,name,available,path,documentation,status,detail,platform}[]` |
-| `launch_project_tool`      | `id`, `tool`                               | void                                                              |
-| `run_project_command`      | `projectId`, `commandId`, `confirmed`      | CommandRun                                                        |
-| `list_command_runs`        | `projectId`                                | CommandRun[]                                                      |
-| `stop_project_command`     | `runId`                                    | void                                                              |
-| `get_project_readiness`    | `id`                                       | `{ checks, probes }` from read-only inspection                    |
-| `run_readiness_check`      | `id`                                       | `{ checks, cancelled }` from the user-started full check          |
-| `cancel_readiness_check`   | `id`                                       | void                                                              |
+| Command                    | Arguments                                                  | Result                                                            |
+| -------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------- |
+| `list_recent_projects`     | none                                                       | RecentProject[]                                                   |
+| `add_existing_project`     | optional `path` (otherwise native picker)                  | RecentProject or null                                             |
+| `get_project_workspace`    | `id`                                                       | `{ platform, project, exists, gitStatus, branch }`                |
+| `save_project_settings`    | `id`, `pinned`, `technologies`, `launcher`                 | RecentProject                                                     |
+| `relocate_project`         | `id` (native picker)                                       | RecentProject or null                                             |
+| `save_project_commands`    | `id`, `commands`                                           | RecentProject                                                     |
+| `suggest_project_commands` | `id`                                                       | ProjectCommand[]                                                  |
+| `get_project_tools`        | `id`, optional `refresh`                                   | `{id,name,available,path,documentation,status,detail,platform}[]` |
+| `launch_project_tool`      | `id`, `tool`                                               | void                                                              |
+| `run_project_command`      | `projectId`, `commandId`, `confirmed`, optional `expected` | CommandRun; refused if `expected` differs from the saved command  |
+| `list_command_runs`        | `projectId`                                                | CommandRun[]                                                      |
+| `stop_project_command`     | `runId`                                                    | void                                                              |
+| `get_project_readiness`    | `id`                                                       | `{ checks }` from read-only inspection                            |
+| `prepare_readiness_check`  | `id`                                                       | `{ token, probes }`: the exact plan shown for review              |
+| `run_readiness_check`      | `id`, `token`                                              | `{ checks, cancelled }`; runs the reviewed plan once if unchanged |
+| `cancel_readiness_check`   | `id`                                                       | void                                                              |
 
 The frontend polls bounded run snapshots while the commands view is open. Native
 reader threads collect stdout and stderr without blocking the UI. Imported

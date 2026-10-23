@@ -106,16 +106,20 @@ const readinessReport: ReadinessReport = {
       network: false,
     },
   ],
-  probes: [
-    { id: 'node', label: 'node --version', network: false },
-    { id: 'remote', label: 'git ls-remote <remote> HEAD from a neutral folder', network: true },
-  ],
 };
+const readinessProbes = [
+  { id: 'node', label: 'node --version', network: false },
+  {
+    id: 'remote',
+    label: 'git ls-remote github.com/example/river-workbench.git HEAD',
+    network: true,
+  },
+];
 
 async function workspaceFixture(page: Page, missing = false) {
   await prepare(page, false, 'simple');
   await page.evaluate(
-    ({ project, importedCommand, missing, readinessReport }) => {
+    ({ project, importedCommand, missing, readinessReport, readinessProbes }) => {
       const state = { projects: [structuredClone(project)], exists: !missing, runs: [] as any[] };
       (window as any).workspaceState = state;
       const original = (window as any).__TAURI_INTERNALS__.invoke;
@@ -134,6 +138,7 @@ async function workspaceFixture(page: Page, missing = false) {
         'list_command_runs',
         'stop_project_command',
         'get_project_readiness',
+        'prepare_readiness_check',
         'run_readiness_check',
         'cancel_readiness_check',
       ];
@@ -267,7 +272,23 @@ async function workspaceFixture(page: Page, missing = false) {
         }
         if (command === 'list_command_runs') return structuredClone(state.runs);
         if (command === 'get_project_readiness') return structuredClone(readinessReport);
+        if (command === 'prepare_readiness_check') {
+          const plans = ((window as any).readinessPlans ??= []);
+          plans.push(`plan-${plans.length + 1}`);
+          return { token: plans.at(-1), probes: structuredClone(readinessProbes) };
+        }
         if (command === 'run_readiness_check') {
+          // Mirrors the native rule: only the latest reviewed, unchanged plan runs.
+          const plans = (window as any).readinessPlans ?? [];
+          if (payload.token !== plans.at(-1) || (window as any).planChangedOnce) {
+            (window as any).planChangedOnce = false;
+            (window as any).readinessPlans = [];
+            throw {
+              message: 'The project changed after you reviewed the full check.',
+              guidance: 'Review the updated list of programs and confirm again. Nothing ran.',
+            };
+          }
+          (window as any).readinessPlans = [];
           if ((window as any).holdFullCheck)
             await new Promise((resolve) => ((window as any).finishFullCheck = resolve));
           return {
@@ -309,7 +330,7 @@ async function workspaceFixture(page: Page, missing = false) {
         }
       };
     },
-    { project, importedCommand, missing, readinessReport },
+    { project, importedCommand, missing, readinessReport, readinessProbes },
   );
   await page
     .getByRole('navigation', { name: 'Main navigation' })
@@ -915,7 +936,11 @@ test('full check lists programs, never preselects commands and confirms project 
   await page.getByRole('button', { name: 'Run 1 command', exact: true }).click();
   await expect.poll(async () => (await calls(page, 'run_project_command')).length).toBe(1);
   const [started] = await calls(page, 'run_project_command');
-  expect(started.payload).toMatchObject({ commandId: 'reviewed-build', confirmed: false });
+  expect(started.payload).toMatchObject({
+    commandId: 'reviewed-build',
+    confirmed: false,
+    expected: { id: 'reviewed-build', args: ['run', 'build'] },
+  });
   await page.evaluate(() => {
     Object.assign((window as any).workspaceState.runs[0], {
       status: 'succeeded',
@@ -966,4 +991,36 @@ test('readiness waits for a missing project folder', async ({ page }) => {
   await section(page, 'Readiness');
   await expect(page.getByText('Readiness needs the project folder')).toBeVisible();
   expect(await calls(page, 'get_project_readiness')).toHaveLength(0);
+});
+
+test('a plan that changed after review runs nothing and must be confirmed again', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.evaluate((commands) => {
+    (window as any).workspaceState.projects[0].commands = commands;
+    (window as any).planChangedOnce = true;
+  }, savedCommands);
+  await openWorkspace(page);
+  await section(page, 'Readiness, 2 need attention');
+  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  const plan = page.getByRole('dialog', { name: 'Run full check' });
+  await expect(plan).toContainText('git ls-remote github.com/example/river-workbench.git HEAD');
+  await plan.getByRole('checkbox', { name: /Build application/ }).check();
+  await page.getByRole('button', { name: 'Review 1 command', exact: true }).click();
+  await page.getByRole('button', { name: 'Run 1 command', exact: true }).click();
+  await expect(plan).toBeVisible();
+  await expect(plan.getByRole('alert')).toContainText(
+    'The project changed after you reviewed the full check.',
+  );
+  await expect(plan.getByRole('checkbox', { name: /Build application/ })).not.toBeChecked();
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  expect(await calls(page, 'prepare_readiness_check')).toHaveLength(2);
+  await page.getByRole('button', { name: 'Run checks', exact: true }).click();
+  await expect(
+    page.locator('.readiness-check').filter({ hasText: 'Node.js version' }),
+  ).toContainText('Full check');
+  const runs = await calls(page, 'run_readiness_check');
+  expect(runs.map((call: any) => call.payload.token)).toEqual(['plan-1', 'plan-1']);
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
 });
