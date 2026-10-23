@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Repo Creator / The Builder</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f6f2e9;
+        color: #202b33;
+        font:
+          18px/1.6 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1500px;
+        margin: auto;
+        padding: 56px 32px;
+      }
+      h1 {
+        font-size: clamp(34px, 5vw, 64px);
+        letter-spacing: -0.04em;
+        line-height: 1.1;
+        margin: 10px 0 24px;
+      }
+      h2 {
+        font-size: 32px;
+        margin: 64px 0 20px;
+      }
+      p {
+        max-width: 900px;
+      }
+      a {
+        color: #202b33;
+        text-underline-offset: 4px;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        margin: 32px 0;
+      }
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      figure {
+        margin: 24px 0 40px;
+      }
+      figcaption {
+        color: #58646b;
+        font-size: 16px;
+        margin-top: 12px;
+      }
+      .media {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      @media (max-width: 800px) {
+        .media {
+          display: block;
+        }
+        main {
+          padding: 32px 16px;
+        }
+      }
+      .status {
+        color: #58646b;
+      }
+      footer {
+        margin-top: 64px;
+        border-top: 1px solid #bac1c0;
+        padding-top: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="status">Brand proposal / October 2026</p>
+      <h1>Repo Creator<br />The Builder</h1>
+      <p>
+        An assembled initial with a warm corner piece. Keystone connects the product's name to the
+        act of building, while its simple geometry stays readable in a taskbar.
+      </p>
+      <nav>
+        <a href="brand-presentation.pdf">Presentation PDF</a
+        ><a href="brand-guidelines.pdf">Guidelines PDF</a
+        ><a href="README.md">Asset map and rebuild instructions</a>
+      </nav>
+      <h2>Three interpretations</h2>
+      <figure>
+        <img
+          src="review/concept-comparison.svg"
+          alt="Keystone assembled R, Joinery interlocking beams and Benchmate builder character, with small and monochrome comparisons"
+        />
+        <figcaption>
+          Keystone is recommended for its direct name connection, recognisable silhouette and useful
+          one-colour form.
+        </figcaption>
+      </figure>
+      <h2>Keystone identity</h2>
+      <figure>
+        <img
+          src="review/identity-overview.svg"
+          alt="Primary logos on light and dark backgrounds, monochrome marks and 16, 32 and 64 pixel mark previews"
+        />
+      </figure>
+      <h2>Application icon candidates</h2>
+      <figure>
+        <img
+          src="review/icon-preview.svg"
+          alt="Windows chamfered tile and macOS rounded tile carrying the Keystone symbol"
+        />
+        <figcaption>
+          Replacement candidates remain separate from the shipping application. Platform integration
+          and physical taskbar/Dock review follow approval.
+        </figcaption>
+      </figure>
+      <figure>
+        <img
+          src="review/small-sizes.svg"
+          alt="Native-size Windows icon previews from 16 through 128 pixels on light and dark surfaces"
+        />
+      </figure>
+      <h2>GitHub artwork</h2>
+      <figure>
+        <img
+          src="masters/readme-banner-light.svg"
+          alt="Light README banner: Repo Creator, a good place to start building"
+        />
+        <figcaption>README hero, 1600 x 560. No README change is included.</figcaption>
+      </figure>
+      <div class="media">
+        <figure>
+          <img src="masters/social-preview-light.svg" alt="Light 1280 by 640 social image" />
+          <figcaption>Light social preview</figcaption>
+        </figure>
+        <figure>
+          <img src="masters/social-preview-dark.svg" alt="Dark 1280 by 640 social image" />
+          <figcaption>Dark social preview</figcaption>
+        </figure>
+      </div>
+      <h2>Guidelines</h2>
+      <figure>
+        <img
+          src="review/guidelines/page-2.svg"
+          alt="Ink, Paper, Clay and Slate palette and measured contrast ratios"
+        />
+      </figure>
+      <figure>
+        <img
+          src="review/guidelines/page-3.svg"
+          alt="Manrope type specimen and wordmark usage guidance"
+        />
+      </figure>
+      <figure>
+        <img src="review/guidelines/page-4.svg" alt="Logo clear space and minimum-size guidance" />
+      </figure>
+      <footer>
+        All assets are proposals for maintainer review. Original artwork follows the repository MIT
+        license. Manrope carries its included SIL Open Font License.
+      </footer>
+    </main>
+  </body>
+</html>

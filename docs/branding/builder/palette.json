@@ -1,0 +1,15 @@
+{
+  "name": "Keystone",
+  "colours": {
+    "ink": "#202B33",
+    "paper": "#F6F2E9",
+    "clay": "#E87B40",
+    "slate": "#58646B",
+    "white": "#FFFFFF"
+  },
+  "typography": {
+    "family": "Manrope",
+    "wordmarkWeight": 700,
+    "bodyWeight": 500
+  }
+}
