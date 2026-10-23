@@ -4,6 +4,7 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   color-scheme: light;
+  --brand-mark: url('./assets/branding/mark-colour-light.svg');
   --background: #f7f7f8;
   --surface: #ffffff;
   --secondary: #f0f0f2;
@@ -22,6 +23,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-appearance='light']) {
     color-scheme: dark;
+    --brand-mark: url('./assets/branding/mark-colour-dark.svg');
     --background: #202022;
     --surface: #272729;
     --secondary: #242426;
@@ -39,6 +41,7 @@
 }
 :root[data-appearance='dark'] {
   color-scheme: dark;
+  --brand-mark: url('./assets/branding/mark-colour-dark.svg');
   --background: #202022;
   --surface: #272729;
   --secondary: #242426;

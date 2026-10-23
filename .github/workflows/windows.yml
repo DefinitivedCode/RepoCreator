@@ -220,6 +220,9 @@ jobs:
           test -d "$app"
           test "$(lipo -archs "$app/Contents/MacOS/repo-creator")" = "$EXPECTED_ARCH"
           codesign --verify --deep --strict --verbose=2 "$app"
+          icon=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$app/Contents/Info.plist")
+          case "$icon" in *.icns) ;; *) icon="$icon.icns" ;; esac
+          cmp src-tauri/icons/icon.icns "$app/Contents/Resources/$icon"
           cmp LICENSE "$app/Contents/Resources/LICENSE"
           cmp THIRD_PARTY_NOTICES.txt "$app/Contents/Resources/THIRD_PARTY_NOTICES.txt"
           printf 'Ad-hoc signed, not notarized. Architecture: %s. A physical Mac launch remains to be tested.\n' "$EXPECTED_ARCH" >> "$GITHUB_STEP_SUMMARY"

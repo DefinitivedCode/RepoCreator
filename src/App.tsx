@@ -88,7 +88,7 @@ export default function App() {
     <div className="app desktop-app" data-page={page} data-section={section}>
       <header className="app-header">
         <div className="app-title">
-          <Icon name="repo" size={19} />
+          <span className="brand-mark" aria-hidden="true" />
           <h1>Repo Creator</h1>
           {updates.info && <span className="version">{updates.info.currentVersion}</span>}
         </div>

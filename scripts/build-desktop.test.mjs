@@ -1,6 +1,46 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { assertNoPrivateBuildPaths, buildEnvironment, runBuild } from './build-desktop.mjs';
+
+test('shipping brand resources match the approved Keystone masters and platform variants', async () => {
+  const read = (name) => readFile(new URL(`../${name}`, import.meta.url));
+  const config = JSON.parse(await read('src-tauri/tauri.conf.json'));
+  const mac = JSON.parse(await read('src-tauri/tauri.macos.conf.json'));
+  const platformIcons = {
+    'icons/32x32.png': 'windows-32.png',
+    'icons/128x128.png': 'windows-128.png',
+    'icons/128x128@2x.png': 'windows-256.png',
+    'icons/icon.ico': 'repo-creator.ico',
+    'icons/icon.icns': 'repo-creator.icns',
+    'icons/macos-128.png': 'macos-128.png',
+  };
+  assert.deepEqual(config.bundle.icon, Object.keys(platformIcons).slice(0, 4));
+  assert.equal(config.bundle.windows.nsis.installerIcon, 'icons/icon.ico');
+  assert.equal(config.bundle.windows.nsis.uninstallerIcon, 'icons/icon.ico');
+  assert.deepEqual(mac.bundle.icon, ['icons/icon.icns', 'icons/macos-128.png']);
+  for (const [destination, source] of Object.entries(platformIcons)) {
+    assert.deepEqual(
+      await read(`src-tauri/${destination}`),
+      await read(`docs/branding/builder/icons/${source}`),
+      destination,
+    );
+  }
+  for (const [destination, source] of [
+    ['app-icon.svg', 'masters/app-icon-windows.svg'],
+    ['public/favicon.ico', 'icons/favicon.ico'],
+    ['src/assets/branding/mark-colour-light.svg', 'masters/mark-colour-light.svg'],
+    ['src/assets/branding/mark-colour-dark.svg', 'masters/mark-colour-dark.svg'],
+  ]) {
+    assert.deepEqual(await read(destination), await read(`docs/branding/builder/${source}`));
+  }
+  const ico = await read('src-tauri/icons/icon.ico');
+  assert.equal(ico.readUInt16LE(2), 1);
+  assert.deepEqual(
+    Array.from({ length: ico.readUInt16LE(4) }, (_, index) => ico[6 + index * 16] || 256),
+    [16, 24, 32, 48, 64, 128, 256],
+  );
+});
 
 const settings = { root: 'C:\\Build User\\Repo', home: 'C:\\Build User', platform: 'win32' };
 test('encoded Rust flags preserve custom arguments and safely remap spaced Windows paths', () => {

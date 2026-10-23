@@ -37,6 +37,9 @@ test('appearance themes and accent presets apply live through native preferences
     ['Monochrome', 'monochrome'],
     ['Muted Teal', 'teal'],
   ] as const) {
+    const brand = await page
+      .locator('.brand-mark')
+      .evaluate((element) => getComputedStyle(element).backgroundImage);
     await panel.getByRole('radio', { name, exact: true }).check();
     await expect(panel.getByRole('radio', { name, exact: true })).toBeChecked();
     await expect.poll(async () => (await accentCalls(page)).at(-1)?.payload.accent).toBe(id);
@@ -49,6 +52,7 @@ test('appearance themes and accent presets apply live through native preferences
       };
     });
     expect(colors.preview).toBe(colors.actual);
+    await expect(page.locator('.brand-mark')).toHaveCSS('background-image', brand);
   }
   await page.getByRole('tab', { name: 'Appearance', exact: true }).focus();
   await page.keyboard.press('ArrowRight');
@@ -69,22 +73,36 @@ test('System follows OS appearance changes while explicit themes stay fixed and 
     page
       .locator('html')
       .evaluate((element) => getComputedStyle(element).getPropertyValue('--accent'));
+  const brandBody = () =>
+    header.locator('.brand-mark').evaluate(async (element) => {
+      const url = JSON.parse(getComputedStyle(element).backgroundImage.slice(4, -1));
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const svg = new DOMParser().parseFromString(await (await fetch(url)).text(), 'image/svg+xml');
+      return svg.querySelector('path')?.getAttribute('fill');
+    });
   await page.emulateMedia({ colorScheme: 'light' });
+  await expect.poll(brandBody).toBe('#202B33');
   const light = await token();
   await page.emulateMedia({ colorScheme: 'dark' });
+  await expect.poll(brandBody).toBe('#F6F2E9');
   await expect.poll(token).not.toBe(light);
   const dark = await token();
   await expect(panel.getByRole('radio', { name: 'System', exact: true })).toBeChecked();
   await panel.getByRole('radio', { name: 'Light', exact: true }).check();
+  await expect.poll(brandBody).toBe('#202B33');
   await expect.poll(token).toBe(light);
   await page.emulateMedia({ colorScheme: 'light' });
   await expect.poll(token).toBe(light);
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect.poll(token).toBe(light);
+  await expect.poll(brandBody).toBe('#202B33');
   await panel.getByRole('radio', { name: 'Dark', exact: true }).check();
   await expect.poll(token).toBe(dark);
   await page.emulateMedia({ colorScheme: 'light' });
   await expect.poll(token).toBe(dark);
+  await expect.poll(brandBody).toBe('#F6F2E9');
   await expect(header.getByRole('combobox')).toHaveCount(0);
   await expect(header.getByRole('radio')).toHaveCount(0);
 });
