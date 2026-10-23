@@ -4,7 +4,7 @@ Repo Creator creates new Git repositories on your computer. Publishing to GitHub
 
 ## Download and install
 
-The first public release is still being prepared. Once published, open [GitHub Releases](https://github.com/DefinitivedCode/RepoCreator/releases), choose a version, and download the asset for your computer. Read its notes and compare its SHA-256 checksum with `SHA256SUMS.txt` before opening it. A matching checksum checks file integrity; it does not replace a trusted publisher signature.
+Published prereleases are available from [GitHub Releases](https://github.com/DefinitivedCode/RepoCreator/releases). Choose a version and download the asset for your computer. Read its notes and compare its SHA-256 checksum with `SHA256SUMS.txt` before opening it. A matching checksum checks file integrity; it does not replace a trusted publisher signature. Features and screenshots on `main` may be newer than the published package.
 
 | Platform            | Package                                                                                    |
 | ------------------- | ------------------------------------------------------------------------------------------ |
@@ -18,7 +18,7 @@ On Windows, run one installer and follow its prompts. The installer can download
 
 Mac users should follow the [Mac installation and testing guide](macOS-testing.md). Current builds are ad-hoc signed and not notarized.
 
-While the repository remains private, the source and build artifacts are available only to its owner and invited collaborators. Collaborators can obtain test builds from a successful [Actions run](https://github.com/DefinitivedCode/RepoCreator/actions/workflows/windows.yml); see the Mac guide or [release preparation](releases.md). There is no public download yet.
+The repository and published downloads are public. For development test builds, see a successful [Actions run](https://github.com/DefinitivedCode/RepoCreator/actions/workflows/windows.yml) and its available artifacts; GitHub may require sign-in. Ordinary PR checks compile the application without creating installers. Use Releases for installable packages; see the Mac guide or [release preparation](releases.md) for packaging details.
 
 ## Check Git
 

@@ -7,7 +7,7 @@ Current Mac builds are **ad-hoc signed and not notarized**. They do not have a v
 ## Choose and install the application
 
 1. Open **Apple menu → About This Mac**. A **Chip** entry identifies an Apple Silicon Mac; an Intel **Processor** entry identifies an Intel Mac.
-2. Open this repository's [Releases](https://github.com/DefinitivedCode/RepoCreator/releases) and choose a published version. The first public release is still being prepared. While the repository is private, only invited collaborators can access its builds.
+2. Open this repository's public [Releases](https://github.com/DefinitivedCode/RepoCreator/releases) and choose a published version. Current downloads are prereleases; read the release notes for what's included. Features on `main` may be newer than the package.
 3. For Apple Silicon, choose the file ending in `macos-arm64-adhoc.dmg`. For Intel, choose `macos-x64-adhoc.dmg`. The filename also includes the version. Do not download a source-code archive to install the app.
 4. Compare the file's SHA-256 checksum with `SHA256SUMS.txt` from the same release. In Terminal, `shasum -a 256` followed by a space and the downloaded file path prints its checksum. A match verifies integrity, not publisher identity.
 5. Open the DMG, drag **Repo Creator** to **Applications**, then open it from Applications. An `.app.tar.gz` archive is an alternative bundle; extract it in Finder and move the app to Applications.
@@ -51,8 +51,8 @@ Use new local demonstration projects and preserve previous project files.
 
 Optional Git verification in the created folder uses `git log -1` and `git status`; expect the initial commit and a clean working tree. Publishing to a real GitHub account is a separate manual test requiring the tester's explicit choice, not part of automated CI.
 
-## Collaborator test builds
+## Actions test builds
 
-Before a public release, invited collaborators can open [Desktop checks and test builds](https://github.com/DefinitivedCode/RepoCreator/actions/workflows/windows.yml), choose a successful run for the intended commit, and download its Mac artifact matching their architecture. GitHub may require sign-in for Actions artifacts. Unzip the artifact, then use its DMG or application archive as above. Keep any supplied checksum file with the package. A failed or queued job is not a verified download.
+For a development test build, open [Desktop checks and test builds](https://github.com/DefinitivedCode/RepoCreator/actions/workflows/windows.yml) and choose a successful full packaging run for the intended commit. When that run has downloadable artifacts, choose the Mac artifact matching your architecture. Ordinary PR checks build an app for validation without uploading installable packages. GitHub may require sign-in for Actions artifacts. Unzip the artifact, then use its DMG or application archive as above. Keep any supplied checksum file with the package. A failed or queued job is not a verified download.
 
 When reporting a problem, include the app version/commit, package architecture, Mac chip/model, macOS version, operation and exact error. Redact usernames, paths, repository URLs and project text from screenshots. Do not include credentials or complete settings files. See [Troubleshooting](troubleshooting.md).
