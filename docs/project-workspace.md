@@ -204,7 +204,9 @@ GitHub remotes the existing GitHub CLI account check also runs. Each probe and a
 of its descendants run as one process group (macOS) or job (Windows). The time
 limit and **Cancel** cover the program's exit and its output: a background
 descendant that keeps the output open is ended rather than waited for, and
-descendants are ended when a probe finishes.
+descendants are ended when a probe finishes. **Cancel** applies from the moment
+you confirm, including while the plan is revalidated; a cancelled check starts no
+further programs or project commands and is reported as cancelled.
 
 Project commands are optional and never selected automatically. Only saved,
 enabled and already reviewed commands can be chosen; development servers and

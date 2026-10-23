@@ -36,7 +36,7 @@ Native commands:
 | `get_project_readiness`    | `id`                                                       | `{ checks }` from read-only inspection                            |
 | `prepare_readiness_check`  | `id`                                                       | `{ token, probes }`: the exact plan shown for review              |
 | `run_readiness_check`      | `id`, `token`                                              | `{ checks, cancelled }`; runs the reviewed plan once if unchanged |
-| `cancel_readiness_check`   | `id`                                                       | void                                                              |
+| `cancel_readiness_check`   | `id`, `token`                                              | void; cancels that run, including during validation               |
 
 The frontend polls bounded run snapshots while the commands view is open. Native
 reader threads collect stdout and stderr without blocking the UI. Imported

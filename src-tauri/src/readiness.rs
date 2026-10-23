@@ -111,7 +111,7 @@ pub struct FullReport {
 }
 
 pub(crate) struct Environment<'a> {
-    pub find: &'a dyn Fn(&str) -> Option<PathBuf>,
+    pub find: &'a (dyn Fn(&str) -> Option<PathBuf> + Sync),
     pub rustup_home: Option<PathBuf>,
     /// The resolved Python is the macOS developer tools placeholder.
     pub python_stub: bool,
@@ -1658,10 +1658,17 @@ pub(crate) fn execute(
 }
 
 static NEXT_PLAN: AtomicU64 = AtomicU64::new(1);
+/// A plan awaiting confirmation. Its cancellation flag exists from review onwards,
+/// so a Cancel sent while the run is still starting is never lost.
+struct Reviewed {
+    token: String,
+    plan: Plan,
+    cancel: Arc<AtomicBool>,
+}
 #[derive(Default)]
 pub struct ReadinessChecks {
-    active: Mutex<HashMap<String, Arc<AtomicBool>>>,
-    reviewed: Mutex<HashMap<String, (String, Plan)>>,
+    active: Mutex<HashMap<String, (String, Arc<AtomicBool>)>>,
+    reviewed: Mutex<HashMap<String, Reviewed>>,
 }
 fn state_error() -> AppError {
     AppError::new(
@@ -1675,25 +1682,158 @@ fn stale_plan() -> AppError {
         "Review the updated list of programs and confirm again. Nothing ran.",
     )
 }
+/// A registered run. Dropping it removes the registration and any unconsumed
+/// review for its token, whether the run finished, was cancelled or was rejected.
+pub(crate) struct ActiveRun<'a> {
+    state: &'a ReadinessChecks,
+    id: String,
+    token: String,
+    pub cancel: Arc<AtomicBool>,
+}
+impl Drop for ActiveRun<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut active) = self.state.active.lock() {
+            active.remove(&self.id);
+        }
+        if let Ok(mut reviewed) = self.state.reviewed.lock() {
+            if reviewed
+                .get(&self.id)
+                .is_some_and(|r| r.token == self.token)
+            {
+                reviewed.remove(&self.id);
+            }
+        }
+    }
+}
 impl ReadinessChecks {
     /// Stores a plan for review and returns the token that confirms it.
     pub(crate) fn review(&self, id: &str, plan: Plan) -> Result<String, AppError> {
         let token = format!("plan-{}", NEXT_PLAN.fetch_add(1, Ordering::Relaxed));
-        self.reviewed
+        self.reviewed.lock().map_err(|_| state_error())?.insert(
+            id.into(),
+            Reviewed {
+                token: token.clone(),
+                plan,
+                cancel: Arc::new(AtomicBool::new(false)),
+            },
+        );
+        Ok(token)
+    }
+    /// Registers a run for a reviewed token before any blocking work starts.
+    pub(crate) fn begin(&self, id: &str, token: &str) -> Result<ActiveRun<'_>, AppError> {
+        let mut active = self.active.lock().map_err(|_| state_error())?;
+        if active.contains_key(id) {
+            return Err(AppError::new(
+                "A full check is already running for this project.",
+                "Wait for it to finish or cancel it.",
+            ));
+        }
+        let cancel = self
+            .reviewed
             .lock()
             .map_err(|_| state_error())?
-            .insert(id.into(), (token.clone(), plan));
-        Ok(token)
+            .get(id)
+            .filter(|reviewed| reviewed.token == token)
+            .map(|reviewed| reviewed.cancel.clone())
+            .ok_or_else(stale_plan)?;
+        active.insert(id.into(), (token.into(), cancel.clone()));
+        Ok(ActiveRun {
+            state: self,
+            id: id.into(),
+            token: token.into(),
+            cancel,
+        })
     }
     /// Consumes a reviewed plan. It is returned only for the matching token and
     /// only when a plan rebuilt now is identical; any change requires a new review.
     pub(crate) fn confirm(&self, id: &str, token: &str, current: &Plan) -> Result<Plan, AppError> {
         let reviewed = self.reviewed.lock().map_err(|_| state_error())?.remove(id);
         match reviewed {
-            Some((expected, plan)) if expected == token && plan == *current => Ok(plan),
+            Some(reviewed) if reviewed.token == token && reviewed.plan == *current => {
+                Ok(reviewed.plan)
+            }
             _ => Err(stale_plan()),
         }
     }
+    /// Cancels the run for this token, or the reviewed plan it is about to start.
+    pub(crate) fn cancel(&self, id: &str, token: &str) -> Result<(), AppError> {
+        if let Some((_, cancel)) = self
+            .active
+            .lock()
+            .map_err(|_| state_error())?
+            .get(id)
+            .filter(|(active, _)| active == token)
+        {
+            cancel.store(true, Ordering::Release);
+        }
+        if let Some(reviewed) = self
+            .reviewed
+            .lock()
+            .map_err(|_| state_error())?
+            .get(id)
+            .filter(|reviewed| reviewed.token == token)
+        {
+            reviewed.cancel.store(true, Ordering::Release);
+        }
+        Ok(())
+    }
+}
+
+/// Runners for one full check, all bound to its cancellation flag.
+pub(crate) struct Runners {
+    pub local: Box<dyn Runner>,
+    pub versions: Box<dyn Runner>,
+    pub remote: Box<dyn Runner>,
+}
+fn cancelled_report() -> FullReport {
+    FullReport {
+        checks: Vec::new(),
+        cancelled: true,
+    }
+}
+/// Validates and runs a reviewed plan. Cancellation is registered first and is
+/// checked before validation, before confirmation and before every step.
+pub(crate) fn run_reviewed(
+    state: &ReadinessChecks,
+    id: &str,
+    token: &str,
+    env: &Environment,
+    root: impl FnOnce() -> Result<PathBuf, AppError>,
+    runners: impl FnOnce(&Arc<AtomicBool>) -> Runners,
+) -> Result<FullReport, AppError> {
+    let run = state.begin(id, token)?;
+    let cancel = run.cancel.clone();
+    let stopped = || cancel.load(Ordering::Acquire);
+    let root = root()?;
+    let runners = runners(&cancel);
+    if stopped() {
+        return Ok(cancelled_report());
+    }
+    let current = prepare(&root, env, runners.local.as_ref());
+    // Validation may have been interrupted, leaving an incomplete plan: report
+    // the cancellation rather than comparing it.
+    if stopped() {
+        return Ok(cancelled_report());
+    }
+    let plan = state.confirm(id, token, &current)?;
+    let neutral = tempfile::tempdir().map_err(|_| {
+        AppError::new(
+            "Could not prepare a temporary folder for the full check.",
+            "Check free disk space, then try again. No command ran.",
+        )
+    })?;
+    let checks = execute(
+        &plan,
+        runners.versions.as_ref(),
+        runners.remote.as_ref(),
+        neutral.path(),
+        &cancel,
+    );
+    drop(run);
+    Ok(FullReport {
+        checks,
+        cancelled: stopped(),
+    })
 }
 
 #[tauri::command(async)]
@@ -1701,12 +1841,6 @@ pub fn get_project_readiness(id: String, app: tauri::AppHandle) -> Result<Report
     let project = handoff::find_project(&app, &id)?;
     let root = workspace::project_directory(&project)?;
     Ok(inspect(&root, &project.commands, &Environment::system()))
-}
-fn local_runner() -> BoundedRunner {
-    BoundedRunner {
-        timeout: PROBE_TIMEOUT,
-        cancel: None,
-    }
 }
 #[tauri::command(async)]
 pub fn prepare_readiness_check(
@@ -1716,7 +1850,11 @@ pub fn prepare_readiness_check(
 ) -> Result<PlanView, AppError> {
     let project = handoff::find_project(&app, &id)?;
     let root = workspace::project_directory(&project)?;
-    let plan = prepare(&root, &Environment::system(), &local_runner());
+    let local = BoundedRunner {
+        timeout: PROBE_TIMEOUT,
+        cancel: None,
+    };
+    let plan = prepare(&root, &Environment::system(), &local);
     let probes = plan
         .steps
         .iter()
@@ -1738,60 +1876,34 @@ pub fn run_readiness_check(
     app: tauri::AppHandle,
     state: State<'_, Arc<ReadinessChecks>>,
 ) -> Result<FullReport, AppError> {
-    let project = handoff::find_project(&app, &id)?;
-    let root = workspace::project_directory(&project)?;
-    let current = prepare(&root, &Environment::system(), &local_runner());
-    let plan = state.confirm(&id, &token, &current)?;
-    let cancel = Arc::new(AtomicBool::new(false));
-    {
-        let mut active = state.active.lock().map_err(|_| state_error())?;
-        if active.contains_key(&id) {
-            return Err(AppError::new(
-                "A full check is already running for this project.",
-                "Wait for it to finish or cancel it.",
-            ));
-        }
-        active.insert(id.clone(), cancel.clone());
-    }
-    let neutral = tempfile::tempdir();
-    let checks = neutral.as_ref().map(|neutral| {
-        execute(
-            &plan,
-            &BoundedRunner {
-                timeout: PROBE_TIMEOUT,
-                cancel: Some(cancel.clone()),
-            },
-            &BoundedRunner {
-                timeout: REMOTE_TIMEOUT,
-                cancel: Some(cancel.clone()),
-            },
-            neutral.path(),
-            &cancel,
-        )
-    });
-    if let Ok(mut active) = state.active.lock() {
-        active.remove(&id);
-    }
-    let checks = checks.map_err(|_| {
-        AppError::new(
-            "Could not prepare a temporary folder for the full check.",
-            "Check free disk space, then try again. No command ran.",
-        )
-    })?;
-    Ok(FullReport {
-        checks,
-        cancelled: cancel.load(Ordering::Acquire),
-    })
+    run_reviewed(
+        &state,
+        &id,
+        &token,
+        &Environment::system(),
+        || workspace::project_directory(&handoff::find_project(&app, &id)?),
+        |cancel| {
+            let bounded = |timeout| -> Box<dyn Runner> {
+                Box::new(BoundedRunner {
+                    timeout,
+                    cancel: Some(cancel.clone()),
+                })
+            };
+            Runners {
+                local: bounded(PROBE_TIMEOUT),
+                versions: bounded(PROBE_TIMEOUT),
+                remote: bounded(REMOTE_TIMEOUT),
+            }
+        },
+    )
 }
 #[tauri::command(async)]
 pub fn cancel_readiness_check(
     id: String,
+    token: String,
     state: State<'_, Arc<ReadinessChecks>>,
 ) -> Result<(), AppError> {
-    if let Some(cancel) = state.active.lock().map_err(|_| state_error())?.get(&id) {
-        cancel.store(true, Ordering::Release);
-    }
-    Ok(())
+    state.cancel(&id, &token)
 }
 
 #[cfg(test)]
@@ -1832,14 +1944,14 @@ mod tests {
             stdout: stdout.into(),
         })
     }
-    fn tools(names: Vec<&'static str>) -> impl Fn(&str) -> Option<PathBuf> {
+    fn tools(names: Vec<&'static str>) -> impl Fn(&str) -> Option<PathBuf> + Send + Sync {
         move |name| {
             names
                 .contains(&name)
                 .then(|| PathBuf::from(format!("/fixture/bin/{name}")))
         }
     }
-    fn environment<'a>(find: &'a dyn Fn(&str) -> Option<PathBuf>) -> Environment<'a> {
+    fn environment<'a>(find: &'a (dyn Fn(&str) -> Option<PathBuf> + Sync)) -> Environment<'a> {
         Environment {
             find,
             rustup_home: None,
@@ -2730,6 +2842,304 @@ mod tests {
             find(&checks, "version-python").status,
             Status::CouldNotCheck
         );
+    }
+
+    impl Runner for Arc<Fixture> {
+        fn run(&self, program: Program, args: &[String], cwd: &Path) -> Result<Output, String> {
+            self.as_ref().run(program, args, cwd)
+        }
+    }
+    /// Pauses the first call whose first argument is `block` until the run is
+    /// cancelled, then reports cancellation like the bounded runner does.
+    struct Gate {
+        inner: Arc<Fixture>,
+        block: &'static str,
+        started: Mutex<Option<std::sync::mpsc::Sender<()>>>,
+        cancel: Arc<AtomicBool>,
+    }
+    impl Runner for Gate {
+        fn run(&self, program: Program, args: &[String], cwd: &Path) -> Result<Output, String> {
+            if args.first().map(String::as_str) != Some(self.block) {
+                return self.inner.run(program, args, cwd);
+            }
+            self.inner
+                .calls
+                .lock()
+                .unwrap()
+                .push((program, args.to_vec(), cwd.to_path_buf()));
+            if let Some(started) = self.started.lock().unwrap().take() {
+                let _ = started.send(());
+            }
+            while !self.cancel.load(Ordering::Acquire) {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            Err("cancelled".into())
+        }
+    }
+    type Finder = Box<dyn Fn(&str) -> Option<PathBuf> + Send + Sync>;
+    struct Scenario {
+        project: tempfile::TempDir,
+        _rustup: tempfile::TempDir,
+        finder: Finder,
+        rustup_home: PathBuf,
+    }
+    impl Scenario {
+        fn new() -> Self {
+            let (_, rustup) = neutral_and_rustup(true);
+            Self {
+                project: mixed_project(),
+                rustup_home: rustup.path().to_path_buf(),
+                _rustup: rustup,
+                finder: Box::new(tools(vec!["node", "rustc", "rustup", python_name(), "gh"])),
+            }
+        }
+        fn env(&self) -> Environment<'_> {
+            Environment {
+                find: self.finder.as_ref(),
+                rustup_home: Some(self.rustup_home.clone()),
+                python_stub: false,
+            }
+        }
+    }
+    fn local_answers() -> Arc<Fixture> {
+        Arc::new(github_remote())
+    }
+    fn probe_answers() -> Arc<Fixture> {
+        Arc::new(Fixture::new(|program, _| match program {
+            Program::Node => ok("v22.4.0"),
+            Program::Rustc => ok("rustc 1.95.0 (abc)"),
+            Program::Rustup => ok("wasm32-unknown-unknown"),
+            Program::Python => ok("Python 3.12.0"),
+            Program::Git => ok("abc\tHEAD"),
+            Program::Gh => ok(r#"{"login":"example","id":7}"#),
+        }))
+    }
+    fn runners(local: Arc<Fixture>, versions: Arc<Fixture>, remote: Arc<Fixture>) -> Runners {
+        Runners {
+            local: Box::new(local),
+            versions: Box::new(versions),
+            remote: Box::new(remote),
+        }
+    }
+    fn idle(state: &ReadinessChecks) -> bool {
+        state.active.lock().unwrap().is_empty() && state.reviewed.lock().unwrap().is_empty()
+    }
+
+    #[test]
+    fn cancelling_during_plan_validation_starts_nothing_and_is_reported() {
+        let scenario = Scenario::new();
+        let env = scenario.env();
+        let root = scenario.project.path().to_path_buf();
+        let state = ReadinessChecks::default();
+        let token = state
+            .review("project", prepare(&root, &env, local_answers().as_ref()))
+            .unwrap();
+        let local = local_answers();
+        let (versions, remote) = (probe_answers(), probe_answers());
+        let (started, validating) = std::sync::mpsc::channel();
+        let report = std::thread::scope(|scope| {
+            let run = scope.spawn(|| {
+                run_reviewed(
+                    &state,
+                    "project",
+                    &token,
+                    &env,
+                    || Ok(root.clone()),
+                    |cancel| Runners {
+                        // Validation blocks in its first Git call until Cancel arrives.
+                        local: Box::new(Gate {
+                            inner: local.clone(),
+                            block: "remote",
+                            started: Mutex::new(Some(started)),
+                            cancel: cancel.clone(),
+                        }),
+                        versions: Box::new(versions.clone()),
+                        remote: Box::new(remote.clone()),
+                    },
+                )
+            });
+            validating.recv().unwrap();
+            assert!(
+                state.cancel("project", &token).is_ok(),
+                "cancellation is acknowledged"
+            );
+            run.join().unwrap()
+        })
+        .unwrap();
+        assert!(report.cancelled, "the backend reports the cancellation");
+        assert!(report.checks.is_empty());
+        assert_eq!(
+            local.calls().len(),
+            1,
+            "validation stopped at its first Git call"
+        );
+        assert!(versions.calls().is_empty(), "no probe started");
+        assert!(remote.calls().is_empty(), "no network request started");
+        assert!(idle(&state), "the run and its review were cleaned up");
+
+        // A new review starts normally afterwards.
+        let token = state
+            .review("project", prepare(&root, &env, local_answers().as_ref()))
+            .unwrap();
+        let (versions, remote) = (probe_answers(), probe_answers());
+        let report = run_reviewed(
+            &state,
+            "project",
+            &token,
+            &env,
+            || Ok(root.clone()),
+            |_| runners(local_answers(), versions.clone(), remote.clone()),
+        )
+        .unwrap();
+        assert!(!report.cancelled);
+        assert_eq!(find(&report.checks, "version-node").status, Status::Ready);
+        assert_eq!(versions.calls().len(), 4);
+        assert_eq!(remote.calls().len(), 2);
+        assert!(idle(&state));
+    }
+
+    #[test]
+    fn a_cancel_sent_before_the_run_registers_is_not_lost() {
+        let scenario = Scenario::new();
+        let env = scenario.env();
+        let root = scenario.project.path().to_path_buf();
+        let state = ReadinessChecks::default();
+        let token = state
+            .review("project", prepare(&root, &env, local_answers().as_ref()))
+            .unwrap();
+        let other = state
+            .review("other", prepare(&root, &env, local_answers().as_ref()))
+            .unwrap();
+        state.cancel("project", &token).unwrap();
+        // A cancel for another token or project does not affect this run.
+        state.cancel("other", "plan-unknown").unwrap();
+        let (local, versions, remote) = (local_answers(), probe_answers(), probe_answers());
+        let report = run_reviewed(
+            &state,
+            "project",
+            &token,
+            &env,
+            || Ok(root.clone()),
+            |_| runners(local.clone(), versions.clone(), remote.clone()),
+        )
+        .unwrap();
+        assert!(report.cancelled);
+        assert!(
+            local.calls().is_empty() && versions.calls().is_empty() && remote.calls().is_empty()
+        );
+        let report = run_reviewed(
+            &state,
+            "other",
+            &other,
+            &env,
+            || Ok(root.clone()),
+            |_| runners(local_answers(), probe_answers(), probe_answers()),
+        )
+        .unwrap();
+        assert!(!report.cancelled);
+        assert!(idle(&state));
+    }
+
+    #[test]
+    fn cancelling_after_execution_starts_stops_remaining_steps() {
+        let scenario = Scenario::new();
+        let env = scenario.env();
+        let root = scenario.project.path().to_path_buf();
+        let state = ReadinessChecks::default();
+        let token = state
+            .review("project", prepare(&root, &env, local_answers().as_ref()))
+            .unwrap();
+        let (versions, remote) = (probe_answers(), probe_answers());
+        let (started, probing) = std::sync::mpsc::channel();
+        let report = std::thread::scope(|scope| {
+            let run = scope.spawn(|| {
+                run_reviewed(
+                    &state,
+                    "project",
+                    &token,
+                    &env,
+                    || Ok(root.clone()),
+                    |cancel| Runners {
+                        local: Box::new(local_answers()),
+                        // The first probe (`node --version`) is in flight when Cancel arrives.
+                        versions: Box::new(Gate {
+                            inner: versions.clone(),
+                            block: "--version",
+                            started: Mutex::new(Some(started)),
+                            cancel: cancel.clone(),
+                        }),
+                        remote: Box::new(remote.clone()),
+                    },
+                )
+            });
+            probing.recv().unwrap();
+            // While running, the review is consumed; cancellation targets the active run.
+            assert!(state.reviewed.lock().unwrap().is_empty());
+            state.cancel("project", &token).unwrap();
+            run.join().unwrap()
+        })
+        .unwrap();
+        assert!(report.cancelled);
+        assert_eq!(
+            versions.calls().len(),
+            1,
+            "no probe after the cancelled one"
+        );
+        assert!(
+            remote.calls().is_empty(),
+            "no network request after cancellation"
+        );
+        assert!(!report.checks.iter().any(|c| c.id == "version-node"));
+        assert!(idle(&state));
+    }
+
+    #[test]
+    fn rejected_runs_clean_up_and_never_start_programs() {
+        let scenario = Scenario::new();
+        let env = scenario.env();
+        let root = scenario.project.path().to_path_buf();
+        let state = ReadinessChecks::default();
+        let (versions, remote) = (probe_answers(), probe_answers());
+        let attempt = |token: &str| {
+            run_reviewed(
+                &state,
+                "project",
+                token,
+                &env,
+                || Ok(root.clone()),
+                |_| runners(local_answers(), versions.clone(), remote.clone()),
+            )
+        };
+        assert!(attempt("plan-unknown").is_err());
+        assert!(idle(&state));
+        let token = state
+            .review("project", prepare(&root, &env, local_answers().as_ref()))
+            .unwrap();
+        write(&root, "package.json", r#"{"engines":{"node":">=24"}}"#);
+        assert!(attempt(&token).is_err(), "changed plans are rejected");
+        assert!(idle(&state));
+        let token = state
+            .review("project", prepare(&root, &env, local_answers().as_ref()))
+            .unwrap();
+        let missing = run_reviewed(
+            &state,
+            "project",
+            &token,
+            &env,
+            || Err(stale_plan()),
+            |_| runners(local_answers(), versions.clone(), remote.clone()),
+        );
+        assert!(missing.is_err());
+        assert!(idle(&state));
+        assert!(versions.calls().is_empty() && remote.calls().is_empty());
+        // Only one run per project at a time.
+        let token = state
+            .review("project", prepare(&root, &env, local_answers().as_ref()))
+            .unwrap();
+        let first = state.begin("project", &token).unwrap();
+        assert!(state.begin("project", &token).is_err());
+        drop(first);
+        assert!(idle(&state));
     }
 
     #[test]

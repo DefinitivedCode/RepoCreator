@@ -76,6 +76,7 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
   const cancelled = useRef(false);
   const mounted = useRef(true);
   const currentRun = useRef('');
+  const currentToken = useRef('');
   const id = project?.id;
   const commandsKey = JSON.stringify(project?.commands ?? []);
   async function inspect(reset = false) {
@@ -117,7 +118,10 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
       mounted.current = false;
       if (running.current) {
         cancelled.current = true;
-        if (id) void invoke('cancel_readiness_check', { id }).catch(() => undefined);
+        if (id && currentToken.current)
+          void invoke('cancel_readiness_check', { id, token: currentToken.current }).catch(
+            () => undefined,
+          );
       }
     };
   }, [id]);
@@ -164,11 +168,15 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
       return errorText(value);
     }
   }
-  /** Returns an error when the reviewed plan was rejected before anything ran. */
+  /**
+   * Returns an error when the reviewed plan was rejected before anything ran and
+   * the user did not cancel it, so it can be reviewed again.
+   */
   async function runFull(token: string, commands: ProjectCommand[]): Promise<string | null> {
     if (!id || running.current) return null;
     running.current = true;
     cancelled.current = false;
+    currentToken.current = token;
     setError('');
     setFull({
       running: true,
@@ -177,6 +185,8 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
       cancelled: false,
     });
     let results: ReadinessCheck[] = [];
+    // The final status reports what actually happened: the backend's own
+    // cancellation result, or project commands skipped or stopped by Cancel.
     let interrupted = false;
     try {
       const result = await invoke<FullReadinessReport>('run_readiness_check', { id, token });
@@ -185,33 +195,48 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
         interrupted = !!result.cancelled;
       }
     } catch (value) {
-      // A stale or unknown plan ran nothing; the user reviews again before commands run.
+      // A stale or unknown plan ran nothing and no command runs after it.
       running.current = false;
-      if (mounted.current)
+      currentToken.current = '';
+      const message = errorText(value);
+      if (mounted.current) {
         setFull({ running: false, step: '', finishedAt: null, cancelled: false });
-      return errorText(value);
+        if (cancelled.current) setError(message);
+      }
+      return cancelled.current ? null : message;
     }
     if (mounted.current) setVerified(results);
-    for (const command of commands) {
-      if (cancelled.current || !mounted.current) break;
+    for (const [index, command] of commands.entries()) {
+      // A cancelled backend check never continues into project commands.
+      if (interrupted || cancelled.current || !mounted.current) {
+        interrupted = true;
+        break;
+      }
       setFull((value) => ({ ...value, step: `Running ${command.name}…` }));
-      results = mergeChecks(results, [await runCommand(id, command)]);
+      const outcome = await runCommand(id, command);
+      results = mergeChecks(results, [outcome]);
       if (mounted.current) setVerified(results);
+      if (cancelled.current && (index < commands.length - 1 || outcome.status !== 'ready'))
+        interrupted = true;
     }
     running.current = false;
+    currentToken.current = '';
     if (mounted.current)
       setFull({
         running: false,
         step: '',
         finishedAt: Date.now(),
-        cancelled: interrupted || cancelled.current,
+        cancelled: interrupted,
       });
     return null;
   }
   async function cancel() {
     cancelled.current = true;
     setFull((value) => ({ ...value, step: 'Cancelling…' }));
-    if (id) await invoke('cancel_readiness_check', { id }).catch(() => undefined);
+    if (id && currentToken.current)
+      await invoke('cancel_readiness_check', { id, token: currentToken.current }).catch(
+        () => undefined,
+      );
     if (currentRun.current)
       await invoke('stop_project_command', { runId: currentRun.current }).catch(() => undefined);
   }

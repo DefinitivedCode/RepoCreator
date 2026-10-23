@@ -289,6 +289,7 @@ async function workspaceFixture(page: Page, missing = false) {
             };
           }
           (window as any).readinessPlans = [];
+          (window as any).runningToken = payload.token;
           if ((window as any).holdFullCheck)
             await new Promise((resolve) => ((window as any).finishFullCheck = resolve));
           return {
@@ -318,7 +319,12 @@ async function workspaceFixture(page: Page, missing = false) {
           };
         }
         if (command === 'cancel_readiness_check') {
-          (window as any).fullCheckCancelled = true;
+          // Like the native state, a cancel only affects the run for its token.
+          if (
+            payload.token === (window as any).runningToken &&
+            !(window as any).finishedBeforeCancel
+          )
+            (window as any).fullCheckCancelled = true;
           (window as any).finishFullCheck?.();
           return;
         }
@@ -956,18 +962,35 @@ test('full check lists programs, never preselects commands and confirms project 
 
 test('full check can be cancelled and stays usable at minimum and wide sizes', async ({ page }) => {
   await workspaceFixture(page);
-  await page.evaluate(() => ((window as any).holdFullCheck = true));
+  await page.evaluate((commands) => {
+    (window as any).workspaceState.projects[0].commands = commands;
+    (window as any).holdFullCheck = true;
+  }, savedCommands);
   await openWorkspace(page);
   await section(page, 'Readiness, 2 need attention');
   await page.getByRole('button', { name: 'Run full check', exact: true }).click();
-  await page.getByRole('button', { name: 'Run checks', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Build application/ }).check();
+  await page.getByRole('button', { name: 'Review 1 command', exact: true }).click();
+  await page.getByRole('button', { name: 'Run 1 command', exact: true }).click();
   const progress = page.locator('.readiness-progress');
   await expect(progress).toContainText('Running full check');
   await expect(page.getByRole('button', { name: 'Run full check', exact: true })).toBeDisabled();
+  // Cancel while the backend is still validating and running probes.
   await progress.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(progress).toHaveCount(0);
   await expect(page.getByRole('status').first()).toContainText('Full check cancelled');
-  expect(await calls(page, 'cancel_readiness_check')).not.toHaveLength(0);
+  const [cancelled] = await calls(page, 'cancel_readiness_check');
+  const [run] = await calls(page, 'run_readiness_check');
+  expect(cancelled.payload.token).toBe(run.payload.token);
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  // A later full check starts normally.
+  await page.evaluate(() => {
+    (window as any).holdFullCheck = false;
+    (window as any).fullCheckCancelled = false;
+  });
+  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  await page.getByRole('button', { name: 'Run checks', exact: true }).click();
+  await expect(page.getByRole('status').first()).toContainText('Full check finished');
   for (const size of [
     { width: 820, height: 580 },
     { width: 1500, height: 900 },
@@ -1023,4 +1046,27 @@ test('a plan that changed after review runs nothing and must be confirmed again'
   const runs = await calls(page, 'run_readiness_check');
   expect(runs.map((call: any) => call.payload.token)).toEqual(['plan-1', 'plan-1']);
   expect(await calls(page, 'run_project_command')).toHaveLength(0);
+});
+
+test('a cancel that arrives after the backend finished reports the real outcome', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.evaluate(() => {
+    (window as any).holdFullCheck = true;
+    (window as any).finishedBeforeCancel = true;
+  });
+  await openWorkspace(page);
+  await section(page, 'Readiness, 2 need attention');
+  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  await page.getByRole('button', { name: 'Run checks', exact: true }).click();
+  await page
+    .locator('.readiness-progress')
+    .getByRole('button', { name: 'Cancel', exact: true })
+    .click();
+  // Every step completed, so the result is not presented as cancelled.
+  await expect(page.getByRole('status').first()).toContainText('Full check finished');
+  await expect(
+    page.locator('.readiness-check').filter({ hasText: 'Node.js version' }),
+  ).toContainText('Full check');
 });
