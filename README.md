@@ -16,9 +16,9 @@ A desktop workspace for starting Git repositories and returning to the projects 
 
 <p align="center">
   <strong><a href="#download">Download</a></strong>
-  &ensp; · &ensp;
+  &emsp;
   <strong><a href="#your-first-project">Get started</a></strong>
-  &ensp; · &ensp;
+  &emsp;
   <strong><a href="docs/README.md">Documentation</a></strong>
 </p>
 
