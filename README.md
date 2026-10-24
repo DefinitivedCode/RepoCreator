@@ -28,7 +28,7 @@ A desktop workspace for starting Git repositories and returning to the projects 
   <img src="docs/assets/overview-light.png" alt="New Project Overview for Field Notes, with a Website preset, local destination and exact generated-file previews." width="1100">
 </picture>
 
-**Development preview.** The refreshed Overview, Commands and Settings captures show refinements following the published **v1.5.0 Beta**. Keystone branding and Project Readiness are already included in that Beta. The application version remains unchanged during development; check the [release notes](https://github.com/DefinitivedCode/RepoCreator/releases) for what's included in a download.
+**Upcoming v1.5.1 Beta.** These unedited screenshots come from the actual **1.5.1** application build prepared for the next Beta. Published downloads are currently **v1.5.0 Beta**; the Commands and layout refinements shown here await v1.5.1 publication. Check the [release notes](https://github.com/DefinitivedCode/RepoCreator/releases) for what's included in your download.
 
 ## Download
 
@@ -89,10 +89,10 @@ Your project library brings existing and newly created repositories into one pla
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/workspace-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/workspace-light.png">
-  <img src="docs/assets/workspace-light.png" alt="Development preview: Field Notes workspace with a clean Git tree, a suggested command to review and a running local Vite server with styled output." width="1100">
+  <img src="docs/assets/workspace-light.png" alt="Repo Creator 1.5.1 preparation build: Field Notes workspace with a clean Git tree, a suggested command to review and a running local Vite server with styled output." width="1100">
 </picture>
 
-The Commands refinements are a **development preview**: ANSI colours render as text styles, web addresses open only when chosen, and suggestions remain subject to review. [Console details and safety](docs/project-workspace.md#run-and-stop) · [Before/after review](docs/commands-ux-review.md).
+In the upcoming **v1.5.1 Beta**, ANSI colours render as text styles, web addresses open only when chosen, and suggestions remain subject to review. [Console details and safety](docs/project-workspace.md#run-and-stop) · [Version preparation and verification](docs/v1.5.1-preparation.md) · [Before/after review](docs/commands-ux-review.md).
 
 <details>
 <summary>Project Readiness: useful findings before you run</summary>

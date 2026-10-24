@@ -168,11 +168,12 @@ reading position. Selecting another run starts at its latest output.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/commands-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="assets/commands-light.png">
-  <img src="assets/commands-light.png" alt="Development preview of the Field Notes console, with real Vite colours, a localhost link and a suggested command to review." width="1100">
+  <img src="assets/commands-light.png" alt="Repo Creator 1.5.1 preparation build showing the Field Notes console, real Vite colours, a localhost link and a suggested command to review." width="1100">
 </picture>
 
-This capture shows development refinements following v1.5.0 Beta. See the
-[before/after review and verification](commands-ux-review.md).
+This is a real **1.5.1** build prepared for the upcoming **v1.5.1 Beta**;
+published v1.5.0 Beta does not include these console refinements. See the
+[preparation review](v1.5.1-preparation.md) and [before/after comparison](commands-ux-review.md).
 
 Duplicate running instances of the same saved command are blocked. Retained
 output and completed-run history are bounded. Copy the output before clearing
