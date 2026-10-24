@@ -3,13 +3,14 @@
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, mkdtemp, rm, rmdir, writeFile, symlink } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, rmdir, writeFile, symlink } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium, expect } from '@playwright/test';
 
 assert.equal(process.platform, 'win32', 'Screenshot capture requires Windows WebView2');
 const root = path.resolve(import.meta.dirname, '..');
+const version = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')).version;
 const temporaryRoot = path.resolve(os.tmpdir());
 const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-public-'));
 const data = path.join(temporary, 'app-data');
@@ -150,6 +151,12 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30000 });
   assert.equal(
+    (await invoke('get_update_info')).currentVersion,
+    version,
+    'Build the current application version before capturing screenshots',
+  );
+  await expect(page.locator('.app-header .version')).toHaveText(version);
+  assert.equal(
     (await invoke('check_environment', { includeGithub: false })).identityName,
     'Example Developer',
   );
@@ -270,6 +277,22 @@ try {
   await mainNavigation().getByRole('button', { name: 'Projects', exact: true }).click();
   await page.getByRole('button', { name: 'Open workspace', exact: true }).click();
   const workspace = page.getByRole('main', { name: 'Project workspace' });
+  // Capture read-only findings before linking tooling or starting any project command.
+  for (const appearance of ['light', 'dark']) {
+    await theme(appearance);
+    await mainNavigation().getByRole('button', { name: 'Projects', exact: true }).click();
+    await workspace.getByRole('button', { name: /^Readiness/ }).click();
+    await expect(
+      workspace.getByRole('button', { name: 'Run full check', exact: true }),
+    ).toBeEnabled();
+    await expect(
+      workspace.getByRole('heading', { name: 'Project readiness', exact: true }),
+    ).toBeVisible();
+    await workspace
+      .getByRole('heading', { name: 'Configuration files', exact: true })
+      .evaluate((element) => element.scrollIntoView({ block: 'start' }));
+    await capture(`readiness-${appearance}`);
+  }
   // Use installed build tooling in this owned demo; never install packages.
   await symlink(path.join(root, 'node_modules'), path.join(project, 'node_modules'), 'junction');
   previewRun = await invoke('run_project_command', {
@@ -300,22 +323,10 @@ try {
       el.scrollTop = 120;
     });
     await capture(`commands-${appearance}`);
-    if (process.env.REPO_CREATOR_CAPTURE_READINESS !== '1') continue;
-    await workspace.getByRole('button', { name: /^Readiness/ }).click();
-    await expect(
-      workspace.getByRole('button', { name: 'Run full check', exact: true }),
-    ).toBeEnabled();
-    await expect(
-      workspace.getByRole('heading', { name: 'Project readiness', exact: true }),
-    ).toBeVisible();
-    await workspace
-      .getByRole('heading', { name: 'Configuration files', exact: true })
-      .evaluate((element) => element.scrollIntoView({ block: 'start' }));
-    await capture(`readiness-${appearance}`);
   }
   assert.deepEqual(errors, []);
   console.log(
-    'Real application captures completed with the explicit local Vite preview; no installs, model calls or remote operations.',
+    `Repo Creator ${version} captures completed. Readiness ran before project commands; the Vite preview was explicit. No installs, model calls or remote operations.`,
   );
 } finally {
   if (previewRun) await invoke('stop_project_command', { runId: previewRun.id }).catch(() => {});

@@ -16,5 +16,6 @@ Start with the [application overview](../README.md) or [download a published bui
 These guides describe the source on `main`. Published packages may lag behind it;
 check the [release notes](https://github.com/DefinitivedCode/RepoCreator/releases)
 for the features in your download. Keystone branding and Project Readiness are
-included in v1.5.0 Beta. The Commands and layout refinements shown in the refreshed
-screenshots are development previews following that Beta.
+included in v1.5.0 Beta. The refreshed screenshots show the actual **1.5.1**
+application build prepared for the upcoming **v1.5.1 Beta**; the Commands and
+layout refinements await that release's publication.

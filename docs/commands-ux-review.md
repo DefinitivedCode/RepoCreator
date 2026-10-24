@@ -1,9 +1,10 @@
 # Commands and UI refinement review
 
-These changes are a development preview following v1.5.0 Beta. They preserve
-Keystone branding, the command runner, imported-command confirmation, manual
-creation, presets, cancellation, concurrency and retention limits. No versions,
-release settings or website source were changed.
+PR #14 introduced these refinements and merged at `ad14fa7`, preserving Keystone
+branding, the command runner, first-run review, manual creation, presets,
+cancellation, concurrency and retention limits. It did not change version 1.5.0.
+The after images below have now been refreshed from the actual **1.5.1** build
+for the upcoming Beta. See the [version preparation review](v1.5.1-preparation.md).
 
 ## Before and after
 
@@ -14,7 +15,7 @@ Console and Settings before captures use the pre-change local build with a
 native source changes between `8357223` and base `7a91d20`). Overview before
 captures show the initial PR #14 implementation at `52c1b17`, with version 1.5.0
 and Git readiness still above the footer. The corrected after captures place it
-inside the same continuous bottom bar. All after captures retain version 1.5.0.
+inside the same continuous bottom bar. All after captures now show version 1.5.1.
 Images are unedited; Vite timing and elapsed time naturally vary.
 
 | View                   | Before                                                                  | After                                               |
@@ -65,8 +66,9 @@ It is outside these refinements and has not been changed or disabled.
 
 ## Separate website follow-up
 
-`DefinitivedCode/repocreator-site` was inspected read-only. After the desktop PR
-is merged, refresh these copied images from the matching official desktop assets:
+`DefinitivedCode/repocreator-site` was inspected read-only during PR #14. The
+owner will refresh it separately **after v1.5.1 is publicly released**, using
+these matching official desktop assets:
 
 | Website path                             | Desktop source                    | Reason                                            |
 | ---------------------------------------- | --------------------------------- | ------------------------------------------------- |
@@ -76,8 +78,8 @@ is merged, refresh these copied images from the matching official desktop assets
 | `public/screenshots/workspace-dark.png`  | `docs/assets/workspace-dark.png`  | Same changes in dark appearance                   |
 
 The website's `index.html` screenshot captions, accessible link names and image
-descriptions must distinguish these development refinements from published
-v1.5.0 Beta and retire the 1.4.3-header caveat only for replaced images. Update
+descriptions must identify the captured and published version accurately and
+retire the 1.4.3-header caveat only for replaced images. Update
 `docs/assets.md`, `asset-provenance.json`, its asset tests and README capture
 notes together. Website preview images may then need recapturing because they
 include these images. No website files, hosting, deployments or release state
