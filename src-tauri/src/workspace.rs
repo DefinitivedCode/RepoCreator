@@ -397,8 +397,12 @@ pub fn save_project_commands(
 /// Manifest reads stay bounded for command discovery and readiness inspection.
 pub(crate) const MANIFEST_LIMIT: usize = 1024 * 1024;
 fn manifest(path: &Path) -> Option<String> {
+    let resolved = path.canonicalize().ok()?;
+    if !resolved.starts_with(path.parent()?.canonicalize().ok()?) || !resolved.is_file() {
+        return None;
+    }
     let mut content = String::new();
-    fs::File::open(path)
+    fs::File::open(resolved)
         .ok()?
         .take(MANIFEST_LIMIT as u64 + 1)
         .read_to_string(&mut content)
@@ -547,6 +551,45 @@ mod tests {
         assert!(values.iter().all(|command| command.imported));
         assert_eq!(values[0].args, ["run", "build"]);
         assert!(validate_commands(&values).is_ok());
+    }
+    #[test]
+    fn suggestion_inspection_tolerates_invalid_and_oversized_manifests() {
+        let dir = tempfile::tempdir().unwrap();
+        for text in [
+            "",
+            "{",
+            r#"{"scripts":[]}"#,
+            r#"{"scripts":{"bad":17,"-flag":"echo nope"}}"#,
+        ] {
+            fs::write(dir.path().join("package.json"), text).unwrap();
+            assert!(suggestions(dir.path()).is_empty());
+        }
+        fs::write(dir.path().join("Cargo.toml"), "[package\n").unwrap();
+        fs::write(dir.path().join("pyproject.toml"), "[tool.pytest\n").unwrap();
+        assert!(suggestions(dir.path()).is_empty());
+        fs::write(
+            dir.path().join("package.json"),
+            " ".repeat(MANIFEST_LIMIT + 1),
+        )
+        .unwrap();
+        assert!(suggestions(dir.path()).is_empty());
+        fs::write(
+            dir.path().join("package.json"),
+            r#"{"scripts":{"build":"touch should-never-run"}}"#,
+        )
+        .unwrap();
+        assert_eq!(suggestions(dir.path()).len(), 1);
+        assert!(!dir.path().join("should-never-run").exists());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn suggestion_inspection_does_not_read_manifests_outside_the_project() {
+        let project = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let manifest = outside.path().join("package.json");
+        fs::write(&manifest, r#"{"scripts":{"build":"echo outside"}}"#).unwrap();
+        std::os::unix::fs::symlink(&manifest, project.path().join("package.json")).unwrap();
+        assert!(suggestions(project.path()).is_empty());
     }
     #[test]
     fn directories_support_unicode_and_reject_missing_paths() {

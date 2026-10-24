@@ -238,7 +238,12 @@ export default function App() {
           <div className="page-heading">
             <div>
               <h2>Settings</h2>
-              <p className="help" role="status">
+              <p
+                className="help git-readiness"
+                data-ready={!creator.checking && creator.setupReady}
+                role="status"
+              >
+                <span className="status-dot" aria-hidden="true" />
                 {creator.checking
                   ? 'Checking setup…'
                   : creator.setupReady
@@ -322,22 +327,6 @@ export default function App() {
                     {labels[s]}
                   </button>
                 ))}
-              <button
-                type="button"
-                className="nav-status"
-                onClick={() => {
-                  setPage('settings');
-                }}
-              >
-                <span className="status-dot" />
-                <span>
-                  {creator.checking
-                    ? 'Checking setup…'
-                    : creator.setupReady
-                      ? 'Git ready'
-                      : 'Setup required'}
-                </span>
-              </button>
             </nav>
             <main className="workspace-main" aria-label="Repository configuration" tabIndex={0}>
               <div className="workspace-heading">
@@ -554,7 +543,23 @@ export default function App() {
               </aside>
             )}
           </div>
-          <footer className="action-bar">
+          <footer className="action-bar creation-status-bar">
+            <button
+              type="button"
+              className="creation-git-status git-readiness"
+              data-ready={!creator.checking && creator.setupReady}
+              title="Open setup settings"
+              onClick={() => setPage('settings')}
+            >
+              <span className="status-dot" aria-hidden="true" />
+              <span>
+                {creator.checking
+                  ? 'Checking setup…'
+                  : creator.setupReady
+                    ? 'Git ready'
+                    : 'Setup required'}
+              </span>
+            </button>
             <div className="footer-summary">
               <strong>
                 {creator.previewing
@@ -565,10 +570,10 @@ export default function App() {
               {form.destination === 'github'
                 ? `${form.visibility === 'private' ? 'Private' : 'Public'} GitHub repository`
                 : 'On this computer'}
-              <span className={blocking ? 'help' : 'ready-text'} role="status">
-                {blocking || 'Ready to create'}
-              </span>
             </div>
+            <p className={`creation-validation ${blocking ? 'help' : 'ready-text'}`} role="status">
+              {blocking || 'Ready to create'}
+            </p>
             <button type="submit" className="primary create-button" disabled={!creator.ready}>
               {section === 'review' ? 'Create Project' : 'Review project'}
               <Icon name="arrow" size={14} />

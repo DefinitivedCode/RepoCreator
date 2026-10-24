@@ -521,6 +521,24 @@
 .rc-project-workspace .command-output {
   top: 0;
 }
+.rc-project-workspace .command-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 16px;
+}
+.rc-project-workspace .command-suggestions > div:first-child {
+  flex: 1 1 280px;
+}
+.rc-project-workspace .command-suggestions strong {
+  font-size: 13px;
+}
+.rc-project-workspace .command-suggestions .help {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
 .rc-project-workspace .output-title {
   display: inline-flex;
   align-items: center;
@@ -534,18 +552,122 @@
   font-size: 12px;
 }
 .rc-project-workspace .run-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
   font-size: 12px;
   padding: 11px 14px;
+  font-variant-numeric: tabular-nums;
 }
 .rc-project-workspace .run-summary > strong {
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.rc-project-workspace .run-output {
+.rc-project-workspace .run-summary > span:last-child {
+  margin: 0;
+  white-space: nowrap;
+}
+.rc-project-workspace .run-status {
+  text-transform: capitalize;
+}
+.rc-project-workspace .run-status.status-running {
+  color: var(--warning);
+}
+.rc-project-workspace .run-status.status-succeeded {
+  color: var(--success);
+}
+.rc-project-workspace .run-status.status-failed {
+  color: var(--error);
+}
+.rc-project-workspace .command-output .run-output {
+  /* Theme-aware basic palette; indexed/RGB colours retain the emitted values. */
+  --ansi-0: #34343b;
+  --ansi-1: #a32928;
+  --ansi-2: #28733c;
+  --ansi-3: #805a08;
+  --ansi-4: #275fc0;
+  --ansi-5: #8742a0;
+  --ansi-6: #126c79;
+  --ansi-7: #666671;
+  --ansi-8: #72727b;
+  --ansi-9: #c12b30;
+  --ansi-10: #237d36;
+  --ansi-11: #8c6100;
+  --ansi-12: #245ed4;
+  --ansi-13: #a039aa;
+  --ansi-14: #007482;
+  --ansi-15: #55555e;
   background: var(--background);
+  color: var(--text);
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
   font-size: 12px;
-  line-height: 1.65;
-  height: 250px;
-  max-height: 40vh;
+  font-variant-ligatures: none;
+  line-height: 1.7;
+  padding: 16px;
+  height: 290px;
+  max-height: 43vh;
+  white-space: pre;
+  overflow: auto;
+  overflow-wrap: normal;
+  tab-size: 4;
+  overflow-anchor: none;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  isolation: isolate;
+}
+/* color-scheme follows the saved application appearance as well as the OS. */
+:root[data-appearance='dark'] .rc-project-workspace .run-output {
+  --ansi-0: #9b9ba4;
+  --ansi-1: #ef8b85;
+  --ansi-2: #85cc91;
+  --ansi-3: #dcc27b;
+  --ansi-4: #8db5ff;
+  --ansi-5: #ce9de4;
+  --ansi-6: #7ccbd7;
+  --ansi-7: #d1d1d9;
+  --ansi-8: #a2a2ae;
+  --ansi-9: #ffa69f;
+  --ansi-10: #a1e6a9;
+  --ansi-11: #f3d68b;
+  --ansi-12: #afcbff;
+  --ansi-13: #e7b5f5;
+  --ansi-14: #9be5ed;
+  --ansi-15: #f4f4f8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance='light']) .rc-project-workspace .run-output {
+    --ansi-0: #9b9ba4;
+    --ansi-1: #ef8b85;
+    --ansi-2: #85cc91;
+    --ansi-3: #dcc27b;
+    --ansi-4: #8db5ff;
+    --ansi-5: #ce9de4;
+    --ansi-6: #7ccbd7;
+    --ansi-7: #d1d1d9;
+    --ansi-8: #a2a2ae;
+    --ansi-9: #ffa69f;
+    --ansi-10: #a1e6a9;
+    --ansi-11: #f3d68b;
+    --ansi-12: #afcbff;
+    --ansi-13: #e7b5f5;
+    --ansi-14: #9be5ed;
+    --ansi-15: #f4f4f8;
+  }
+}
+.rc-project-workspace .run-output a {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 2px;
+}
+.rc-project-workspace .run-output a:hover {
+  background: var(--hover);
+}
+.rc-project-workspace .run-output a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }
 .rc-project-workspace .output-actions {
   padding: 9px 11px;

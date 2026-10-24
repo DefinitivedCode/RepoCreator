@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, mkdtemp, rm, rmdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, rmdir, writeFile, symlink } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium, expect } from '@playwright/test';
@@ -13,16 +13,18 @@ const root = path.resolve(import.meta.dirname, '..');
 const temporaryRoot = path.resolve(os.tmpdir());
 const temporary = await mkdtemp(path.join(temporaryRoot, 'repo-creator-public-'));
 const data = path.join(temporary, 'app-data');
-const output = path.join(root, 'docs', 'assets');
+const output = process.env.REPO_CREATOR_SCREENSHOT_OUTPUT || path.join(root, 'docs', 'assets');
 const executable =
   process.env.REPO_CREATOR_SMOKE_EXE ||
   path.join(root, 'src-tauri', 'target', 'x86_64-pc-windows-msvc', 'release', 'repo-creator.exe');
 const endpointUrl = 'http://127.0.0.1:9225/json/version';
 const demonstrationDirectory = 'C:\\Projects';
 const project = path.join(demonstrationDirectory, 'field-notes');
+const previewPort = 5187;
 let child,
   browser,
   page,
+  previewRun,
   createdParent = false,
   createdProject = false;
 const errors = [];
@@ -42,13 +44,16 @@ async function theme(appearance) {
 }
 async function capture(name) {
   const text = await page.locator('body').innerText();
+  // npm's own package/version header contains @; it is fixed fictional data.
+  const privacyText = text.replaceAll('field-notes@0.1.0', 'field-notes package');
   assert(!text.toLowerCase().includes(os.userInfo().username.toLowerCase()));
   assert(
-    !/[/\\]Users[/\\]|[/\\]home[/\\]|@|https:\/\/github\.com\//i.test(text),
+    !/[/\\]Users[/\\]|[/\\]home[/\\]|@|https:\/\/github\.com\//i.test(privacyText),
     'Private data in screenshot',
   );
   assert(
     name.startsWith('configuration-') ||
+      name.startsWith('settings-') ||
       name.startsWith('readiness-') ||
       text.includes('C:\\Projects'),
     'Visible demonstration paths must be generic',
@@ -99,6 +104,11 @@ try {
       updates: { channel: 'stable', automatic: false },
     }),
   );
+  const gitConfig = path.join(temporary, '.gitconfig');
+  await writeFile(
+    gitConfig,
+    '[user]\nname = Example Developer\nemail = developer@example.invalid\n',
+  );
   child = spawn(executable, [], {
     cwd: root,
     stdio: 'ignore',
@@ -108,6 +118,9 @@ try {
       REPO_CREATOR_DATA_DIR: data,
       WEBVIEW2_USER_DATA_FOLDER: path.join(temporary, 'webview'),
       WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=9225',
+      HOME: temporary,
+      FORCE_COLOR: '1',
+      NO_COLOR: undefined,
     },
   });
   let launchError, endpoint;
@@ -136,6 +149,10 @@ try {
     .toBe(true);
   page.on('pageerror', (error) => errors.push(error.message));
   await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30000 });
+  assert.equal(
+    (await invoke('check_environment', { includeGithub: false })).identityName,
+    'Example Developer',
+  );
   execFileSync(
     'powershell.exe',
     [
@@ -160,6 +177,10 @@ try {
   await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
   for (const appearance of ['light', 'dark']) {
     await theme(appearance);
+    await page.getByRole('radio', { name: 'Muted Teal', exact: true }).check();
+    assert.equal((await invoke('get_preferences')).accent, 'teal');
+    await page.getByRole('tab', { name: 'Git & identity', exact: true }).click();
+    await capture(`settings-${appearance}`);
     await mainNavigation().getByRole('button', { name: 'New Project', exact: true }).click();
     await page.getByRole('heading', { name: 'Overview', exact: true }).click();
     await capture(`overview-${appearance}`);
@@ -174,8 +195,8 @@ try {
     await mainNavigation().getByRole('button', { name: 'New Project', exact: true }).click();
     await capture(`configuration-${appearance}`);
   }
-  // This is a real local Git repository. It deliberately has no installed packages
-  // or .env, so Readiness shows authentic, actionable findings. Scripts never run.
+  // This owned local Git fixture has no remotes or private configuration.
+  // Only its explicit Vite preview runs below; nothing is installed.
   await mkdir(project);
   createdProject = true;
   const manifest = {
@@ -185,13 +206,25 @@ try {
     type: 'module',
     description: 'A quiet place for notes, bookmarks and small discoveries.',
     engines: { node: '>=22' },
-    scripts: { dev: 'vite', build: 'tsc -b && vite build', test: 'vitest run' },
+    scripts: {
+      dev: `vite --host 127.0.0.1 --port ${previewPort} --strictPort`,
+      build: 'tsc -b && vite build',
+      test: 'vitest run',
+    },
     dependencies: { react: '^19.0.0' },
     devDependencies: { typescript: '^5.0.0', vite: '^6.0.0', vitest: '^3.0.0' },
   };
   await writeFile(path.join(project, 'package.json'), JSON.stringify(manifest, null, 2));
-  await writeFile(path.join(project, '.gitignore'), 'node_modules/\ndist/\n.env\n');
+  await writeFile(path.join(project, '.gitignore'), 'node_modules/\ndist/\n.vite-cache/\n.env\n');
+  await writeFile(
+    path.join(project, 'vite.config.mjs'),
+    "export default { cacheDir: '.vite-cache', optimizeDeps: { noDiscovery: true } };\n",
+  );
   await writeFile(path.join(project, '.env.example'), 'VITE_NOTES_TITLE=Field Notes\n');
+  await writeFile(
+    path.join(project, 'index.html'),
+    '<!doctype html><title>Field Notes</title><h1>Field Notes</h1>',
+  );
   await writeFile(
     path.join(project, 'README.md'),
     '# Field Notes\n\nA local collection of ideas and discoveries.\n',
@@ -237,12 +270,37 @@ try {
   await mainNavigation().getByRole('button', { name: 'Projects', exact: true }).click();
   await page.getByRole('button', { name: 'Open workspace', exact: true }).click();
   const workspace = page.getByRole('main', { name: 'Project workspace' });
+  // Use installed build tooling in this owned demo; never install packages.
+  await symlink(path.join(root, 'node_modules'), path.join(project, 'node_modules'), 'junction');
+  previewRun = await invoke('run_project_command', {
+    projectId: added.id,
+    commandId: 'dev',
+    confirmed: false,
+  });
   for (const appearance of ['light', 'dark']) {
     await theme(appearance);
     await mainNavigation().getByRole('button', { name: 'Projects', exact: true }).click();
     await workspace.getByRole('button', { name: 'Commands', exact: true }).click();
-    await expect(workspace.getByText('Development server', { exact: true })).toBeVisible();
+    await expect(
+      workspace.getByRole('heading', { name: 'Development server', exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(async () =>
+        (await invoke('list_command_runs', { projectId: added.id }))[0].output.replace(
+          /\x1b\[[\d;]*m/g,
+          '',
+        ),
+      )
+      .toContain(`http://127.0.0.1:${previewPort}/`);
+    await page.getByRole('main', { name: 'Project workspace' }).evaluate((el) => {
+      el.scrollTop = 0;
+    });
     await capture(`workspace-${appearance}`);
+    await page.getByRole('main', { name: 'Project workspace' }).evaluate((el) => {
+      el.scrollTop = 120;
+    });
+    await capture(`commands-${appearance}`);
+    if (process.env.REPO_CREATOR_CAPTURE_READINESS !== '1') continue;
     await workspace.getByRole('button', { name: /^Readiness/ }).click();
     await expect(
       workspace.getByRole('button', { name: 'Run full check', exact: true }),
@@ -257,9 +315,10 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(
-    'Eight real application captures completed; no project scripts, model calls or remote operations executed.',
+    'Real application captures completed with the explicit local Vite preview; no installs, model calls or remote operations.',
   );
 } finally {
+  if (previewRun) await invoke('stop_project_command', { runId: previewRun.id }).catch(() => {});
   await browser?.close().catch(() => {});
   if (child?.pid && child.exitCode === null) {
     const exited = once(child, 'exit');

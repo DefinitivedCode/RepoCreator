@@ -74,3 +74,46 @@ export function commandDirectory(projectPath: string, directory: string): string
   const separator = projectPath.includes('\\') ? '\\' : '/';
   return `${projectPath.replace(/[\\/]$/, '')}${separator}${directory}`;
 }
+
+/** Ignore suggestion IDs/names/review state; compare what would actually run. */
+export function availableCommandSuggestions(
+  suggestions: ProjectCommand[],
+  saved: ProjectCommand[],
+  projectPath?: string,
+): ProjectCommand[] {
+  const key = (command: ProjectCommand) => {
+    let directory =
+      (projectPath
+        ? commandDirectory(projectPath, command.workingDirectory)
+        : command.workingDirectory
+      )
+        .replaceAll('\\', '/')
+        .replace(/^\/\/\?\//, '')
+        .replace(/^(\.\/)+/, '')
+        .replace(/\/\.\//g, '/')
+        .replace(/\/+$/, '') || '.';
+    if (/^[a-z]:\//i.test(directory)) directory = directory.toLowerCase();
+    // A simple shell invocation has the same underlying command. Do not attempt
+    // to interpret shell quoting, operators, substitutions or environment syntax.
+    const simpleShell =
+      command.mode === 'shell' && /^[\w./-]+(?: +[\w./-]+)*$/.test(command.shellCommand.trim());
+    const invocation =
+      command.mode === 'executable'
+        ? [command.executable, ...command.args]
+        : simpleShell
+          ? command.shellCommand.trim().split(/ +/)
+          : command.shellCommand;
+    return JSON.stringify([
+      invocation,
+      directory,
+      Object.entries(command.environment).sort(([a], [b]) => a.localeCompare(b)),
+    ]);
+  };
+  const seen = new Set(saved.map(key));
+  return suggestions.filter((command) => {
+    const identity = key(command);
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+}

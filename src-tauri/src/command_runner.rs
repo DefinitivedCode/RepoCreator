@@ -54,6 +54,50 @@ fn state_error() -> AppError {
     workspace::error("Command state is unavailable. Reopen the application.")
 }
 
+// Deliberately scoped web-link operation. Never forward arbitrary schemes or
+// shell text to the OS, and do not reuse an unrestricted opener in the WebView.
+fn output_link(value: &str) -> Result<tauri::Url, AppError> {
+    let invalid =
+        || workspace::error("This command-output link is not a valid HTTP or HTTPS address.");
+    let Some((scheme, rest)) = value.split_once("://") else {
+        return Err(invalid());
+    };
+    if value.len() > 8192
+        || !["http", "https"].iter().any(|allowed| scheme.eq_ignore_ascii_case(allowed))
+        || value.chars().any(|c| c.is_whitespace() || c.is_control() || matches!(c, '\\' | '<' | '>' | '"' | '\u{200b}'..='\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2060}'..='\u{2069}' | '\u{feff}' | '\u{fffd}'))
+    { return Err(invalid()); }
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
+    if authority.is_empty() || authority.contains('@') {
+        return Err(invalid());
+    }
+    for (i, byte) in value.bytes().enumerate() {
+        if byte == b'%'
+            && !value
+                .as_bytes()
+                .get(i + 1..i + 3)
+                .is_some_and(|pair| pair.iter().all(u8::is_ascii_hexdigit))
+        {
+            return Err(invalid());
+        }
+    }
+    tauri::Url::parse(value)
+        .ok()
+        .filter(|url| {
+            url.host_str().is_some() && url.username().is_empty() && url.password().is_none()
+        })
+        .ok_or_else(invalid)
+}
+
+#[tauri::command]
+pub async fn open_command_output_link(url: String) -> Result<(), AppError> {
+    let url = output_link(&url)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        open::that(url.as_str()).map_err(|_| workspace::error("Could not open your browser."))
+    })
+    .await
+    .map_err(|_| workspace::error("Could not open your browser."))?
+}
+
 pub(crate) fn executable(value: &str, cwd: &Path) -> Result<PathBuf, AppError> {
     let path = Path::new(value);
     let resolved = if path.is_absolute() {
@@ -454,6 +498,38 @@ pub fn stop_project_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn output_links_only_allow_unambiguous_web_addresses() {
+        for value in [
+            "http://127.0.0.1:4173/",
+            "http://localhost:5173/",
+            "http://[::1]:4173/",
+            "https://example.com/docs?a=b#c",
+            "HTTPS://example.com/a%20b",
+        ] {
+            assert!(output_link(value).is_ok(), "{value}");
+        }
+        for value in [
+            "javascript:alert(1)",
+            "data:text/html,test",
+            "file:///tmp/file",
+            "https://user:password@example.com/",
+            "https://@example.com",
+            "http:///example.com",
+            "http://",
+            "https://example.com:99999",
+            "https://example.com\\@evil.test",
+            "https://example.com/\nfoo",
+            "https://example.com/ bad",
+            "https://example.com/%xx",
+            "https://example.com/\u{202e}abc",
+            "https://example.com/\u{200b}abc",
+            "https://example.com/<script>",
+        ] {
+            assert!(output_link(value).is_err(), "{value}");
+        }
+        assert!(output_link(&format!("https://example.com/{}", "a".repeat(8192))).is_err());
+    }
     fn command(id: &str, script: &str) -> ProjectCommand {
         ProjectCommand {
             id: id.into(),

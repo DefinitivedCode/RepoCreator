@@ -476,6 +476,69 @@ a,
   border-top-color: var(--border);
   padding: 10px var(--page-gutter) 10px calc(var(--rail-width) + var(--page-gutter));
 }
+.desktop-app .creation-status-bar {
+  display: grid;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr) minmax(0, auto) auto;
+  align-items: center;
+  column-gap: var(--page-gutter);
+  padding-left: 0;
+}
+.creation-status-bar .creation-git-status {
+  align-self: stretch;
+  justify-content: flex-start;
+  min-width: 0;
+  margin-inline: 12px;
+  padding: 0 12px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+}
+.creation-status-bar .footer-summary {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.creation-status-bar .footer-summary strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.creation-status-bar .creation-validation {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+}
+.desktop-app .git-readiness {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.desktop-app .git-readiness[data-ready='true'] .status-dot {
+  background: var(--success);
+}
+.desktop-app .setup-status[data-ready='true']::before {
+  color: var(--success);
+}
+.desktop-app .settings-page > * {
+  max-width: 1260px;
+}
+.desktop-app .settings-page .page-heading {
+  margin-bottom: 20px;
+}
+.settings-page .setup-settings {
+  width: 100%;
+  gap: 20px;
+}
+.settings-page .setup-settings-panel {
+  width: 100%;
+  max-width: 960px;
+}
+.settings-page .setup-settings-footer {
+  padding-top: 16px;
+}
 .library-page,
 .project-workspace-page,
 .rc-workspace-library,
