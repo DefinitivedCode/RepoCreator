@@ -8,6 +8,11 @@ in light and dark appearances with the actual default **Muted Teal** accent
 following published **v1.5.0 Beta**. The header still says 1.5.0; no version bump
 or release is implied.
 
+The Overview and Project Files pairs were refreshed again for the footer
+correction: Git readiness now shares the bottom bar with summary, helper status
+and the review/create action. The Overview before images in the comparison show
+the initial PR #14 layout at `52c1b17`, rather than the older 1.4.3 capture.
+
 The fictional Field Notes fixture uses isolated application settings, an isolated
 Git home with the name **Example Developer**, and an owned `C:\Projects\field-notes`
 repository without remotes. Commands captures show actual Vite output, started

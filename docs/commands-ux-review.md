@@ -9,11 +9,13 @@ release settings or website source were changed.
 
 All images below are real Windows WebView2 captures at **1100 × 740**, using
 the default Muted Teal accent, fictional Field Notes data and isolated settings.
-Before captures use the existing pre-change local build with a 1.4.3 header;
-its interface matches the v1.5.0 Beta UI (there are no `src/` or native source
-changes between `8357223` and the task's base `7a91d20`). After captures use this
-branch's development build and retain version 1.5.0. Images are unedited;
-Vite timing and elapsed time naturally vary.
+Console and Settings before captures use the pre-change local build with a
+1.4.3 header; its interface matches the v1.5.0 Beta UI (there are no `src/` or
+native source changes between `8357223` and base `7a91d20`). Overview before
+captures show the initial PR #14 implementation at `52c1b17`, with version 1.5.0
+and Git readiness still above the footer. The corrected after captures place it
+inside the same continuous bottom bar. All after captures retain version 1.5.0.
+Images are unedited; Vite timing and elapsed time naturally vary.
 
 | View                   | Before                                                                  | After                                               |
 | ---------------------- | ----------------------------------------------------------------------- | --------------------------------------------------- |
@@ -24,9 +26,13 @@ Vite timing and elapsed time naturally vary.
 | Settings, light        | ![Settings before, light](images/commands-ux/before-settings-light.png) | ![Settings after, light](assets/settings-light.png) |
 | Settings, dark         | ![Settings before, dark](images/commands-ux/before-settings-dark.png)   | ![Settings after, dark](assets/settings-dark.png)   |
 
-The footer aligns summary, validation and action. Positive Git indicators use
-the theme's understated success colour. Settings shares the library gutters and
-1260-pixel content limit, with bounded input fields and readable section widths.
+The footer places Git readiness at the far left in a sidebar-width column,
+followed by the file/destination summary, helper status and action. All four
+share one bottom bar and vertical alignment. The former sidebar readiness button
+is removed from the page structure, with no duplicate or CSS-hidden indicator.
+Its keyboard-accessible Settings action and understated green dot are preserved.
+Settings shares the library gutters and 1260-pixel content limit, with bounded
+input fields and readable section widths.
 
 ## Verification
 
@@ -43,6 +49,13 @@ the theme's understated success colour. Settings shares the library gutters and
   native output, process lifecycle, concurrent runs, cancellation and persistence.
 - Visual checks at 820 × 580, 1100 × 740 and 1500 × 900. Official images use
   the real application, not browser IPC mocks. macOS execution remains for CI.
+
+The continuous-footer correction was additionally verified with 34 browser checks
+across both themes: all four elements share a vertical centre, Git readiness
+stays within the sidebar-width column, its Settings action works with the
+keyboard, Tab reaches the review action, and the Review/Create workflow is
+preserved. TypeScript, formatting, 149 unit tests and the Windows desktop build
+pass. Overview and Project Files captures were refreshed from that real build.
 
 The full browser run initially passed 104/106 checks. A startup timeout in
 Appearance passed on retry. The separate existing `complex Studio subsections`

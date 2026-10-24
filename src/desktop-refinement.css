@@ -478,9 +478,24 @@ a,
 }
 .desktop-app .creation-status-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr) minmax(0, auto) auto;
   align-items: center;
-  column-gap: 20px;
+  column-gap: var(--page-gutter);
+  padding-left: 0;
+}
+.creation-status-bar .creation-git-status {
+  align-self: stretch;
+  justify-content: flex-start;
+  min-width: 0;
+  margin-inline: 12px;
+  padding: 0 12px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
 }
 .creation-status-bar .footer-summary {
   color: var(--muted);
@@ -814,9 +829,6 @@ dialog::backdrop {
   }
   .workspace-main {
     padding: 18px;
-  }
-  .desktop-app .creation-status-bar {
-    column-gap: 12px;
   }
 }
 @media (max-height: 700px) {

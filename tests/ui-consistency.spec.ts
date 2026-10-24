@@ -1,11 +1,20 @@
 import { expect, test } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
 import { prepare } from './fixtures';
 
-test('creation status bar aligns summary, validation and action at supported sizes', async ({
+test('creation status bar contains and aligns Git readiness, summary, validation and action', async ({
   page,
-}) => {
+}, info) => {
+  mkdirSync('artifacts/footer-review', { recursive: true });
   await prepare(page, false, 'simple');
   const footer = page.locator('.creation-status-bar');
+  const action = footer.locator('.create-button');
+  await expect(footer.getByRole('button', { name: 'Git ready', exact: true })).toHaveCount(1);
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Project setup' })
+      .getByRole('button', { name: 'Git ready', exact: true }),
+  ).toHaveCount(0);
   await expect(footer.getByRole('status')).toHaveText('Enter a project name.');
   await page.getByLabel('Project name', { exact: true }).fill('field-notes');
   await page.getByRole('button', { name: 'Computer and GitHub', exact: true }).click();
@@ -18,23 +27,48 @@ test('creation status bar aligns summary, validation and action at supported siz
   ]) {
     await page.setViewportSize(size);
     const geometry = await footer.evaluate((element) => {
-      const rects = ['.footer-summary', '.creation-validation', '.create-button'].map((selector) =>
-        element.querySelector(selector)!.getBoundingClientRect(),
-      );
+      const rects = [
+        '.creation-git-status',
+        '.footer-summary',
+        '.creation-validation',
+        '.create-button',
+      ].map((selector) => element.querySelector(selector)!.getBoundingClientRect());
       return {
         center: rects.map((rect) => rect.y + rect.height / 2),
-        ordered: rects[0].right < rects[1].left && rects[1].right < rects[2].left,
+        ordered: rects.every((rect, index) => index === 0 || rects[index - 1].right < rect.left),
+        gitLeft: rects[0].left,
+        gitRight: rects[0].right,
         bottom: element.getBoundingClientRect().bottom,
       };
     });
     expect(geometry.ordered).toBe(true);
     expect(Math.max(...geometry.center) - Math.min(...geometry.center)).toBeLessThanOrEqual(1);
     expect(geometry.bottom).toBe(size.height);
-    await expect(footer.getByRole('button')).toBeInViewport({ ratio: 1 });
+    const rail = await page.getByRole('navigation', { name: 'Project setup' }).boundingBox();
+    expect(geometry.gitLeft).toBeGreaterThanOrEqual(rail!.x);
+    expect(geometry.gitRight).toBeLessThanOrEqual(rail!.x + rail!.width);
+    await expect(footer.getByRole('button', { name: 'Git ready', exact: true })).toBeInViewport({
+      ratio: 1,
+    });
+    await expect(action).toBeInViewport({ ratio: 1 });
+    await page.screenshot({
+      path: `artifacts/footer-review/${info.project.name}-${size.width}.png`,
+      animations: 'disabled',
+    });
   }
+  await footer.getByRole('button', { name: 'Git ready', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(action).toBeFocused();
+  await action.click();
+  await expect(action).toHaveText('Create Project');
+  await expect(footer.getByRole('button', { name: 'Git ready', exact: true })).toHaveCount(1);
+  await page
+    .getByRole('navigation', { name: 'Project setup' })
+    .getByRole('button', { name: 'Overview', exact: true })
+    .click();
   await page.getByLabel('Project name', { exact: true }).fill('');
   await expect(footer.getByRole('status')).toHaveText('Enter a project name.');
-  await expect(footer.getByRole('button')).toBeDisabled();
+  await expect(action).toBeDisabled();
 });
 
 test('Git readiness uses success colour and setup failures remain neutral', async ({ page }) => {
@@ -47,8 +81,12 @@ test('Git readiness uses success colour and setup failures remain neutral', asyn
     probe.remove();
     return colour;
   });
-  await expect(page.locator('.nav-status .status-dot')).toHaveCSS('background-color', success);
-  await page.getByRole('button', { name: 'Git ready', exact: true }).click();
+  await expect(page.locator('.creation-git-status .status-dot')).toHaveCSS(
+    'background-color',
+    success,
+  );
+  await page.getByRole('button', { name: 'Git ready', exact: true }).focus();
+  await page.keyboard.press('Enter');
   await expect(page.locator('.settings-page .git-readiness .status-dot')).toHaveCSS(
     'background-color',
     success,

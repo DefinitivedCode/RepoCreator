@@ -327,23 +327,6 @@ export default function App() {
                     {labels[s]}
                   </button>
                 ))}
-              <button
-                type="button"
-                className="nav-status git-readiness"
-                data-ready={!creator.checking && creator.setupReady}
-                onClick={() => {
-                  setPage('settings');
-                }}
-              >
-                <span className="status-dot" aria-hidden="true" />
-                <span>
-                  {creator.checking
-                    ? 'Checking setup…'
-                    : creator.setupReady
-                      ? 'Git ready'
-                      : 'Setup required'}
-                </span>
-              </button>
             </nav>
             <main className="workspace-main" aria-label="Repository configuration" tabIndex={0}>
               <div className="workspace-heading">
@@ -561,6 +544,22 @@ export default function App() {
             )}
           </div>
           <footer className="action-bar creation-status-bar">
+            <button
+              type="button"
+              className="creation-git-status git-readiness"
+              data-ready={!creator.checking && creator.setupReady}
+              title="Open setup settings"
+              onClick={() => setPage('settings')}
+            >
+              <span className="status-dot" aria-hidden="true" />
+              <span>
+                {creator.checking
+                  ? 'Checking setup…'
+                  : creator.setupReady
+                    ? 'Git ready'
+                    : 'Setup required'}
+              </span>
+            </button>
             <div className="footer-summary">
               <strong>
                 {creator.previewing
