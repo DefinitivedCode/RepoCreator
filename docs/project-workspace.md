@@ -113,10 +113,21 @@ credentials in your normal operating-system environment or the tool's credential
 store. Obvious credential-like environment names are rejected; no naming check
 can determine whether an arbitrary value is a secret.
 
-Edit, disable, delete or reorder saved commands. **Suggested commands** reads
-recognised project manifests, such as `package.json` scripts or a valid Cargo
-manifest, and offers commands for review. Selecting a technology alone does not
-invent a working build system. Discovery never runs scripts or installs packages.
+Edit, disable, delete or reorder saved commands. Opening **Commands** performs a
+bounded, read-only inspection of recognised project manifests, such as
+`package.json` scripts or a valid Cargo manifest. **Suggested commands** shows the
+number of unique suggestions that are not already saved, including saved commands
+with another name. Choose **Review suggestions** to inspect and add them. Nothing
+runs automatically; suggestions are not verified safe or guaranteed to work.
+Suggested commands come from your project files. Review each command before
+running it for the first time.
+
+Use **Refresh** beside the notice after editing project files externally. The
+inspection also refreshes when you return to the Commands tab, save commands or
+relocate the project; output polling does not rescan manifests. Empty, malformed
+or oversized manifests contribute no suggestions, and inspection failures leave
+manual commands and presets usable. Manifest reads are limited to 1 MiB per file
+and stay inside the project. Discovery never runs scripts or installs packages.
 
 ## Run and stop
 
@@ -130,6 +141,38 @@ ordinary child processes. Closing Repo Creator stops managed command processes.
 Commands deliberately launched in an external terminal belong to that terminal.
 Use a terminal for interactive prompts; the output panel is not a terminal
 emulator and does not provide interactive stdin.
+
+Common ANSI foreground/background colours, indexed/RGB colours, bold, dim,
+italic and underline render as styled text in both themes. Formatting resets
+are honoured; incomplete escapes join on later output snapshots. Terminal
+control actions (including erasing output, changing titles, OSC hyperlinks and
+clipboard commands) are ignored. HTML remains text. Carriage-return progress
+updates appear as separate lines. Clearing output preserves current formatting
+and pending escapes; losing leading bytes to the existing retention limit
+restarts formatting from the retained text. Extremely fragmented output falls
+back to plain text after 4,096 styled spans.
+**Copy output** copies the visible text without ANSI controls.
+
+HTTP/HTTPS addresses, including localhost ports, are keyboard-accessible links.
+Choosing a link opens the default external browser through a web-only native
+operation; output never opens links automatically. Credentials, malformed URLs
+and other schemes are rejected. OSC link targets cannot disguise the visible
+address; the link tooltip shows the normalized destination. Project output is
+untrusted: check the address before opening it. Directional/invisible formatting
+characters are shown as replacement characters rather than hiding an address.
+
+Long lines scroll horizontally to preserve alignment. New output follows only
+while the viewer is within 32 pixels of the bottom; scrolling up keeps your
+reading position. Selecting another run starts at its latest output.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/commands-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/commands-light.png">
+  <img src="assets/commands-light.png" alt="Development preview of the Field Notes console, with real Vite colours, a localhost link and a suggested command to review." width="1100">
+</picture>
+
+This capture shows development refinements following v1.5.0 Beta. See the
+[before/after review and verification](commands-ux-review.md).
 
 Duplicate running instances of the same saved command are blocked. Retained
 output and completed-run history are bounded. Copy the output before clearing

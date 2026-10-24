@@ -1,5 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { prepare, createProject } from './fixtures';
 import type { RecentProject, ProjectCommand } from '../src/workspaceTypes';
 import type { ReadinessReport } from '../src/readinessModel';
@@ -137,6 +141,7 @@ async function workspaceFixture(page: Page, missing = false) {
         'run_project_command',
         'list_command_runs',
         'stop_project_command',
+        'open_command_output_link',
         'get_project_readiness',
         'prepare_readiness_check',
         'run_readiness_check',
@@ -250,7 +255,16 @@ async function workspaceFixture(page: Page, missing = false) {
           current.commands = structuredClone(payload.commands);
           return structuredClone(current);
         }
-        if (command === 'suggest_project_commands') return [structuredClone(importedCommand)];
+        if (command === 'suggest_project_commands') {
+          if ((window as any).holdSuggestions)
+            await new Promise((resolve) => ((window as any).finishSuggestions = resolve));
+          if ((window as any).suggestionFailure) throw { message: 'Unreadable manifest' };
+          return structuredClone((window as any).suggestedCommands ?? [importedCommand]);
+        }
+        if (command === 'open_command_output_link') {
+          if ((window as any).linkFailure) throw { message: 'Browser unavailable' };
+          return;
+        }
         if (command === 'run_project_command') {
           const saved = current.commands.find((item) => item.id === payload.commandId)!;
           if (saved.imported && !payload.confirmed)
@@ -354,6 +368,367 @@ async function section(page: Page, name: string) {
     .getByRole('button', { name, exact: true })
     .click();
 }
+
+async function seedConsole(page: Page, output: string) {
+  await page.evaluate(
+    ({ command, output }) => {
+      const state = (window as any).workspaceState;
+      state.projects[0].commands = [{ ...command, imported: false }];
+      state.runs = [
+        {
+          id: 'console-run',
+          projectId: state.projects[0].id,
+          commandId: command.id,
+          name: 'Vite preview',
+          status: 'running',
+          startedAt: Date.now() - 2000,
+          finishedAt: null,
+          exitCode: null,
+          output,
+        },
+      ];
+    },
+    { command: importedCommand, output },
+  );
+  await openWorkspace(page);
+  await section(page, 'Commands');
+  return page.getByLabel('Vite preview output');
+}
+
+test('console safely styles fragmented output and opens visible web URLs only on activation', async ({
+  page,
+}, info) => {
+  await workspaceFixture(page);
+  const output = await seedConsole(
+    page,
+    '\x1b[32;1mVITE v8.3.5\x1b[22;39m  ready in 142 ms\n\n  Local: \x1b[36mhttp://127.0.0.1:4173/\x1b[39m\n  Docs: (https://vite.dev/guide/).\n\n\x1b[2;3;4m  Preview server running\x1b[0m\n<script>window.outputInjected = true</script>\n<img src=x onerror=alert(1)>\n\x1b]8;;https://evil.test\x07https://example.com\x1b]8;;\x07\nhttps://user:secret@evil.test javascript:alert(1) file:///tmp\n\x1b[3',
+  );
+  await expect(output).toContainText('Preview server running');
+  await expect(output).not.toContainText('[32m');
+  await expect(output).not.toContainText('[3');
+  await expect(output.locator('script, img')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).outputInjected)).toBeUndefined();
+  await expect(output.getByText('VITE v8.3.5', { exact: true })).toHaveCSS('font-weight', '700');
+  const local = output.getByRole('link', { name: 'http://127.0.0.1:4173/' });
+  await expect(local).toHaveAttribute('href', 'http://127.0.0.1:4173/');
+  await expect(output.getByRole('link')).toHaveCount(3);
+  await expect(output.getByRole('link', { name: 'https://example.com' })).toHaveAttribute(
+    'href',
+    'https://example.com/',
+  );
+  expect(await calls(page, 'open_command_output_link')).toHaveLength(0);
+  const appUrl = page.url();
+  await output.focus();
+  await page.keyboard.press('Tab');
+  await expect(local).toBeFocused();
+  await expect(local).toHaveCSS('outline-style', 'solid');
+  await page.keyboard.press('Enter');
+  expect((await calls(page, 'open_command_output_link'))[0].payload.url).toBe(
+    'http://127.0.0.1:4173/',
+  );
+  expect(page.url()).toBe(appUrl);
+  await page.evaluate(() => {
+    (window as any).workspaceState.runs[0].output += '1mfragment joined\x1b[0m\n';
+  });
+  await expect(output.getByText('fragment joined', { exact: true })).toHaveCSS(
+    'color',
+    info.project.name === 'dark' ? 'rgb(239, 139, 133)' : 'rgb(163, 41, 40)',
+  );
+  await page.getByRole('button', { name: 'Copy output', exact: true }).click();
+  const copied = await page.evaluate(() => (window as any).testCopied);
+  expect(copied).toContain('<script>window.outputInjected = true</script>');
+  expect(copied).toContain('http://127.0.0.1:4173/');
+  expect(copied).not.toContain('\x1b');
+  await page.evaluate(() => {
+    (window as any).linkFailure = true;
+  });
+  await local.click();
+  await expect(page.getByRole('alert')).toContainText('Could not open this web address');
+  await page.evaluate(() => {
+    (window as any).linkFailure = false;
+  });
+  mkdirSync('artifacts/commands-ux', { recursive: true });
+  for (const size of [
+    { width: 820, height: 580 },
+    { width: 1100, height: 740 },
+    { width: 1500, height: 900 },
+  ]) {
+    await page.setViewportSize(size);
+    await output.scrollIntoViewIfNeeded();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+    ).toBeLessThanOrEqual(0);
+    expect(
+      await page
+        .getByRole('main', { name: 'Project workspace' })
+        .evaluate((element) => element.scrollWidth - element.clientWidth),
+    ).toBeLessThanOrEqual(0);
+    await page.screenshot({
+      path: `artifacts/commands-ux/console-${info.project.name}-${size.width}.png`,
+      animations: 'disabled',
+    });
+  }
+  await page.getByRole('button', { name: 'Clear output', exact: true }).click();
+  await expect(output).toHaveText('Waiting for output…');
+  await expect(output.getByRole('link')).toHaveCount(0);
+  await page.evaluate(() => {
+    (window as any).workspaceState.runs[0].output += 'after clear\n';
+  });
+  await expect(output).toHaveText('after clear\n');
+  await page.evaluate(() => {
+    (window as any).workspaceState.runs[0].output += 'before partial \x1b[3';
+  });
+  await expect(output).toContainText('before partial');
+  await page.getByRole('button', { name: 'Clear output', exact: true }).click();
+  await page.evaluate(() => {
+    (window as any).workspaceState.runs[0].output += '2mcomplete after clear\x1b[0m';
+  });
+  await expect(output).toHaveText('complete after clear');
+});
+
+test('console preserves long lines and reading position, follows the bottom and switches concurrent runs', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  const output = await seedConsole(
+    page,
+    'x'.repeat(12000) + '\n' + '  aligned\tcolumn\n'.repeat(8000),
+  );
+  await expect(output).toContainText('aligned');
+  const distance = () => output.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop);
+  await expect.poll(distance).toBeLessThanOrEqual(1);
+  expect(await output.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  await output.evaluate((el) => {
+    el.scrollTop = 80;
+    el.dispatchEvent(new Event('scroll'));
+  });
+  await page.evaluate(() => {
+    (window as any).workspaceState.runs[0].output += 'new while reading\n';
+  });
+  await expect(output).toContainText('new while reading');
+  expect(await output.evaluate((el) => el.scrollTop)).toBe(80);
+  await output.evaluate((el) => {
+    el.scrollTop = el.scrollHeight - el.clientHeight - 10;
+    el.dispatchEvent(new Event('scroll'));
+  });
+  await page.evaluate(() => {
+    (window as any).workspaceState.runs[0].output += 'following again\n';
+  });
+  await expect(output).toContainText('following again');
+  await expect.poll(distance).toBeLessThanOrEqual(1);
+  await page.evaluate(() => {
+    const runs = (window as any).workspaceState.runs;
+    runs.push({
+      ...runs[0],
+      id: 'older-run',
+      name: 'Previous build',
+      status: 'succeeded',
+      startedAt: Date.now() - 60000,
+      finishedAt: Date.now() - 30000,
+      exitCode: 0,
+      output: 'previous output\n',
+    });
+  });
+  await page.getByLabel('Select command run').selectOption('older-run');
+  await expect(page.getByLabel('Previous build output')).toHaveText('previous output\n');
+  await expect(page.locator('.run-status')).toHaveText('succeeded');
+  await page.getByLabel('Select command run').selectOption('console-run');
+  await expect(output).toContainText('following again');
+  expect(await calls(page, 'stop_project_command')).toHaveLength(0);
+});
+
+test('suggestions count unique unsaved invocations and never run automatically or rescan on polls', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.evaluate((command) => {
+    (window as any).workspaceState.projects[0].commands = [
+      { ...command, id: 'saved-build', name: 'My build', imported: false },
+    ];
+    (window as any).suggestedCommands = [
+      command,
+      { ...command, id: 'build-again' },
+      { ...command, id: 'dev', args: ['run', 'dev'] },
+      { ...command, id: 'test', args: ['run', 'test'] },
+    ];
+  }, importedCommand);
+  await openWorkspace(page);
+  await section(page, 'Commands');
+  await expect(page.getByText('2 suggested commands found', { exact: true })).toBeVisible();
+  await expect
+    .poll(async () => (await calls(page, 'list_command_runs')).length)
+    .toBeGreaterThanOrEqual(3);
+  expect(await calls(page, 'suggest_project_commands')).toHaveLength(1);
+  expect(await calls(page, 'save_project_commands')).toHaveLength(0);
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  await page.getByRole('button', { name: 'Review suggestions', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText(
+    'Review each command before running it for the first time',
+  );
+  await expect(page.getByRole('dialog').getByRole('checkbox')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Import selected commands', exact: true }).click();
+  await expect(page.getByText('No new suggested commands', { exact: true })).toBeVisible();
+  expect(await calls(page, 'suggest_project_commands')).toHaveLength(2);
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  await page.getByRole('button', { name: 'Refresh suggestions', exact: true }).click();
+  await expect.poll(async () => (await calls(page, 'suggest_project_commands')).length).toBe(3);
+  await section(page, 'Overview');
+  await section(page, 'Commands');
+  await expect.poll(async () => (await calls(page, 'suggest_project_commands')).length).toBe(4);
+});
+
+test('suggestion loading, empty results, errors and missing folders leave commands usable', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.evaluate(() => {
+    (window as any).holdSuggestions = true;
+    (window as any).suggestedCommands = [];
+  });
+  await openWorkspace(page);
+  await section(page, 'Commands');
+  await expect(page.getByText('Checking for suggested commands…')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add command', exact: true })).toBeEnabled();
+  await page.evaluate(() => {
+    (window as any).finishSuggestions();
+    (window as any).holdSuggestions = false;
+  });
+  await expect(page.getByText('No new suggested commands', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review suggestions', exact: true })).toHaveCount(
+    0,
+  );
+  await page.evaluate(() => {
+    (window as any).suggestionFailure = true;
+  });
+  await page.getByRole('button', { name: 'Refresh suggestions', exact: true }).click();
+  await expect(page.getByText('Suggestions unavailable', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add command', exact: true })).toBeEnabled();
+  await page.evaluate(() => {
+    (window as any).suggestionFailure = false;
+  });
+  await page.getByRole('button', { name: 'Refresh suggestions', exact: true }).click();
+  await expect(page.getByText('No new suggested commands', { exact: true })).toBeVisible();
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  await page.evaluate((command) => {
+    (window as any).suggestedCommands = [command];
+  }, importedCommand);
+  await page.getByRole('button', { name: 'Refresh suggestions', exact: true }).click();
+  await expect(page.getByText('1 suggested command found', { exact: true })).toBeVisible();
+});
+
+test('missing folders skip command suggestion inspection', async ({ page }) => {
+  await workspaceFixture(page, true);
+  await openWorkspace(page);
+  await section(page, 'Commands');
+  await expect(page.getByRole('button', { name: 'Add command', exact: true })).toBeEnabled();
+  expect(await calls(page, 'suggest_project_commands')).toHaveLength(0);
+});
+
+test('real local Vite output renders in both themes and supported window sizes', async ({
+  page,
+}, info) => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'repo-creator-vite-output-'));
+  const config = path.join(directory, 'vite.config.mjs');
+  await writeFile(config, 'export default {};\n');
+  await writeFile(
+    path.join(directory, 'index.html'),
+    '<!doctype html><title>Local preview fixture</title>',
+  );
+  const environment = { ...process.env, FORCE_COLOR: '1' };
+  delete environment.NO_COLOR;
+  const child = spawn(
+    process.execPath,
+    [
+      path.resolve('node_modules/vite/bin/vite.js'),
+      directory,
+      '--config',
+      config,
+      '--host',
+      '127.0.0.1',
+      '--port',
+      '0',
+      '--strictPort',
+    ],
+    { env: environment, windowsHide: true },
+  );
+  try {
+    const raw = await new Promise<string>((resolve, reject) => {
+      let text = '';
+      const timer = setTimeout(
+        () => reject(new Error('Local Vite fixture did not become ready')),
+        15000,
+      );
+      child.on('error', (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+      child.on('exit', (code) => {
+        clearTimeout(timer);
+        reject(new Error(`Local Vite fixture exited: ${code}`));
+      });
+      child.stdout.on('data', (chunk) => {
+        text += chunk.toString();
+        if (/http:\/\/127\.0\.0\.1:\d+\//.test(text.replace(/\x1b\[[\d;]*m/g, ''))) {
+          clearTimeout(timer);
+          resolve(text);
+        }
+      });
+      child.stderr.on('data', (chunk) => {
+        text += chunk.toString();
+      });
+    });
+    expect(raw).toContain('\x1b[');
+    await workspaceFixture(page);
+    await page.evaluate((command) => {
+      (window as any).suggestedCommands = ['dev', 'test', 'lint'].map((name) => ({
+        ...command,
+        id: name,
+        name: `npm run ${name}`,
+        args: ['run', name],
+      }));
+    }, importedCommand);
+    const output = await seedConsole(page, raw);
+    await expect(output).toContainText('ready in');
+    await expect(output).not.toContainText('[32m');
+    await expect(output.getByRole('link')).toHaveCount(1);
+    await expect(page.getByText('3 suggested commands found', { exact: true })).toBeVisible();
+    mkdirSync('artifacts/commands-ux', { recursive: true });
+    for (const size of [
+      { width: 820, height: 580 },
+      { width: 1100, height: 740 },
+      { width: 1500, height: 900 },
+    ]) {
+      await page.setViewportSize(size);
+      await page.getByRole('main', { name: 'Project workspace' }).evaluate((el) => {
+        el.scrollTop = 0;
+      });
+      expect(
+        await page
+          .getByRole('main', { name: 'Project workspace' })
+          .evaluate((el) => el.scrollWidth - el.clientWidth),
+      ).toBeLessThanOrEqual(0);
+      await page.screenshot({
+        path: `artifacts/commands-ux/vite-${info.project.name}-${size.width}.png`,
+        animations: 'disabled',
+      });
+    }
+    expect(await calls(page, 'open_command_output_link')).toHaveLength(0);
+    expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  } finally {
+    child.kill();
+    await new Promise<void>((resolve) => {
+      if (child.exitCode !== null || child.signalCode !== null) resolve();
+      else child.once('exit', () => resolve());
+    });
+    // The path is created above, never derived from project/command output.
+    if (
+      path.dirname(directory) !== path.resolve(tmpdir()) ||
+      !path.basename(directory).startsWith('repo-creator-vite-output-')
+    )
+      throw new Error('Unexpected fixture cleanup path');
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test('project library searches, pins, imports, removes history and locates missing repositories', async ({
   page,
@@ -506,7 +881,7 @@ test('discovery requires command and directory review, streams output and stops 
   await workspaceFixture(page);
   await openWorkspace(page);
   await section(page, 'Commands');
-  await page.getByRole('button', { name: 'Discover commands', exact: true }).click();
+  await page.getByRole('button', { name: 'Review suggestions', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Review suggested commands' })).toContainText(
     'npm run build',
   );
@@ -765,7 +1140,7 @@ test('refined workspace screens remain readable at default, minimum and wide dim
     path: `artifacts/refinement-workspace/open-${testInfo.project.name}.png`,
   });
   await section(page, 'Commands');
-  await page.getByRole('button', { name: 'Discover commands', exact: true }).click();
+  await page.getByRole('button', { name: 'Review suggestions', exact: true }).click();
   await page.getByRole('button', { name: 'Import selected commands', exact: true }).click();
   await expect(page.locator('.command-working-directory')).toContainText(
     'C:\\Projects\\River Workbench',

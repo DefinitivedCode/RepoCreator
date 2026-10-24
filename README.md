@@ -28,7 +28,7 @@ A desktop workspace for starting Git repositories and returning to the projects 
   <img src="docs/assets/overview-light.png" alt="New Project Overview for Field Notes, with a Website preset, local destination and exact generated-file previews." width="1100">
 </picture>
 
-**Development preview.** These real application captures show the upcoming Keystone interface and Project Readiness. Both are newer than the published downloads; check the [release notes](https://github.com/DefinitivedCode/RepoCreator/releases) for what's included in a package.
+**Development preview.** The refreshed Overview, Commands and Settings captures show refinements following the published **v1.5.0 Beta**. Keystone branding and Project Readiness are already included in that Beta. The application version remains unchanged during development; check the [release notes](https://github.com/DefinitivedCode/RepoCreator/releases) for what's included in a download.
 
 ## Download
 
@@ -61,11 +61,11 @@ Windows packages are unsigned at the operating-system level. Mac builds are ad-h
 
 ## From idea to first commit
 
-| Create & configure                                                                                                                                    | Continue & check                                                                                                                                                                        |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Start a repository.** Create local Git projects or publish to GitHub. Simple and Advanced share settings, with a review before creation.            | **Keep a project workspace.** Add existing repositories, reopen editors and terminals, and save commands with live output and stop controls.                                            |
-| **Shape the files.** Choose technologies and stack presets, reuse project presets, and preview README, gitignore, license and optional project files. | **See what's missing.** Project Readiness inspects files without running programs and offers actionable findings. Full checks show a plan for explicit approval. _Development preview._ |
-| **Give AI useful context.** Configure coding-agent instructions, specialists and skills. Prepare handoff prompts locally, without a model request.    | **Make it yours.** Light, dark and system themes, configurable accent colours, and Stable/Beta updates for supported installations.                                                     |
+| Create & configure                                                                                                                                    | Continue & check                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Start a repository.** Create local Git projects or publish to GitHub. Simple and Advanced share settings, with a review before creation.            | **Keep a project workspace.** Add existing repositories, reopen editors and terminals, and save commands with live output and stop controls.                     |
+| **Shape the files.** Choose technologies and stack presets, reuse project presets, and preview README, gitignore, license and optional project files. | **See what's missing.** Project Readiness inspects files without running programs and offers actionable findings. Full checks show a plan for explicit approval. |
+| **Give AI useful context.** Configure coding-agent instructions, specialists and skills. Prepare handoff prompts locally, without a model request.    | **Make it yours.** Light, dark and system themes, configurable accent colours, and Stable/Beta updates for supported installations.                              |
 
 Selecting a technology describes your intended stack; it doesn't install a framework. AI configuration supports **Codex, Claude Code, GitHub Copilot, Cursor, Gemini CLI and OpenCode**. The tools themselves are optional.
 
@@ -89,11 +89,13 @@ Your project library brings existing and newly created repositories into one pla
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/workspace-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/workspace-light.png">
-  <img src="docs/assets/workspace-light.png" alt="Field Notes project workspace with a clean Git tree, saved development and build commands, and the command output panel." width="1100">
+  <img src="docs/assets/workspace-light.png" alt="Development preview: Field Notes workspace with a clean Git tree, a suggested command to review and a running local Vite server with styled output." width="1100">
 </picture>
 
+The Commands refinements are a **development preview**: ANSI colours render as text styles, web addresses open only when chosen, and suggestions remain subject to review. [Console details and safety](docs/project-workspace.md#run-and-stop) · [Before/after review](docs/commands-ux-review.md).
+
 <details>
-<summary>Project Readiness: useful findings before you run · development preview</summary>
+<summary>Project Readiness: useful findings before you run</summary>
 
 Automatic inspection reads a bounded set of project files and locates tools. It reports **Ready**, **Needs attention**, **Not checked** or **Could not check**, with suggested fixes where possible. It doesn't install packages or apply fixes.
 

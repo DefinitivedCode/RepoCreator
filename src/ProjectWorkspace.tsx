@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './icons';
 import { WorkspaceDialog } from './WorkspaceDialog';
+import { CommandOutput } from './CommandOutput';
+import { parseCommandOutput } from './commandOutputModel';
 import { Readiness, readinessChecks, useReadiness } from './Readiness';
 import { countLabel, summarize } from './readinessModel';
 import { appError, displayPath } from './validation';
@@ -12,6 +14,7 @@ import type { ProjectPreset } from './types';
 import {
   commandDirectory,
   commandText,
+  availableCommandSuggestions,
   type CommandCategory,
   type CommandRun,
   type ProjectCommand,
@@ -999,6 +1002,55 @@ function Commands({
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const [presetId, setPresetId] = useState('');
+  const [detected, setDetected] = useState<ProjectCommand[]>([]);
+  const [suggestionLoading, setSuggestionLoading] = useState(true);
+  const [suggestionError, setSuggestionError] = useState('');
+  const [suggestionRefresh, setSuggestionRefresh] = useState(0);
+  const suggestionRequest = useRef<{ key: string; result: Promise<ProjectCommand[]> } | null>(null);
+  const commandsKey = JSON.stringify(project.commands);
+  useEffect(() => {
+    let active = true;
+    if (!exists) {
+      suggestionRequest.current = null;
+      setSuggestionLoading(false);
+      return;
+    }
+    setSuggestionLoading(true);
+    setSuggestionError('');
+    // Reuse the in-flight request during React Strict Mode's effect replay.
+    const key = JSON.stringify([
+      project.id,
+      project.context.localPath,
+      commandsKey,
+      suggestionRefresh,
+    ]);
+    if (suggestionRequest.current?.key !== key)
+      suggestionRequest.current = {
+        key,
+        result: invoke<ProjectCommand[]>('suggest_project_commands', { id: project.id }),
+      };
+    void suggestionRequest.current.result
+      .then((result) => {
+        if (active) setDetected(Array.isArray(result) ? result : []);
+      })
+      .catch(() => {
+        if (active) {
+          setDetected([]);
+          setSuggestionError('Could not inspect project files. Try refreshing suggestions.');
+        }
+      })
+      .finally(() => {
+        if (active) setSuggestionLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [project.id, project.context.localPath, exists, commandsKey, suggestionRefresh]);
+  const availableSuggestions = availableCommandSuggestions(
+    detected,
+    project.commands,
+    project.context.localPath,
+  );
   useEffect(() => {
     let active = true,
       fetching = false;
@@ -1036,11 +1088,8 @@ function Commands({
     (preset) => preset.configuration.options.commands?.length,
   );
   const run = runs.find((run) => run.id === selectedRun) ?? runs[0];
-  const visibleOutput = run
-    ? cleared[run.id] && run.output.startsWith(cleared[run.id])
-      ? run.output.slice(cleared[run.id].length)
-      : run.output
-    : '';
+  const outputStart =
+    run && cleared[run.id] && run.output.startsWith(cleared[run.id]) ? cleared[run.id].length : 0;
   async function save(commands: ProjectCommand[]) {
     setPending(true);
     try {
@@ -1088,19 +1137,6 @@ function Commands({
       setPending(false);
     }
   }
-  async function suggest() {
-    setPending(true);
-    try {
-      const result = await invoke<ProjectCommand[]>('suggest_project_commands', { id: project.id });
-      setSuggestions(result);
-      setSelectedSuggestions(result.map((command) => command.id));
-      setError('');
-    } catch (error) {
-      setError(message(error));
-    } finally {
-      setPending(false);
-    }
-  }
   async function stop(run: CommandRun) {
     try {
       await invoke('stop_project_command', { runId: run.id });
@@ -1121,9 +1157,6 @@ function Commands({
           <p className="help">Run only when you choose. Output includes stdout and stderr.</p>
         </div>
         <div className="inline-actions">
-          <button type="button" disabled={pending || !exists} onClick={() => void suggest()}>
-            Discover commands
-          </button>
           <button
             type="button"
             className="primary"
@@ -1153,6 +1186,50 @@ function Commands({
         <p role="alert" className="error-banner">
           {error}
         </p>
+      )}
+      {exists && (
+        <div className="command-suggestions">
+          <div role="status">
+            <strong>
+              {suggestionLoading
+                ? 'Checking for suggested commands…'
+                : suggestionError
+                  ? 'Suggestions unavailable'
+                  : availableSuggestions.length
+                    ? `${availableSuggestions.length} suggested ${availableSuggestions.length === 1 ? 'command' : 'commands'} found`
+                    : 'No new suggested commands'}
+            </strong>
+            <p className="help">
+              {suggestionError ||
+                (availableSuggestions.length
+                  ? "Found in your project's configuration. Review and add the commands you want. Nothing runs automatically."
+                  : 'Suggestions come from supported project files. Nothing runs automatically.')}
+            </p>
+          </div>
+          <div className="inline-actions">
+            {availableSuggestions.length > 0 && (
+              <button
+                type="button"
+                disabled={suggestionLoading || pending}
+                onClick={() => {
+                  setSuggestions(availableSuggestions);
+                  setSelectedSuggestions(availableSuggestions.map((command) => command.id));
+                }}
+              >
+                Review suggestions <Icon name="arrow" size={13} />
+              </button>
+            )}
+            <button
+              type="button"
+              className="text-button"
+              aria-label="Refresh suggestions"
+              disabled={suggestionLoading}
+              onClick={() => setSuggestionRefresh((value) => value + 1)}
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
       )}
       <div className="command-presets">
         <button
@@ -1342,11 +1419,19 @@ function Commands({
                   s{run.exitCode !== null ? ` · exit ${run.exitCode}` : ''}
                 </span>
               </div>
-              <pre className="run-output" tabIndex={0} aria-label={`${run.name} output`}>
-                {visibleOutput || (run.status === 'running' ? 'Waiting for output…' : 'No output.')}
-              </pre>
+              <CommandOutput
+                key={run.id}
+                output={run.output}
+                startOffset={outputStart}
+                name={run.name}
+                running={run.status === 'running'}
+                onError={setError}
+              />
               <div className="output-actions">
-                <button type="button" onClick={() => void copy(visibleOutput)}>
+                <button
+                  type="button"
+                  onClick={() => void copy(parseCommandOutput(run.output, outputStart).text)}
+                >
                   Copy output
                 </button>
                 <button
@@ -1406,8 +1491,9 @@ function Commands({
             </p>
           )}
           <p className="help">
-            These commands are untrusted until you review their first execution. Nothing runs during
-            import.
+            Suggested commands come from your project files. Review each command before running it
+            for the first time. Imported preset commands also require review. Nothing runs
+            automatically.
           </p>
           {!suggestions.length && <p>No commands found in supported manifests.</p>}
           <div className="suggestion-list">

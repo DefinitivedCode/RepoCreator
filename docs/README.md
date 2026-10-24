@@ -15,5 +15,6 @@ Start with the [application overview](../README.md) or [download a published bui
 
 These guides describe the source on `main`. Published packages may lag behind it;
 check the [release notes](https://github.com/DefinitivedCode/RepoCreator/releases)
-for the features in your download. In particular, Keystone branding and Project
-Readiness are development previews newer than the currently published packages.
+for the features in your download. Keystone branding and Project Readiness are
+included in v1.5.0 Beta. The Commands and layout refinements shown in the refreshed
+screenshots are development previews following that Beta.
