@@ -57,6 +57,8 @@ cargo test --manifest-path src-tauri/Cargo.toml --locked
 
 The required check names remain `version`, `windows`, `macOS Apple-Silicon` and `macOS Intel`. No branch-protection changes are needed. Each mode validates the exact checked-out commit; post-merge checks still run native tests on all three platforms rather than relying on a previous PR result.
 
+Windows frontend/browser checks and Windows native checks run concurrently on separate Windows runners. The required `windows` gate succeeds only when both jobs succeed; a failed, cancelled or skipped job fails the gate. Both jobs use the same checked-out commit, including full release preparation. This duplicates a small amount of runner/npm setup while overlapping browser testing and Rust work. See [CI measurements](ci-performance.md) for measured baselines, tradeoffs and the read-only timing exporter. Vite excludes generated Rust and test output from its file watcher so a large local build tree does not stall the first browser page load.
+
 | Coverage                                                                        | Pull request / push to `main` | Manual desktop workflow  | Prepare release draft        |
 | ------------------------------------------------------------------------------- | ----------------------------- | ------------------------ | ---------------------------- |
 | Version, release/build/licensing/feed helper tests and notice coverage          | Yes                           | Yes                      | Yes, at the approved tag SHA |
