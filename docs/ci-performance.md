@@ -75,6 +75,11 @@ compiler flags. Frontend builds are short compared with native work, so they
 remain on each native platform; downloading a shared bundle adds complexity and
 must not replace platform compilation.
 
+The baseline logs report npm caches of 39–41 MB and compressed Rust caches of
+429 MB (Intel), 434 MB (Apple Silicon) and 470 MB (Windows). The new browser job
+restores only the npm cache; it does not download another Rust cache. No cache
+namespace, retention policy or stored build profile was expanded.
+
 Local Vite startup diagnostics found the first main stylesheet taking 25,747 ms
 to transform with 48,588 files under the accumulated Rust target directory.
 Ignoring generated Rust/test output in the file watcher reduced that transform
@@ -82,6 +87,49 @@ to 98 ms and made the same previously timing-out first-page appearance test pass
 in 1.6 seconds. These are individual diagnostic samples, not a production startup
 benchmark or a guaranteed CI gain. Frontend source and bundled resources remain
 watched. Test assertions, supported dimensions and timeouts are unchanged.
+
+## Observed after run
+
+All required checks passed in the [new CI run](https://github.com/DefinitivedCode/RepoCreator/actions/runs/40199081317).
+The nearby [application PR run using the original workflow](https://github.com/DefinitivedCode/RepoCreator/actions/runs/40198117062)
+provides a useful additional comparison with similarly timed Windows stages:
+
+| Metric, seconds                                          | Original workflow | Parallel workflow | Absolute change | Change |
+| -------------------------------------------------------- | ----------------: | ----------------: | --------------: | -----: |
+| Workflow elapsed                                         |               407 |               301 |            -106 | -26.0% |
+| Windows: version completion through final required check |               396 |               290 |            -106 | -26.8% |
+| Windows runner elapsed, summed jobs                      |               393 |               436 |             +43 | +10.9% |
+| Windows browser tests                                    |               243 |               240 |              -3 |  -1.2% |
+| Windows Clippy                                           |                33 |                38 |              +5 | +15.2% |
+| Windows Rust tests                                       |                30 |                31 |              +1 |  +3.3% |
+| Windows Tauri debug build                                |                17 |                18 |              +1 |  +5.9% |
+| Windows Rust cache restore / save                        |            19 / 0 |            21 / 0 |          +2 / 0 |      — |
+| Apple Silicon job elapsed                                |               157 |               157 |               0 |   0.0% |
+| Intel job elapsed                                        |               383 |               262 |            -121 | -31.6% |
+
+The Windows jobs took 154 seconds native and 282 seconds browser, then the gate
+took two seconds. The full Windows path above includes their queues and gate
+scheduling, rather than presenting that two-second gate as the validation time.
+Queues were 2–3 seconds. Windows npm installation took 10 seconds native and
+9 seconds browser, versus one 9-second installation before. The browser stage
+itself is essentially unchanged and individual native stages were slightly slower;
+the Windows elapsed improvement comes from overlap. Summed Windows runner time
+increased, consistent with the setup tradeoff.
+
+Apple Silicon's cache/Clippy/tests/app steps were 13/33/47/39 seconds after,
+versus 15/34/45/37 before. Intel's corresponding steps were 21/68/74/66 after,
+versus 31/68/96/133 before. There are no Mac workflow changes; Intel's large
+variation cannot be attributed to the Windows scheduling optimisation.
+
+Against the earlier successful PR #16 and post-merge baselines above, the new
+workflow was 204 seconds (-40.4%) and 92 seconds (-23.4%) shorter respectively.
+Those wider comparisons include substantial runner/build variability. The nearby
+application PR also contains four additional browser cases and native application
+changes. None of these single comparisons establishes a controlled warm-cache
+median, a cold-build gain or a release-preparation gain. The successful new run
+still executes all 122 browser cases present on its own base; no coverage was
+removed. Local verification also passed 150 frontend unit tests, 29 helper tests,
+TypeScript/build and formatting. All three native targets passed CI.
 
 ## Comparison procedure
 
