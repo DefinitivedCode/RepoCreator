@@ -92,6 +92,14 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - run: npm run test:ui
+      - name: Retain failed browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-browser-diagnostics-${{ github.run_attempt }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 3
 
   # Keep the required check name as an explicit gate. A failed, cancelled or
   # skipped child must fail this check, including reusable release builds.
