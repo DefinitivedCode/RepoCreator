@@ -11,12 +11,16 @@ on:
         description: Existing owner-approved tag matching vVERSION; this workflow never creates tags
         required: true
         type: string
+      channel:
+        description: beta or stable for complete reviewed drafts; omit only for legacy preparation
+        type: string
+        default: ''
       create_draft:
         description: Create a private draft after all builds pass (never publish)
         type: boolean
         default: false
       publication_review_complete:
-        description: Owner approved this preparation and reviewed source/history privacy, licensing and platform warnings
+        description: Explicit preparation authorization and source/history privacy, licensing and platform review completed
         type: boolean
         default: false
 
@@ -72,6 +76,12 @@ jobs:
           VERSION: ${{ inputs.version }}
           TAG: ${{ inputs.tag }}
         run: node scripts/release.mjs version --version "$VERSION" --tag "$TAG"
+      - name: Validate release channel and reviewed tagged notes
+        if: inputs.channel != ''
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+        run: node scripts/release.mjs notes --version "$VERSION" --channel "$CHANNEL"
 
   build:
     needs: validate
@@ -105,8 +115,9 @@ jobs:
       - name: Verify complete artifact inventory and checksums
         env:
           VERSION: ${{ needs.validate.outputs.version }}
+          CHANNEL: ${{ inputs.channel }}
           REPO_CREATOR_UPDATER_PUBLIC_KEY: ${{ vars.REPO_CREATOR_UPDATER_PUBLIC_KEY }}
-        run: node scripts/release.mjs collect --version "$VERSION" --source artifacts/downloaded --output artifacts/release --updater true
+        run: node scripts/release.mjs collect --version "$VERSION" --source artifacts/downloaded --output artifacts/release --updater true --channel "$CHANNEL"
       - uses: actions/upload-artifact@v4
         with:
           name: Repo-Creator-${{ needs.validate.outputs.version }}-release-assets
@@ -124,6 +135,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        if: inputs.channel != ''
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        if: inputs.channel != ''
+        with:
+          node-version: '22'
       - uses: actions/download-artifact@v4
         with:
           name: Repo-Creator-${{ needs.validate.outputs.version }}-release-assets
@@ -133,6 +153,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
           VERSION: ${{ needs.validate.outputs.version }}
+          CHANNEL: ${{ inputs.channel }}
           GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
@@ -142,8 +163,25 @@ jobs:
             echo 'A draft or published release already exists for this tag; nothing was changed.' >&2
             exit 1
           fi
-          gh release create "$TAG" --repo "$GH_REPO" --verify-tag --draft \
+          channel_flags=(--draft)
+          if [ "$CHANNEL" = beta ]; then
+            channel_flags+=(--prerelease)
+          elif [ "$CHANNEL" = stable ]; then
+            channel_flags+=(--prerelease=false)
+          fi
+          gh release create "$TAG" --repo "$GH_REPO" --verify-tag "${channel_flags[@]}" \
             --title "Repo Creator $VERSION" --notes-file release-assets/RELEASE_NOTES.md \
             release-assets/Repo-Creator-* release-assets/LICENSE.txt \
             release-assets/THIRD_PARTY_NOTICES.txt release-assets/SHA256SUMS.txt release-assets/updater.json
           printf 'A draft was prepared for owner review. Publication remains a separate manual action.\n' >> "$GITHUB_STEP_SUMMARY"
+      - name: Read back actual draft metadata
+        if: inputs.channel != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          gh release view "$TAG" --repo "$GH_REPO" --json name,tagName,isDraft,isPrerelease,body > actual-draft.json
+          node scripts/release.mjs verify-draft --version "$VERSION" --channel "$CHANNEL" --source release-assets --metadata actual-draft.json

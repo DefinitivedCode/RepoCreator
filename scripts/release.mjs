@@ -23,6 +23,87 @@ export function releaseVersion(value) {
   return value;
 }
 
+export function releaseChannel(version, channel) {
+  releaseVersion(version);
+  if (!['beta', 'stable'].includes(channel))
+    throw new Error('Release channel must be beta or stable.');
+  if (channel === 'stable' && version.includes('-'))
+    throw new Error('Stable releases cannot use a SemVer prerelease version.');
+  return channel;
+}
+
+export function validateReleaseNotes(notes, version, channel) {
+  releaseChannel(version, channel);
+  const text = notes.replaceAll('\r\n', '\n').trim();
+  const title = `# Repo Creator ${version} — `;
+  if (!text.startsWith(title) || !text.split('\n')[0].slice(title.length).trim())
+    throw new Error('Release notes need the matching version and a descriptive Markdown heading.');
+  if (/\{\{|\}\}|^\s*(?:TODO|TBD)\b|This workflow prepares a draft only\./im.test(text))
+    throw new Error('Release notes contain placeholders or preparation boilerplate.');
+  const headings = ["### What's New", '### Installation', '**Known limitations:**', '### Feedback'];
+  const positions = headings.map((heading) => text.indexOf(heading));
+  if (
+    positions.some(
+      (position, index) =>
+        position < 0 ||
+        position !== text.lastIndexOf(headings[index]) ||
+        (index > 0 && position <= positions[index - 1]),
+    )
+  )
+    throw new Error('Release notes must contain the complete sections in the documented order.');
+  const introduction = text.slice(text.indexOf('\n') + 1, positions[0]).trim();
+  if (!introduction || introduction.startsWith('#'))
+    throw new Error('Release notes need a concise introduction.');
+  const features =
+    text.slice(positions[0] + headings[0].length, positions[1]).match(/^- \S.+/gm) || [];
+  if (features.length < 3 || features.length > 6)
+    throw new Error('Release notes need three to six feature bullets.');
+  const installation = text.slice(positions[1], positions[2]);
+  if (
+    !/1\.4\.0/.test(installation) ||
+    !/manual/i.test(installation) ||
+    !/portable/i.test(installation) ||
+    !/extract/i.test(installation)
+  )
+    throw new Error('Release notes must preserve manual-upgrade and portable extraction guidance.');
+  const warnings = text.slice(positions[2], positions[3]);
+  if (
+    !/Windows[^\n]*unsigned/i.test(warnings) ||
+    !/macOS[^\n]*ad[- ]hoc/i.test(warnings) ||
+    !/macOS[^\n]*(?:not notarized|unnotarized)/i.test(warnings) ||
+    !/updater signatures[^\n]*(?:do not|don't)[^\n]*signing/i.test(warnings)
+  )
+    throw new Error(
+      'Release notes must retain Windows, macOS and updater-versus-OS signing warnings.',
+    );
+  if (!text.slice(positions[3]).includes('https://github.com/DefinitivedCode/RepoCreator/issues'))
+    throw new Error('Release notes need the GitHub Issues feedback link.');
+  return notes;
+}
+
+export function reviewedReleaseNotes(root, version, channel) {
+  releaseChannel(version, channel);
+  const file = path.join(root, 'docs', 'release-notes', `${version}.md`);
+  return validateReleaseNotes(readFileSync(file, 'utf8'), version, channel);
+}
+
+export function checkDraftMetadata(release, version, channel, notes) {
+  validateReleaseNotes(notes, version, channel);
+  if (
+    release.name !== `Repo Creator ${version}` ||
+    release.tagName !== `v${version}` ||
+    release.isDraft !== true
+  )
+    throw new Error('Expected the matching unpublished draft with the exact release title.');
+  if (release.isPrerelease !== (channel === 'beta'))
+    throw new Error('Draft prerelease flag does not match the release channel.');
+  if (
+    typeof release.body !== 'string' ||
+    release.body.replaceAll('\r\n', '\n') !== notes.replaceAll('\r\n', '\n')
+  )
+    throw new Error('Actual draft body does not match the reviewed release notes.');
+}
+
 export function checkVersions(root, expected, tag) {
   const json = (file) => JSON.parse(readFileSync(path.join(root, file), 'utf8'));
   const cargoVersion = (file, section) => {
@@ -203,8 +284,12 @@ export function collectRelease({
   version,
   updater = false,
   publicKey = process.env.REPO_CREATOR_UPDATER_PUBLIC_KEY,
+  channel = '',
 }) {
   releaseVersion(version);
+  // Omitted channel preserves existing manual preparation, including v1.5.2.
+  // Explicit future preparation validates immutable tagged notes before writing.
+  const reviewedNotes = channel ? reviewedReleaseNotes(root, version, channel) : null;
   const expected = [
     ['windows', 'x64'],
     ['macos', 'arm64'],
@@ -289,7 +374,8 @@ export function collectRelease({
   ]);
   writeFileSync(
     path.join(output, 'RELEASE_NOTES.md'),
-    `Repo Creator ${version}\n\nChoose the asset for your operating system and processor. Windows installers and the portable archive are unsigned. macOS builds are ad-hoc signed and not notarized; physical Mac launch remains to be verified.\n\nSee the installation and troubleshooting documentation before opening a test build. SHA256SUMS.txt covers all downloadable application assets and notices.\n\nSource and history privacy review, license review and owner publication approval remain required. This workflow prepares a draft only.\n`,
+    reviewedNotes ??
+      `Repo Creator ${version}\n\nChoose the asset for your operating system and processor. Windows installers and the portable archive are unsigned. macOS builds are ad-hoc signed and not notarized; physical Mac launch remains to be verified.\n\nSee the installation and troubleshooting documentation before opening a test build. SHA256SUMS.txt covers all downloadable application assets and notices.\n\nSource and history privacy review, license review and owner publication approval remain required. This workflow prepares a draft only.\n`,
   );
   return expected;
 }
@@ -313,6 +399,17 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (process.env.GITHUB_OUTPUT)
         appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);
       console.log(version);
+    } else if (command === 'notes') {
+      reviewedReleaseNotes(root, flags.version, flags.channel);
+      console.log(`Verified ${flags.channel} release notes for ${flags.version}.`);
+    } else if (command === 'verify-draft') {
+      checkDraftMetadata(
+        JSON.parse(readFileSync(path.resolve(flags.metadata), 'utf8')),
+        flags.version,
+        flags.channel,
+        readFileSync(path.join(path.resolve(flags.source), 'RELEASE_NOTES.md'), 'utf8'),
+      );
+      console.log(`Verified unpublished ${flags.channel} draft metadata for ${flags.version}.`);
     } else if (command === 'package') {
       const result = packagePlatform({
         root,
@@ -331,11 +428,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         output: path.resolve(flags.output),
         version: flags.version,
         updater: flags.updater === 'true',
+        channel: flags.channel || '',
       });
       console.log(
         `Verified all ${names.length} application assets; release bundle and SHA256SUMS.txt are ready.`,
       );
-    } else throw new Error('Expected version, package or collect command.');
+    } else throw new Error('Expected version, notes, verify-draft, package or collect command.');
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

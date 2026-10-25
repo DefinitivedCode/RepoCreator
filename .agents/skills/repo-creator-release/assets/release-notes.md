@@ -12,7 +12,7 @@
 
 Download the Windows x64 or matching macOS package under **Assets**. See `SHA256SUMS.txt` for download checksums.
 
-Users of v1.4.0 and earlier must upgrade manually. Windows portable ZIP copies require manual replacement; extract the entire archive before opening the app. For updater-enabled installed copies, choose the appropriate channel in **Settings → Updates**.
+Users of v1.4.0 and earlier must upgrade manually. Windows portable ZIP copies require manual replacement; extract the entire archive before opening the app. For updater-enabled installed copies, choose the appropriate channel in **Settings → Updates**. On macOS, move the application out of the DMG before updating.
 
 **Known limitations:**
 

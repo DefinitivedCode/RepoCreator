@@ -1,128 +1,58 @@
 ---
 name: repo-creator-release
-description: Guide the Repo Creator owner through version selection, concise release notes, approved tags, verified signed release drafts, manual publication and Stable/Beta feed verification. Use when preparing, reviewing or troubleshooting a Repo Creator release.
+description: Prepare a specific Repo Creator version and Beta/Stable channel through reviewed tagging, signed builds and a verified unpublished GitHub draft. Also use for read-only release reviews, troubleshooting and post-publication feed verification. Publication stays manual.
 ---
 
 # Repo Creator release
 
-Work from the repository root. Invocation authorizes inspection and preparation of a release plan, not release mutations. Never create/push a tag, dispatch release preparation, create a draft, publish a release or modify channels without explicit owner authorization for that action. Reuse authorization already given in the conversation. Never bypass CI, move an existing tag, print signing secrets/private keys, or change signing trust, visibility or branch protection as a workaround.
+Work from the repository root and use the existing release workflow and helpers. The normal result is a complete, verified, **unpublished** draft; the owner publishes it manually.
 
-## Discover the current process
+## Select the mode and authority
 
-Read `AGENTS.md`, `docs/development.md`, `docs/releases.md`, `docs/updates.md`, all `.github/workflows/`, `scripts/release.mjs`, `scripts/update-feeds.mjs`, and the desktop build wrapper. Use those files as the source of truth; adapt the commands below if reviewed configuration has changed. Link to the release/update docs for detailed packaging, signing setup and installation guidance instead of copying them.
+An explicit owner instruction such as `$repo-creator-release prepare 1.5.3 for beta release` is **combined preparation authorization for that exact version and channel**. It authorizes the preflight reviews, creation/push of its annotated tag, one signed draft-mode workflow run, creation or safe completion of the matching unpublished draft, and correction of that draft's title, channel flag and final notes. Complete these steps in one session without asking for separate tagging, build, draft or metadata approvals. Respect any narrower user restriction.
 
-Inspect before proposing changes:
+This authorization does **not** include publication, PR merging, unreviewed code, tag deletion/movement/force updates, signing-key or trust changes, visibility/licensing changes, protection bypasses, or manual update-feed writes. Host/sandbox execution permissions are unchanged.
 
-- `git status --short`, current branch/remotes, fetched `origin/main`, tags (including remote tags), and recent commits. Preserve local work; stop on a dirty release checkout or a failed fetch.
-- GitHub releases, including drafts and prereleases: use `gh release list` / the releases API, not only GitHub's stable-only latest-release endpoint. Read the latest published release and v1.4.0/v1.4.1 notes as style references. Identify the actual previous release tag and compare its changes with the candidate commit.
-- The six checked version values: `package.json`, both root version fields in `package-lock.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and the application entry in `src-tauri/Cargo.lock`. Use `node scripts/release.mjs version` to validate them together.
-- Main's protection/rulesets, required check names, and completed Actions runs for the exact candidate SHA. Currently the required checks are `version`, `windows`, `macOS Apple-Silicon` and `macOS Intel`. A green PR for another SHA is insufficient. If settings are inaccessible, report that limitation and obtain owner confirmation of the checks.
-- Presence of the documented signing secret/variable **names** if accessible; do not retrieve private values. Existing signed updates and trust keys must remain compatible.
+A vague request to review readiness, an implicit skill selection, quoted examples, or a request to edit/test this skill grants **read-only inspection**, not release mutations. Ask for a missing version/channel only when it cannot be resolved from the actual owner request. Accept `beta` or `stable`; Stable cannot have a SemVer prerelease suffix. An explicit artifacts-only or tagging-only request keeps its stated narrower scope.
 
-## Agree on version, channel and notes
+For `prepare`, continue autonomously until the verified draft is ready or a real blocker is established. Do not treat successful checks as approval to expand the requested version/channel or to publish.
 
-Resolve the exact next version and Stable/Beta intent from the owner's request and current release history; ask if either is missing or ambiguous. Accept versions supported by `releaseVersion` (including `1.5.0-beta.1`); do not invent a version bump or include unsupported build metadata. If manifests need updating, prepare a focused PR and wait for it to merge and pass main CI before tagging.
+## Prepare the requested release
 
-- Stable: no SemVer prerelease suffix; GitHub's **Set as a pre-release** must be off.
-- Beta: GitHub's **Set as a pre-release** must be on; either a normal version or a SemVer prerelease is supported. Do not assume a suffix sets the GitHub flag automatically.
-- Feeds select by SemVer, not publication date. Stable considers only stable releases; Beta considers both. Explain if an existing higher eligible version will still win, or an equal-version promotion will not update already installed copies. Never retag to solve this.
+Read `AGENTS.md`, `docs/development.md`, [release procedures](../../../docs/releases.md), [update safeguards](../../../docs/updates.md), all `.github/workflows/`, `scripts/release.mjs`, `scripts/update-feeds.mjs` and the desktop build wrapper. Use their reviewed configuration as the source of truth. Read [preparation commands and recovery](references/preparation.md) for executable recipes and resume rules.
 
-The GitHub Release title (`name`) must always be exactly `Repo Creator <version>`, for example `Repo Creator 1.4.2`, `Repo Creator 1.4.3` or `Repo Creator 1.5.0`. Use the confirmed application version without a leading `v`. Never append `Beta`, `Stable`, feature names, subtitles or other descriptions. Distinguish Beta from Stable using GitHub's prerelease flag, never the title. Preserve this exact title when creating or editing an authorized draft; do not copy the descriptive notes heading into the title.
+1. **Bind a reviewed candidate.** Check the branch, clean working tree and actual upstream; fetch main and tags, stopping on fetch failure or local changes. Record the full fetched main SHA and its merged-PR/review provenance (or prior explicit owner review of that SHA). Verify main protection/rulesets and every required completed check on that exact commit; currently `version`, `windows`, `macOS Apple-Silicon`, `macOS Intel`. A green PR for another SHA is insufficient. An unreviewed commit, failed/missing checks or unverifiable protection is a blocker.
+2. **Check the exact version.** `node scripts/release.mjs version --version VERSION --tag vVERSION` must validate all six values: package.json, both npm lockfile root versions, tauri.conf.json, Cargo.toml and the application Cargo.lock entry. Do not bump versions or silently merge to satisfy the command. If source/version/notes changes are needed, prepare a focused PR under existing review rules and stop until its merged main SHA is reviewed and green.
+3. **Finish the pre-tag review.** Inspect current source, reachable history/identities, relevant prior Actions logs/artifacts, privacy/security findings, project/third-party licensing and notices, platform warnings, signing configuration names (never private values), existing tags/releases/drafts and update-feed eligibility. Compare the previous published tag with the candidate; include drafts/prereleases when inspecting release history. Run release/build/licensing/feed helper tests and version/notice checks. Record scoped evidence and real testing limitations. Combined preparation authorizes doing this review; it does not make failures acceptable. Do not dispatch with the review acknowledgement true until this review actually passes.
+4. **Validate final notes before tagging.** Use the versioned `docs/release-notes/VERSION.md` from reviewed source and the [notes template](assets/release-notes.md). Inspect the diff/source and published v1.4.0/v1.4.1 style references to confirm factual claims. Run `node scripts/release.mjs notes --version VERSION --channel CHANNEL`. Its format checks supplement, not replace, factual review. Missing/incomplete source notes require a reviewed preparation PR. Keep concise user-facing notes and accurate installation/security/testing warnings; put logs, hashes and inventories in a local review report. Do not carry forward stale untested claims when a specific prior upgrade was confirmed tested.
+5. **Reconcile existing state before mutations.** Inspect local/remote tags, all matching releases/drafts and in-flight/completed preparation runs. A matching immutable annotated tag may be reused; a mismatched or lightweight existing tag is a blocker, never rewritten. A published release is read-only. Reuse/verify a matching completed draft or follow its original run rather than creating a duplicate or starting another signed build. If provenance, version/channel or asset identity cannot be established, stop and report it.
+6. **Create/push only a missing approved tag.** Recheck the candidate, CI and tag state immediately before mutation. If absent, create annotated `vVERSION` at the reviewed full SHA and push only that ref. Verify its remote peeled commit. A failed lookup is not absence; a failed push must be inspected before retrying. Preserve an existing valid tag and all other refs.
+7. **Use one signed draft-mode execution.** Dispatch the existing `Prepare release draft` workflow on `main` with version, existing tag, explicit channel, `create_draft=true`, `publication_review_complete=true`. Track that specific run and resolved tag SHA. Do not first run artifacts-only and then repeat the same build for a draft. Artifacts-only is reserved for an explicit owner request. All validation, three native platform builds, assembly and final draft checks must pass. A draft upload/readback job failure alone may be recovered in place under the resume rules below; never substitute caches or earlier PR artifacts for release verification.
+8. **Verify actual outputs and attachments.** Download the run's assembled and platform artifacts into fresh temporary storage. Derive the inventory from `platformAssets` / `requiredAssets`. Check every hash, all four updater signatures against the existing public key and signed version, all manifest targets/URLs/signatures, executable/package versions, licence/notices, native architecture, Mac ad-hoc signatures, MSI/resources, portable contents and source-path/privacy checks. Never repack a signed Mac archive. Test downloaded native launch where available and distinguish it from actual installation/update/restart. Verify every attached draft asset matches the verified run bytes; report unavailable physical Mac or updater end-to-end tests honestly.
+9. **Finish and read back the unpublished draft.** Its exact title is `Repo Creator VERSION`, tag `vVERSION`, prerelease flag true for Beta / false for Stable, and body the reviewed final notes. Never append Beta/Stable/subtitles to the GitHub title. Under combined authorization, automatically correct incomplete metadata/notes of this matching unpublished draft and verify again; no extra metadata prompt is needed. Complete only verified missing assets from the same approved run without overwriting existing bytes. A conflicting asset is a blocker. Read back the actual GitHub title/body/flag, draft state and attachments; local notes or workflow success alone are insufficient. Never call a generic boilerplate draft ready.
 
-Generate notes from `git log` and `git diff` between the previous published tag and the candidate SHA; inspect relevant PRs/source to confirm claims. Read the published v1.4.0 and v1.4.1 bodies as the formatting references, then fill [the release-notes template](assets/release-notes.md) in this exact order:
+The six-part notes order is: descriptive Markdown heading; one concise introduction; `### What's New` with 3–6 short source-supported bullets; `### Installation`; `**Known limitations:**`; `### Feedback` linking to GitHub Issues. Keep manual-upgrade/portable guidance and distinguish cryptographic updater signatures from Windows unsigned installers and Mac ad-hoc signing/notarization. Assertions about testing must identify the version/platform actually tested.
 
-1. A descriptive Markdown heading, such as `# Repo Creator 1.4.2 — README & Project Setup Improvements`. This is the notes heading, not the GitHub Release title.
-2. One concise introductory sentence.
-3. `### What's New` with 3–6 short, source-supported feature bullets. Do not invent changes or pad the list.
-4. `### Installation` with brief guidance relevant to this release, retaining applicable manual-upgrade and portable ZIP instructions.
-5. `**Known limitations:**` with only verified, relevant limitations. Recheck each against current source and testing; do not carry forward stale claims or remove important security warnings without evidence they no longer apply. Distinguish cryptographic updater signing from unsigned Windows installers and ad-hoc signed, unnotarized Macs.
-6. `### Feedback` with a clean link to [GitHub Issues](https://github.com/DefinitivedCode/RepoCreator/issues).
+## Safe retries and blockers
 
-Keep the notes concise and user-facing. Put commit SHAs, CI runs, asset inventories, checksums, signature-verification details and test logs in the separate release review report. Include only the brief confirmed testing limitations relevant to users in the notes. Remove all template placeholders before owner review. Save the proposed notes for review; the workflow's generated `RELEASE_NOTES.md` remains generic preparation boilerplate and must be replaced with the completed notes when draft editing is authorized. Never treat that boilerplate as publication-ready notes.
+Follow the existing specific run first. Retry failed jobs **once** for a demonstrated transient runner/network failure, retaining the original evidence and every validation gate. Stop for a repeated failure, signature/hash/inventory/version mismatch, privacy/licensing finding, missing signing prerequisite or any protection bypass. Do not weaken checks or replace immutable assets to get a green result.
 
-## Validate main and prepare exact PowerShell commands
+If a draft was created before a later upload/readback failure, inspect that exact draft and run before retrying. Only when every validation/build/assembly job succeeded may the existing draft be completed in place: add fully verified missing files from that run and/or correct its metadata, then independently repeat all final attachment and draft checks. The original workflow may remain marked failed; disclose the failure and in-place recovery rather than claiming every job passed. A complete matching draft can be finalized/reverified within the original authorization. Never use `--clobber`, delete a draft to restart, duplicate a draft or edit a published release. Ambiguous provenance or failed validation/build/assembly is a blocker. Never rerun both preparation modes as a recovery shortcut.
 
-Confirm the candidate is merged into `origin/main`, the intended release checkout is clean and its required CI checks passed. Run the documented checks appropriate to the changes, including release/build/licensing/feed helper tests and version validation. Development push/PR CI builds debug binaries/apps; full installer packaging is separately verified by manual/release runs. Do not treat development CI as proof that signed release assets exist.
+When blocked, report the concrete issue and required remedy, preserving the tag and successful artifacts. Request only genuinely missing information/authorization. Normal intermediate steps already included in `prepare VERSION for CHANNEL release` need no repeated approval.
 
-Provide runnable PowerShell with the confirmed version, tag, repository and reviewed full commit SHA substituted. Use the actual upstream remote; the template below assumes the currently configured `origin`. Check native command exit codes explicitly (Windows PowerShell does not automatically throw for Git failures):
+## Completion and manual publication
 
-```powershell
-$version = '<confirmed version>'
-$tag = "v$version"
-$releaseCommit = '<reviewed full SHA>'
-if (git status --porcelain) { throw 'Preserve local changes before releasing.' }
-git fetch origin main --tags
-if ($LASTEXITCODE -ne 0) { throw 'Fetch failed.' }
-git switch main
-if ($LASTEXITCODE -ne 0) { throw 'Could not switch to main.' }
-git merge --ff-only origin/main
-if ($LASTEXITCODE -ne 0) { throw 'Main cannot be fast-forwarded safely.' }
-if ((git rev-parse HEAD) -ne (git rev-parse origin/main)) { throw 'Local main differs from upstream.' }
-if ((git rev-parse HEAD) -ne $releaseCommit) { throw 'Main changed; review the candidate and CI again.' }
-node scripts/release.mjs version --version $version --tag $tag
-if ($LASTEXITCODE -ne 0) { throw 'Version validation failed.' }
-git show-ref --verify --quiet "refs/tags/$tag"
-$localTagStatus = $LASTEXITCODE
-git ls-remote --exit-code --tags origin "refs/tags/$tag" "refs/tags/$tag^{}"
-$remoteTagStatus = $LASTEXITCODE
-if ($localTagStatus -ne 1 -or $remoteTagStatus -ne 2) { throw 'Tag exists or lookup failed; inspect before proceeding.' }
-```
+Return the verified draft URL, workflow URL, exact version/channel and important testing limitations. Keep the completion short, for example:
 
-Inspect GitHub for an existing release/draft for the tag as well. If the tag already exists, resolve its peeled commit locally and remotely. If it matches the reviewed release commit, omit tag creation/push and continue only with the authorized remaining preparation. If it differs, stop; never move/delete/recreate it. Existing drafts/publications must be inspected rather than recreated.
+> Repo Creator 1.5.3 Beta is ready for publication.
+>
+> All builds and verification passed.
+>
+> [View GitHub release draft]
+>
+> You can now review the draft and click Publish release.
 
-Only after the owner explicitly approves tagging that version/commit, offer or execute this separate block; recheck tag absence immediately beforehand:
+Use actual verified links and results, not this example text when something is pending. Keep detailed evidence locally; include a larger report only for failures or when requested. **Preparation ends with the unpublished draft. The owner alone performs the final publication action.**
 
-```powershell
-git tag -a $tag $releaseCommit -m "Repo Creator $version"
-if ($LASTEXITCODE -ne 0) { throw 'Tag creation failed.' }
-git push origin "refs/tags/$tag"
-if ($LASTEXITCODE -ne 0) { throw 'Tag push failed; inspect remote state before retrying.' }
-```
-
-Push only the specific tag, never `--tags` or `--force`. Confirm its remote peeled SHA matches the approved commit.
-
-## Prepare and verify the draft
-
-Explain **Actions → Prepare release draft → Run workflow**, choosing the workflow on `main`. Read `release.yml` for the current inputs. Currently these are `version`, existing approved `tag`, `create_draft` and `publication_review_complete`.
-
-Provide the equivalent exact PowerShell command after substituting the confirmed values:
-
-```powershell
-gh workflow run release.yml --repo DefinitivedCode/RepoCreator --ref main -f "version=$version" -f "tag=$tag" -f create_draft=false -f publication_review_complete=false
-if ($LASTEXITCODE -ne 0) { throw 'Dispatch failed.' }
-```
-
-This artifacts-only run still performs signed release builds and needs preparation authorization. For an explicitly approved draft, set both booleans to `true` only after the owner completes the documented privacy/history, licensing and platform-warning review. Do not silently run both variants: each repeats all release builds. Never dispatch to evade failed checks or from a feature branch.
-
-Track the **specific dispatched run** and resolved tag SHA. Require `validate`, every shared platform check/build, `assemble`, and (if requested) `draft` to succeed. Release preparation always rebuilds the immutable tag with signing enabled; never substitute PR artifacts or an unverified cache hit for this verification.
-
-Download the run's assembled release-assets artifact into a fresh temporary directory. Derive filenames and inventory from `platformAssets` / `requiredAssets`, not old version examples. Verify:
-
-- Windows x64 NSIS, MSI and portable ZIP; both Mac architectures' DMG and original app archives; four detached updater signatures; `updater.json`, `SHA256SUMS.txt`, license and notices. Check all hashes, not just file presence. Platform checksum manifests are available in the per-platform artifacts.
-- The run's Windows MSI/resource notices checks, Mac architecture/ad-hoc signature/resource checks, source-path scans and portable archive checks passed. Test actual downloaded installation/launch where available; report unavailable physical Mac or updater end-to-end testing honestly.
-- Assembly verified every updater signature against the configured public key and exact version. Inspect all four updater targets, download URLs and signature entries. To independently reassemble/verify, download the three per-platform artifacts and run the existing `release.mjs collect --updater true` command into a new empty directory as documented; use only the public key. Never repack a signed Mac archive.
-
-## Owner review, publication and feeds
-
-Before requesting owner publication approval, read back the actual GitHub draft, including its title, body and prerelease flag. Use the confirmed `$version`, `$tag` and `$channel` (`beta` or `stable`) for this read-only check:
-
-```powershell
-if ($channel -notin @('beta', 'stable')) { throw 'Confirm the release channel first.' }
-$releaseJson = gh release view $tag --repo DefinitivedCode/RepoCreator --json name,tagName,isDraft,isPrerelease,body,url
-if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the release draft.' }
-$release = $releaseJson | ConvertFrom-Json
-$expectedTitle = "Repo Creator $version"
-if ($release.name -cne $expectedTitle) { throw "Release title must be exactly: $expectedTitle" }
-if ($release.tagName -cne $tag -or -not $release.isDraft) { throw 'Expected the matching unpublished draft.' }
-if ($release.isPrerelease -ne ($channel -eq 'beta')) { throw 'Release prerelease flag does not match the agreed channel.' }
-```
-
-Check the returned `body` against all six notes-format requirements above and the approved notes file, not just the local proposal. A title mismatch, unfinished boilerplate/placeholders, unsupported claim, missing security warning or wrong channel flag blocks publication approval. Report the mismatch; correct only an explicitly authorized unpublished draft and read it back again. Do not automatically change a published release, tag, binary or feed to enforce formatting.
-
-Present the concrete draft URL, exact verified GitHub Release title, proposed final notes, version/channel flag, artifact/checksum evidence and known limitations before requesting publication approval. Replace the generic draft notes only when authorized, keeping the exact `Repo Creator <version>` title. The owner reviews the actual uploaded assets, installation guidance and privacy/licensing findings, selects the agreed prerelease flag and publishes manually. Never interpret skill invocation or preparation approval as publication approval.
-
-After owner publication, confirm the release is published (not draft), its title is still exactly `Repo Creator <version>`, the tag/SHA and prerelease flag are correct, and **Refresh published update channels** completed successfully for that event using reviewed `main`. Read the current feed script/docs for paths and validation behavior. Currently `update-feeds/stable.json` and `update-feeds/beta.json` are generated atomically on the `update-feeds` branch. Inspect both manifests and compare the eligible winning version, all target URLs/signatures, publication date and notes with the verified published release. A lower version may legitimately not become the winner. Beta publication must leave Stable pointing to its eligible stable release (or its valid empty manifest).
-
-Finish with a short checklist recording: clean merged SHA and green CI; confirmed version/channel; exact verified release title; approved immutable remote tag; successful signed three-platform preparation; verified assets/signatures/checksums/notices; reviewed six-part notes/warnings and installation tests/limitations; owner publication; successful feed refresh and correct winning Stable/Beta versions. Mark incomplete items as pending, never as passed.
-
-For failures, inspect the specific job/log and stop before dependent mutations. Version mismatch: fix manifests through a reviewed PR. Existing tag/release: inspect and preserve it. Build/signature/inventory failure: do not publish or weaken validation; check documented key configuration without exposing values. Draft permission failure: report the required token policy from `docs/releases.md`. Missing/stale feed: inspect refresh logs and eligible-release validation (a successful refresh may exclude an invalid release), then request authorization for a manual `update-feeds.yml` dispatch on `main` if needed. Refer to `docs/updates.md` for branch-write policy; never edit manifests by hand, replace trust keys or weaken `main` protection to recover.
+If the owner later requests post-publication verification, confirm public accessibility, draft=false, exact title/tag/SHA/channel, all downloadable asset bytes/signatures/checksums and the publication-triggered `Refresh published update channels` run on reviewed main. Read both feeds: Beta considers stable and prerelease versions, Stable excludes prereleases, and the highest eligible SemVer wins. Compare target URLs/signatures, publication date and notes with the verified release; for Beta, ensure Stable remains unchanged (or its valid empty manifest). Drafts do not update channels. Never edit feeds by hand, retag or change trust keys to recover; a manual feed-repair dispatch needs separate explicit authorization.
