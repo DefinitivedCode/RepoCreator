@@ -40,8 +40,12 @@ No release workflow was dispatched for this optimisation task.
 
 The immediate post-PR-16 main run failed its existing Studio keyboard-scrolling
 test, so its shorter elapsed duration is not a successful performance baseline.
-The small identical Studio height-transition fix is shared with the application
-performance PR so either PR can be validated and merged independently.
+PR #17 subsequently merged the Studio height-transition fix and application
+optimisations into main at `b71f69b8918a47d3f39fe756506fe64b04afeec0`.
+The CI branch now includes that main commit; the Studio stylesheet is identical
+to main and is no longer part of the CI PR's diff. The measurements below retain
+their original revisions and test counts; the combined branch has 126 browser
+cases, including the four added by the application performance changes.
 
 ## Changes and tradeoffs
 
