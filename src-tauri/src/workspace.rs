@@ -239,7 +239,9 @@ fn read_only_status_arguments(runner: &dyn Runner, directory: &Path) -> Option<V
     // Submodules have separate local configuration, outside this enumeration.
     arguments.extend(args(&[
         "status",
-        "--porcelain=v1",
+        "--porcelain=v2",
+        "--branch",
+        "--no-ahead-behind",
         "--untracked-files=normal",
         "--ignore-submodules=all",
     ]));
@@ -253,6 +255,40 @@ fn read_only_status(runner: &dyn Runner, directory: &Path) -> Option<crate::proc
             directory,
         )
         .ok()
+}
+
+fn status_details(
+    output: Option<crate::process::Output>,
+    previous_branch: &str,
+) -> (String, String) {
+    let Some(output) = output.filter(|output| output.success) else {
+        return ("unavailable".into(), previous_branch.into());
+    };
+    let Some(branch) = output
+        .stdout
+        .lines()
+        .find_map(|line| line.strip_prefix("# branch.head "))
+    else {
+        return ("unavailable".into(), previous_branch.into());
+    };
+    let status = if output
+        .stdout
+        .lines()
+        .any(|line| !line.is_empty() && !line.starts_with('#'))
+    {
+        "changes"
+    } else {
+        "clean"
+    };
+    (
+        status.into(),
+        if branch == "(detached)" {
+            "detached HEAD"
+        } else {
+            branch
+        }
+        .into(),
+    )
 }
 
 #[tauri::command(async)]
@@ -270,32 +306,11 @@ pub fn get_project_workspace(
             git_status: "missing".into(),
         });
     };
-    let status = read_only_status(&SystemRunner, &path);
-    let git_status = match status {
-        Some(value) if value.success => {
-            if value.stdout.is_empty() {
-                "clean"
-            } else {
-                "changes"
-            }
-        }
-        _ => "unavailable",
-    }
-    .into();
-    let branch = SystemRunner
-        .run(Program::Git, &args(&["branch", "--show-current"]), &path)
-        .ok()
-        .filter(|o| o.success)
-        .map_or_else(
-            || project.context.branch.clone(),
-            |o| {
-                if o.stdout.is_empty() {
-                    "detached HEAD".into()
-                } else {
-                    o.stdout
-                }
-            },
-        );
+    // One protected status snapshot supplies both branch and working-tree state.
+    let (git_status, branch) = status_details(
+        read_only_status(&SystemRunner, &path),
+        &project.context.branch,
+    );
     let project = handoff::update_project(&app, &id, |project| {
         project.last_opened_at = handoff::now_seconds();
         project.context.branch = branch.clone();
@@ -604,6 +619,44 @@ mod tests {
         );
         command.working_directory = "missing".into();
         assert!(command_directory(dir.path(), &command).is_err());
+    }
+    #[test]
+    fn status_snapshot_includes_branch_without_counting_headers_as_changes() {
+        let parse = |text: &str| {
+            status_details(
+                Some(crate::process::Output {
+                    success: true,
+                    stdout: text.into(),
+                }),
+                "saved",
+            )
+        };
+        assert_eq!(
+            parse("# branch.oid (initial)\n# branch.head main"),
+            ("clean".into(), "main".into())
+        );
+        assert_eq!(
+            parse(
+                "# branch.head feature/example\n# branch.upstream origin/main\n# branch.ab +1 -0"
+            ),
+            ("clean".into(), "feature/example".into())
+        );
+        assert_eq!(
+            parse("# branch.head (detached)\n? untracked.txt"),
+            ("changes".into(), "detached HEAD".into())
+        );
+        assert_eq!(
+            parse("# branch.head main\n1 .M N... 100644 100644 100644 abc abc tracked.txt"),
+            ("changes".into(), "main".into())
+        );
+        assert_eq!(
+            parse("not a status snapshot"),
+            ("unavailable".into(), "saved".into())
+        );
+        assert_eq!(
+            status_details(None, "saved"),
+            ("unavailable".into(), "saved".into())
+        );
     }
     #[test]
     fn workspace_status_never_runs_repository_filters_or_writes_the_index() {

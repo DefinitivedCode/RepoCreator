@@ -129,33 +129,61 @@ async fn check_environment(
                 .run(program, &args(values), &parent)
                 .is_ok_and(|r| r.success)
         };
-        let git_installed = success(Program::Git, &["--version"]);
-        let identity_ready = git_installed
-            && ["user.name", "user.email"].iter().all(|key| {
-                runner
-                    .run(Program::Git, &args(&["config", "--get", key]), &parent)
-                    .is_ok_and(|r| r.success && !r.stdout.is_empty())
+        // Git identity and GitHub checks are independent. Keep
+        // their results fresh on every refresh without serialising their I/O.
+        let (
+            git_installed,
+            identity_ready,
+            identity_name,
+            gh_installed,
+            github_user,
+            github_owners,
+        ) = std::thread::scope(|scope| {
+            let git = scope.spawn(|| {
+                let installed = success(Program::Git, &["--version"]);
+                let name = installed
+                    .then(|| {
+                        runner.run(
+                            Program::Git,
+                            &args(&["config", "--get", "user.name"]),
+                            &parent,
+                        )
+                    })
+                    .and_then(Result::ok)
+                    .filter(|o| o.success && !o.stdout.is_empty())
+                    .map(|o| o.stdout);
+                let ready = name.is_some()
+                    && runner
+                        .run(
+                            Program::Git,
+                            &args(&["config", "--get", "user.email"]),
+                            &parent,
+                        )
+                        .is_ok_and(|o| o.success && !o.stdout.is_empty());
+                (installed, ready, name)
             });
-        let gh_installed = success(Program::Gh, &["--version"]);
-        let github_user = if gh_installed && include_github.unwrap_or(true) {
-            github::authenticated_owner(&runner, &parent).ok()
-        } else {
-            None
-        };
-        let identity_name = runner
-            .run(
-                Program::Git,
-                &args(&["config", "--get", "user.name"]),
-                &parent,
-            )
-            .ok()
-            .filter(|o| o.success && !o.stdout.is_empty())
-            .map(|o| o.stdout);
-        let mut github_owners = github_user.iter().cloned().collect::<Vec<_>>();
-        if github_user.is_some() {
-            github_owners.extend(github::organisations(&runner, &parent));
-        }
-        Environment {
+            let gh_installed = success(Program::Gh, &["--version"]);
+            let github_user = if gh_installed && include_github.unwrap_or(true) {
+                github::authenticated_owner(&runner, &parent).ok()
+            } else {
+                None
+            };
+            let mut github_owners = github_user.iter().cloned().collect::<Vec<_>>();
+            if github_user.is_some() {
+                github_owners.extend(github::organisations(&runner, &parent));
+            }
+            let (git_installed, identity_ready, identity_name) =
+                git.join().map_err(|_| lock_error())?;
+            Ok::<_, AppError>((
+                git_installed,
+                identity_ready,
+                identity_name,
+                gh_installed,
+                github_user,
+                github_owners,
+            ))
+        })?;
+        Ok(Environment {
             platform: launcher::platform(),
             optional_tools: process::optional_tools(),
             git_installed,
@@ -165,10 +193,10 @@ async fn check_environment(
             identity_name,
             github_owners,
             vscode_available: desktop::vscode_path().is_some(),
-        }
+        })
     })
     .await
-    .map_err(|_| lock_error())
+    .map_err(|_| lock_error())?
 }
 
 #[tauri::command]

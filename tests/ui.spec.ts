@@ -560,6 +560,32 @@ test('operational settings persist without redundant previews and stale checks c
   ).toBeChecked();
 });
 
+test('creation waits for refreshed prerequisites and fails closed when inspection fails', async ({
+  page,
+}) => {
+  await prepare(page, false, 'simple');
+  await page.getByLabel('Project name').fill('fresh-prerequisites');
+  const review = page.getByRole('button', { name: 'Review project', exact: true });
+  await expect(review).toBeEnabled();
+  await page.evaluate(() => {
+    const original = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = (command: string, args: any) => {
+      if (command === 'check_environment')
+        return new Promise((_, reject) => {
+          (window as any).rejectSetupRefresh = () => reject({ message: 'Inspection unavailable.' });
+        });
+      return original(command, args);
+    };
+  });
+  await navigate(page, 'Setup & status');
+  await page.getByRole('button', { name: 'Recheck', exact: true }).click();
+  await navigate(page, 'Overview');
+  await expect(review).toBeDisabled();
+  await page.evaluate(() => (window as any).rejectSetupRefresh());
+  await expect(page.locator('.creation-git-status')).toContainText('Setup required');
+  await expect(review).toBeDisabled();
+});
+
 test('first-run prerequisite and settings failures provide working retry actions', async ({
   page,
   browser,
