@@ -168,12 +168,13 @@ reading position. Selecting another run starts at its latest output.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/commands-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="assets/commands-light.png">
-  <img src="assets/commands-light.png" alt="Repo Creator 1.5.1 preparation build showing the Field Notes console, real Vite colours, a localhost link and a suggested command to review." width="1100">
+  <img src="assets/commands-light.png" alt="Repo Creator 1.5.2 preparation build showing the Field Notes console, real Vite colours, a localhost link and a suggested command to review." width="1100">
 </picture>
 
-This is a real **1.5.1** build prepared for the upcoming **v1.5.1 Beta**;
-published v1.5.0 Beta does not include these console refinements. See the
-[preparation review](v1.5.1-preparation.md) and [before/after comparison](commands-ux-review.md).
+This is a real **1.5.2** build prepared for the upcoming **v1.5.2 Beta**.
+Console styling and suggestions shipped in v1.5.1; v1.5.2 adds technology
+detection and performance/reliability improvements. See the
+[preparation review](v1.5.2-preparation.md) and [before/after comparison](commands-ux-review.md).
 
 Duplicate running instances of the same saved command are blocked. Retained
 output and completed-run history are bounded. Copy the output before clearing
@@ -273,4 +274,4 @@ Inspection is intentionally bounded: five directory levels below the root, 256 d
 
 The opt-in Windows check `node tests/native-technology-detection.mjs` uses the built debug executable, isolated preferences and temporary fictional repositories. Set `REPO_CREATOR_SMOKE_EXE` to use another build. It exercises real native detection, junction exclusion, pending versus saved settings and both themes, and captures screenshots under ignored `artifacts/technology-detection/native/`. To capture the original UI, run with `--before` against a v1.5.1 executable built before this feature. Screenshots mask temporary machine paths; review-dialog captures include only the dialog.
 
-Real Windows captures with the default Muted Teal accent: [before](assets/technology-detection-before-light.png), [settings with detection](assets/technology-detection-settings-light.png), [light review](assets/technology-detection-review-light.png), [dark review](assets/technology-detection-review-dark.png), and [pending selections before saving](assets/technology-detection-pending-light.png).
+Real Windows captures with the default Muted Teal accent: the historical v1.5.1 [before image](assets/technology-detection-before-light.png), and the current v1.5.2 [settings with detection](assets/technology-detection-settings-light.png), [light review](assets/technology-detection-review-light.png), [dark review](assets/technology-detection-review-dark.png), and [pending selections before saving](assets/technology-detection-pending-light.png). Current images use a fictional generic project path and include the actual native version header.

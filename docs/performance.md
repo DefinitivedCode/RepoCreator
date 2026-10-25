@@ -1,7 +1,7 @@
 # Application performance measurements
 
 Measured on October 25, 2026, against `main` at `618fc1b` (PR #16 merged).
-Application versions remain `1.5.1`. No release assets or updater settings changed.
+The measured builds used application version `1.5.1`. No release assets or updater settings changed during that audit.
 
 ## Method
 
