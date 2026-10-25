@@ -412,6 +412,30 @@ async function section(page: Page, name: string) {
     .click();
 }
 
+test('workspace navigation avoids hidden library reads and refreshes history on return', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  const counts = () =>
+    page.evaluate(() => {
+      const calls = (window as any).testCalls;
+      return {
+        library: calls.filter((call: any) => call.command === 'list_recent_projects').length,
+        workspace: calls.filter((call: any) => call.command === 'get_project_workspace').length,
+      };
+    });
+  expect(await counts()).toEqual({ library: 1, workspace: 0 });
+  await openWorkspace(page);
+  await expect(page.getByRole('heading', { name: 'river-workbench', exact: true })).toBeVisible();
+  expect(await counts()).toEqual({ library: 1, workspace: 1 });
+  await page.evaluate(() => {
+    (window as any).workspaceState.projects[0].context.projectName = 'updated-workbench';
+  });
+  await page.getByRole('button', { name: 'All projects', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'updated-workbench', exact: true })).toBeVisible();
+  expect(await counts()).toEqual({ library: 2, workspace: 1 });
+});
+
 test('technology detection reviews evidence, merges choices and saves only on request', async ({
   page,
 }) => {

@@ -110,6 +110,9 @@ export function useReadiness(project: RecentProject | undefined, exists: boolean
   }
   useEffect(() => {
     void inspect();
+    return () => {
+      request.current++;
+    };
   }, [id, exists, commandsKey]);
   useEffect(() => {
     mounted.current = true;

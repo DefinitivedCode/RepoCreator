@@ -82,6 +82,7 @@ export function useCreator() {
       );
     } catch (value) {
       if (requestId === environmentRequest.current) {
+        setEnvironment(null);
         environmentFailure.current = appError(value).message;
         setNotice(environmentFailure.current);
       }
@@ -281,6 +282,7 @@ export function useCreator() {
     !previewing &&
     !!preferences?.parentPath &&
     setupReady &&
+    !checking &&
     !picking &&
     !busy;
   async function execute(retry = false, presetName = '') {

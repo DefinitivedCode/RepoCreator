@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './icons';
 import { WorkspaceDialog } from './WorkspaceDialog';
@@ -93,26 +93,42 @@ export function Projects({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
-  async function load() {
+  const loadRevision = useRef(0);
+  const libraryRequest = useRef<Promise<RecentProject[]> | null>(null);
+  const load = useCallback(async (fresh = false) => {
+    const revision = ++loadRevision.current;
+    setLoading(true);
+    const request =
+      fresh || !libraryRequest.current
+        ? (libraryRequest.current = invoke<RecentProject[]>('list_recent_projects'))
+        : libraryRequest.current;
     try {
-      const result = await invoke<RecentProject[]>('list_recent_projects');
+      const result = await request;
+      if (revision !== loadRevision.current) return;
       setProjects(Array.isArray(result) ? result.map(normalize) : []);
       setError('');
     } catch (error) {
-      setError(message(error));
+      if (revision === loadRevision.current) setError(message(error));
     } finally {
-      setLoading(false);
+      if (libraryRequest.current === request) libraryRequest.current = null;
+      if (revision === loadRevision.current) setLoading(false);
     }
-  }
+  }, []);
   useEffect(() => {
-    void load();
-  }, [initialProjectId]);
+    // The workspace fetches its own project. Reload history only on the library
+    // screen, including a fresh read when returning from an edited workspace.
+    if (!initialProjectId) void load();
+    else libraryRequest.current = null;
+    return () => {
+      loadRevision.current++;
+    };
+  }, [initialProjectId, load]);
   async function add() {
     setPending(true);
     try {
       const result = await invoke<RecentProject | null>('add_existing_project');
       if (result) {
-        await load();
+        await load(true);
         onSelect(result.id);
       }
     } catch (error) {
@@ -299,18 +315,31 @@ function ProjectWorkspace({
   const [tab, setTab] = useState('overview');
   const [error, setError] = useState('');
   const [handoff, setHandoff] = useState(false);
-  async function refresh() {
+  const workspaceRevision = useRef(0);
+  const workspaceRequest = useRef<Promise<ProjectWorkspaceState> | null>(null);
+  const refresh = useCallback(async () => {
+    const revision = ++workspaceRevision.current;
+    const request = (workspaceRequest.current ??= invoke<ProjectWorkspaceState>(
+      'get_project_workspace',
+      { id },
+    ));
     try {
-      const result = await invoke<ProjectWorkspaceState>('get_project_workspace', { id });
+      const result = await request;
+      if (revision !== workspaceRevision.current) return;
       setWorkspace({ ...result, project: normalize(result.project) });
       setError('');
     } catch (error) {
-      setError(message(error));
+      if (revision === workspaceRevision.current) setError(message(error));
+    } finally {
+      if (workspaceRequest.current === request) workspaceRequest.current = null;
     }
-  }
+  }, [id]);
   useEffect(() => {
     void refresh();
-  }, [id]);
+    return () => {
+      workspaceRevision.current++;
+    };
+  }, [refresh]);
   async function relocate() {
     try {
       if (await invoke('relocate_project', { id })) await refresh();
