@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDetectedTechnologies,
   findTechnology,
   normalizeTechnologies,
   recommendedIgnorePresets,
@@ -13,6 +14,19 @@ import {
 } from './technologies';
 
 describe('project technology configuration', () => {
+  it('merges reviewed detections without duplicates, custom label changes or lost preset provenance', () => {
+    const original = {
+      ids: ['rust', 'tauri', 'sqlite'],
+      custom: ['Local toolkit'],
+      presetIds: ['rust', 'tauri'],
+    };
+    const next = addDetectedTechnologies(original, ['react', 'rust', 'react', 'unknown']);
+    expect(next).toEqual({ ...original, ids: ['rust', 'tauri', 'sqlite', 'react'] });
+    expect(original.ids).toEqual(['rust', 'tauri', 'sqlite']);
+    expect(addDetectedTechnologies(next, ['react'])).toEqual(next);
+    expect(addDetectedTechnologies(original, [])).toEqual(original);
+    expect(technologiesError(next)).toBeNull();
+  });
   it('retains simultaneous languages, frameworks, storage and infrastructure', () => {
     const selection = {
       ids: ['typescript', 'react', 'vite', 'rust', 'tauri', 'sqlite', 'cloudflare-workers'],

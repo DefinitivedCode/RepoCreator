@@ -90,6 +90,19 @@ export function toggleManualTechnology(
   });
 }
 
+/** Detection adds manual choices without changing existing labels or preset provenance. */
+export function addDetectedTechnologies(
+  value: ProjectTechnologies,
+  ids: readonly string[],
+): ProjectTechnologies {
+  return {
+    ...value,
+    ids: [
+      ...new Set([...value.ids, ...ids.filter((id) => technologyCatalog.some((t) => t.id === id))]),
+    ],
+  };
+}
+
 export function technologiesFor(
   form: Pick<RepositoryForm, 'options' | 'brief'>,
 ): ProjectTechnologies {

@@ -138,6 +138,7 @@ async function workspaceFixture(page: Page, missing = false) {
         'launch_project_tool',
         'save_project_commands',
         'suggest_project_commands',
+        'detect_project_technologies',
         'run_project_command',
         'list_command_runs',
         'stop_project_command',
@@ -178,6 +179,7 @@ async function workspaceFixture(page: Page, missing = false) {
           const added = {
             ...structuredClone(project),
             id: 'added-project',
+            technologies: { ids: [], custom: [] },
             context: { ...structuredClone(project.context), projectName: 'added-repository' },
           };
           state.projects.push(added);
@@ -260,6 +262,47 @@ async function workspaceFixture(page: Page, missing = false) {
             await new Promise((resolve) => ((window as any).finishSuggestions = resolve));
           if ((window as any).suggestionFailure) throw { message: 'Unreadable manifest' };
           return structuredClone((window as any).suggestedCommands ?? [importedCommand]);
+        }
+        if (command === 'detect_project_technologies') {
+          if ((window as any).holdDetection)
+            await new Promise((resolve) => ((window as any).finishDetection = resolve));
+          if ((window as any).detectionFailure)
+            throw {
+              message: 'Could not inspect this project folder.',
+              guidance: 'Check folder access and try again.',
+            };
+          return structuredClone(
+            (window as any).detectedTechnologies ?? {
+              suggestions: [
+                {
+                  id: 'typescript',
+                  name: 'TypeScript',
+                  evidence: [{ description: 'Found project file.', path: 'tsconfig.json' }],
+                },
+                {
+                  id: 'react',
+                  name: 'React',
+                  evidence: [
+                    {
+                      description: 'Declared react in dependencies.',
+                      path: 'apps/web/package.json',
+                    },
+                  ],
+                },
+                {
+                  id: 'vite',
+                  name: 'Vite',
+                  evidence: [
+                    {
+                      description: 'Declared vite in devDependencies.',
+                      path: 'apps/web/package.json',
+                    },
+                  ],
+                },
+              ],
+              notices: [],
+            },
+          );
         }
         if (command === 'open_command_output_link') {
           if ((window as any).linkFailure) throw { message: 'Browser unavailable' };
@@ -368,6 +411,168 @@ async function section(page: Page, name: string) {
     .getByRole('button', { name, exact: true })
     .click();
 }
+
+test('technology detection reviews evidence, merges choices and saves only on request', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.evaluate(() => {
+    (window as any).workspaceState.projects[0].technologies.presetIds = ['rust', 'tauri'];
+  });
+  await openWorkspace(page);
+  await section(page, 'Project Settings');
+  await page.getByRole('button', { name: 'Detect technologies', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Detected technologies', exact: true });
+  await expect(dialog.getByText('Declared react in dependencies.')).toBeVisible();
+  await expect(dialog.getByText('apps/web/package.json', { exact: true })).toHaveCount(2);
+  await expect(dialog.getByRole('checkbox', { name: /TypeScript/ })).toBeDisabled();
+  await expect(dialog.getByText('3 detected · 2 selected to add')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Deselect all', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Add selected', exact: true })).toBeDisabled();
+  await expect(dialog.getByRole('checkbox', { name: /TypeScript/ })).toBeChecked();
+  await dialog.getByRole('button', { name: 'Select all', exact: true }).click();
+  await dialog.getByRole('checkbox', { name: 'Vite', exact: true }).uncheck();
+  await dialog.getByRole('button', { name: 'Add selected (1)', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Remove React', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Remove Local fixtures', exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      (window as any).testCalls.filter((call: any) => call.command === 'save_project_settings'),
+    ),
+  ).toEqual([]);
+  await expect(page.getByRole('status').filter({ hasText: 'Unsaved changes' })).toBeVisible();
+  // Leaving without saving restores the saved project selection.
+  await section(page, 'Overview');
+  await section(page, 'Project Settings');
+  await expect(page.getByRole('button', { name: 'Remove React', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Detect technologies', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Add selected (2)', exact: true }).click();
+  await page.getByRole('button', { name: 'Save project settings', exact: true }).click();
+  await expect(page.getByText('Project preferences saved.', { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(() => (window as any).workspaceState.projects[0].technologies),
+  ).toEqual({
+    ids: [...project.technologies.ids, 'react', 'vite'],
+    custom: project.technologies.custom,
+    presetIds: ['rust', 'tauri'],
+  });
+  await page.getByRole('button', { name: 'Detect technologies', exact: true }).click();
+  await expect(dialog.getByRole('checkbox', { name: /React/ })).toBeDisabled();
+  await expect(dialog.getByText('3 detected · 0 selected to add')).toBeVisible();
+});
+
+test('technology detection cancel, empty, failure and rescan preserve form choices', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await openWorkspace(page);
+  await section(page, 'Project Settings');
+  const trigger = page.getByRole('button', { name: 'Detect technologies', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Detected technologies', exact: true });
+  await trigger.click();
+  await expect(dialog.getByRole('checkbox', { name: 'React', exact: true })).toBeChecked();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(trigger).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Remove React', exact: true })).toHaveCount(0);
+  await page.evaluate(() => {
+    (window as any).detectedTechnologies = {
+      suggestions: [],
+      notices: ['Scan limits reached. Some files were skipped.'],
+    };
+  });
+  await trigger.click();
+  await expect(dialog.getByText(/No recognised technologies/)).toBeVisible();
+  await expect(dialog.getByText('Scan limits reached. Some files were skipped.')).toBeVisible();
+  await page.evaluate(() => {
+    (window as any).detectionFailure = true;
+  });
+  await dialog.getByRole('button', { name: 'Rescan', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('Could not inspect this project folder.');
+  await expect(dialog.getByRole('button', { name: 'Add selected', exact: true })).toBeDisabled();
+  await page.evaluate(() => {
+    (window as any).detectionFailure = false;
+    delete (window as any).detectedTechnologies;
+  });
+  await dialog.getByRole('button', { name: 'Rescan', exact: true }).click();
+  await expect(dialog.getByRole('checkbox', { name: 'React', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Remove SQLite', exact: true })).toBeVisible();
+});
+
+test('technology detection ignores late results after cancellation and navigation', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await openWorkspace(page);
+  await section(page, 'Project Settings');
+  await page.evaluate(() => {
+    (window as any).holdDetection = true;
+  });
+  await page.getByRole('button', { name: 'Detect technologies', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Detected technologies', exact: true });
+  await expect(dialog.getByRole('status')).toHaveText('Inspecting project files…');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await section(page, 'Overview');
+  await page.evaluate(() => {
+    (window as any).finishDetection();
+  });
+  await section(page, 'Project Settings');
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Remove React', exact: true })).toHaveCount(0);
+});
+
+test('empty existing imports offer technology detection without opening a dialog', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.getByRole('button', { name: 'Add existing project', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'added-repository', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Detect them from project files', exact: true }).click();
+  await page.getByRole('button', { name: 'Detect technologies', exact: true }).click();
+  await expect(page.getByRole('dialog').getByText('3 detected · 3 selected to add')).toBeVisible();
+});
+
+test('technology detection fits compact windows with readable evidence and keyboard controls', async ({
+  page,
+}, info) => {
+  await workspaceFixture(page);
+  await openWorkspace(page);
+  await section(page, 'Project Settings');
+  await page.setViewportSize({ width: 820, height: 580 });
+  await page.getByRole('button', { name: 'Detect technologies', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Detected technologies', exact: true });
+  await expect(
+    dialog.getByRole('checkbox', { name: 'React', exact: true }),
+  ).toHaveAccessibleDescription(/Declared react.*apps\/web\/package.json/);
+  const overflow = await dialog.evaluate((element) => ({
+    horizontal: element.scrollWidth > element.clientWidth,
+    outside:
+      element.getBoundingClientRect().right > innerWidth ||
+      element.getBoundingClientRect().left < 0,
+  }));
+  expect(overflow).toEqual({ horizontal: false, outside: false });
+  for (const name of ['Rescan', 'Cancel', 'Add selected (2)']) {
+    const bounds = await dialog.getByRole('button', { name, exact: true }).boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(580);
+  }
+  await dialog.getByRole('button', { name: 'Deselect all', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(dialog.getByRole('checkbox', { name: 'React', exact: true })).not.toBeChecked();
+  mkdirSync('artifacts/technology-detection', { recursive: true });
+  await page.screenshot({
+    path: `artifacts/technology-detection/compact-${info.project.name}.png`,
+  });
+  await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('button', { name: 'Detect technologies', exact: true }),
+  ).toBeFocused();
+});
 
 async function seedConsole(page: Page, output: string) {
   await page.evaluate(

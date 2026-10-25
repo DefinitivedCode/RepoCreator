@@ -260,3 +260,17 @@ permissions and may change files or use the network. Selected commands run one a
 a time through the normal command runner, only if each saved definition still
 matches what was confirmed, appear in **Commands**, and can be stopped with
 **Cancel**. Leaving the project cancels a running full check.
+
+## Detect technologies from project files
+
+In **Projects → [Project] → Project Settings**, choose **Detect technologies** to review evidence from local files. Select individual suggestions or use **Select all** / **Deselect all**, then choose **Add selected**. This updates the pending form only. Use **Save project settings** to persist the selection. Cancel leaves the form unchanged. Existing selections, custom labels and stack preset provenance are preserved; technologies already added are identified and excluded from the additions count.
+
+Detection uses the shared technology catalogue. Examples include declared React/Vite/Next.js/Vue/Svelte/Angular dependencies in `package.json`, `tsconfig.json`, Python requirements and project manifests, `Cargo.toml`, Tauri configuration, .NET projects/solutions, Unity Editor metadata, `project.godot`, source file extensions, and Workers configuration with a `main` entry point. Each suggestion includes actual relative file paths and a short description, such as “Declared react in dependencies.” Node.js requires explicit engine or script evidence; a package manifest alone does not establish the runtime. Related technologies are never added by inference.
+
+The native scan accepts only a saved project ID. It reads local files without executing scripts, commands, hooks, package managers or network requests, and does not change repository files or preferences. Empty project selections show a link to settings on the Overview tab, including previously imported projects.
+
+Inspection is intentionally bounded: five directory levels below the root, 256 directories, 8,000 entries, 256 KiB per inspected manifest, 4 MiB total manifest reads and a three-second traversal budget. At most three evidence files are shown per technology. The scanner skips hidden directories (except `.github`), dependencies, vendor/generated/build/cache directories, symlinks and Windows reparse points, including links inside the project. Deep or very large monorepos may need manual additions. Limits and unreadable/invalid manifests are reported without exposing their contents. Detection is evidence of project context, not verification that software is installed or that the project builds.
+
+The opt-in Windows check `node tests/native-technology-detection.mjs` uses the built debug executable, isolated preferences and temporary fictional repositories. Set `REPO_CREATOR_SMOKE_EXE` to use another build. It exercises real native detection, junction exclusion, pending versus saved settings and both themes, and captures screenshots under ignored `artifacts/technology-detection/native/`. To capture the original UI, run with `--before` against a v1.5.1 executable built before this feature. Screenshots mask temporary machine paths; review-dialog captures include only the dialog.
+
+Real Windows captures with the default Muted Teal accent: [before](assets/technology-detection-before-light.png), [settings with detection](assets/technology-detection-settings-light.png), [light review](assets/technology-detection-review-light.png), [dark review](assets/technology-detection-review-dark.png), and [pending selections before saving](assets/technology-detection-pending-light.png).

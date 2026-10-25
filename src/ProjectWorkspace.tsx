@@ -9,6 +9,7 @@ import { countLabel, summarize } from './readinessModel';
 import { appError, displayPath } from './validation';
 import { PromptWorkspace } from './HandoffPanel';
 import { TechnologySelector } from './WorkspaceFields';
+import { DetectedTechnologies } from './DetectedTechnologies';
 import { technologySummary, normalizeTechnologies } from './technologies';
 import type { ProjectPreset } from './types';
 import {
@@ -438,6 +439,18 @@ function ProjectWorkspace({
                     {project.context.description && (
                       <p className="help">{project.context.description}</p>
                     )}
+                    {!project.technologies.ids.length && !project.technologies.custom.length && (
+                      <p className="help">
+                        Technologies haven't been selected yet.{' '}
+                        <button
+                          type="button"
+                          className="text-button"
+                          onClick={() => setTab('settings')}
+                        >
+                          Detect them from project files
+                        </button>
+                      </p>
+                    )}
                   </section>
                   <section className="workspace-card">
                     <h3>Continue working</h3>
@@ -862,9 +875,22 @@ function ProjectSettings({
           </label>
           <TechnologySelector
             value={technologies}
-            onChange={setTechnologies}
+            onChange={(value) => {
+              setTechnologies(value);
+              setStatus('Unsaved changes. Use Save project settings to keep them.');
+            }}
             simple
             idPrefix="workspace-technologies"
+            extraControl={
+              <DetectedTechnologies
+                projectId={project.id}
+                value={technologies}
+                onChange={(value) => {
+                  setTechnologies(value);
+                  setStatus('Unsaved changes. Use Save project settings to keep them.');
+                }}
+              />
+            }
           />
           <div className="project-location-setting">
             <span>Project location</span>

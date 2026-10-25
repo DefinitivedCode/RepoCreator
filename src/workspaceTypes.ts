@@ -39,6 +39,15 @@ export interface ProjectWorkspaceState {
   branch: string;
   platform?: 'windows' | 'macos' | 'other';
 }
+export interface DetectedTechnology {
+  id: string;
+  name: string;
+  evidence: { description: string; path: string }[];
+}
+export interface TechnologyDetectionReport {
+  suggestions: DetectedTechnology[];
+  notices: string[];
+}
 export interface ProjectTool {
   id: string;
   name: string;

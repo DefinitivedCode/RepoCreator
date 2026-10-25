@@ -15,6 +15,7 @@ mod readiness;
 mod repository;
 mod settings_commands;
 mod technologies;
+mod technology_detection;
 #[cfg(test)]
 mod tests;
 mod updates;
@@ -480,6 +481,7 @@ pub fn run() {
             workspace::relocate_project,
             workspace::save_project_commands,
             workspace::suggest_project_commands,
+            technology_detection::detect_project_technologies,
             launcher::get_project_tools,
             launcher::launch_project_tool,
             command_runner::run_project_command,
