@@ -2,6 +2,7 @@ import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -13,12 +14,18 @@ import path from 'node:path';
 import os from 'node:os';
 import {
   checkVersions,
+  checkDraftMetadata,
   checksums,
   collectRelease,
   packagePlatform,
   platformAssets,
   releaseVersion,
+  releaseChannel,
+  reviewedReleaseNotes,
+  validateReleaseNotes,
 } from './release.mjs';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const temporary = [];
 const directory = () => {
@@ -193,6 +200,223 @@ function releaseFixture() {
   }
   return { root, source, output: path.join(root, 'release'), version: '1.3.2' };
 }
+
+function finalNotes(version = '1.3.2') {
+  return `# Repo Creator ${version} — Verified Workspace Improvements
+
+This release improves project setup and everyday workspace use.
+
+### What's New
+
+- **Setup** — Review project configuration more clearly.
+- **Workspace** — Keep project controls accessible.
+- **Reliability** — Recover from failed checks.
+
+### Installation
+
+Users of v1.4.0 and earlier must upgrade manually. Portable ZIP copies require manual replacement; extract the entire archive. Move the Mac app out of its DMG.
+
+**Known limitations:**
+
+- Windows installers remain unsigned at the operating-system level. Cryptographic updater signatures do not provide operating-system code signing.
+- macOS builds are ad-hoc signed and not notarized; physical Mac launch remains unverified.
+- Installation and updater testing remain unverified for this fixture.
+
+### Feedback
+
+[Open an issue](https://github.com/DefinitivedCode/RepoCreator/issues).
+`;
+}
+
+test('explicit channels preserve Beta/Stable semantics and reject unsafe combinations', () => {
+  assert.equal(releaseChannel('1.3.2', 'beta'), 'beta');
+  assert.equal(releaseChannel('1.3.2-beta.1', 'beta'), 'beta');
+  assert.equal(releaseChannel('1.3.2', 'stable'), 'stable');
+  for (const channel of ['', 'preview', 'Beta'])
+    assert.throws(() => releaseChannel('1.3.2', channel), /channel/);
+  assert.throws(() => releaseChannel('1.3.2-beta.1', 'stable'), /Stable/);
+});
+
+test('reviewed notes reject incomplete, mismatched or unsafe publication text', () => {
+  const notes = finalNotes();
+  assert.equal(validateReleaseNotes(notes, '1.3.2', 'beta'), notes);
+  for (const broken of [
+    notes.replace('Repo Creator 1.3.2', 'Repo Creator 1.3.1'),
+    notes.replace(
+      'This release improves project setup and everyday workspace use.',
+      '{{introduction}}',
+    ),
+    notes.replace('This release improves project setup and everyday workspace use.', ''),
+    notes.replace('### Installation', '### Missing'),
+    notes.replace('- **Reliability** — Recover from failed checks.\n', ''),
+    notes.replace('### Installation', '- Four\n- Five\n- Six\n- Seven\n\n### Installation'),
+    notes.replace('Windows installers remain unsigned', 'Windows installers are signed'),
+    notes.replace('ad-hoc signed and not notarized', 'fully notarized'),
+    notes.replace(
+      'Cryptographic updater signatures do not provide operating-system code signing.',
+      '',
+    ),
+    notes.replace(
+      'Portable ZIP copies require manual replacement; extract the entire archive.',
+      '',
+    ),
+    notes.replace(
+      'https://github.com/DefinitivedCode/RepoCreator/issues',
+      'https://example.invalid',
+    ),
+  ])
+    assert.throws(() => validateReleaseNotes(broken, '1.3.2', 'beta'));
+  assert.throws(() =>
+    validateReleaseNotes(
+      'Repo Creator 1.3.2\nChoose an asset. This workflow prepares a draft only.',
+      '1.3.2',
+      'beta',
+    ),
+  );
+});
+
+test('explicit-channel assembly carries exact tagged notes and fails before output for missing notes', () => {
+  const fixture = releaseFixture();
+  const notes = finalNotes();
+  put(fixture.root, 'docs/release-notes/1.3.2.md', notes);
+  assert.equal(reviewedReleaseNotes(fixture.root, '1.3.2', 'beta'), notes);
+  collectRelease({ ...fixture, channel: 'beta' });
+  assert.equal(readFileSync(path.join(fixture.output, 'RELEASE_NOTES.md'), 'utf8'), notes);
+  const missing = releaseFixture();
+  assert.throws(() => collectRelease({ ...missing, channel: 'beta' }), /ENOENT/);
+  assert.equal(readdirSync(missing.root).includes('release'), false);
+  put(missing.root, 'docs/release-notes/1.3.2.md', 'Unreviewed boilerplate');
+  assert.throws(() => collectRelease({ ...missing, channel: 'beta' }), /heading/);
+  assert.equal(readdirSync(missing.root).includes('release'), false);
+});
+
+test('actual draft readback rejects wrong channel, title, tag, publication and body', () => {
+  const notes = finalNotes();
+  const draft = {
+    name: 'Repo Creator 1.3.2',
+    tagName: 'v1.3.2',
+    isDraft: true,
+    isPrerelease: true,
+    body: notes,
+  };
+  checkDraftMetadata(draft, '1.3.2', 'beta', notes);
+  checkDraftMetadata(
+    { ...draft, isPrerelease: false, body: notes.replaceAll('\n', '\r\n') },
+    '1.3.2',
+    'stable',
+    notes,
+  );
+  for (const changed of [
+    { name: 'Repo Creator 1.3.2 Beta' },
+    { tagName: 'v1.3.1' },
+    { isDraft: false },
+    { isPrerelease: false },
+    { body: 'Generic preparation boilerplate' },
+  ])
+    assert.throws(() => checkDraftMetadata({ ...draft, ...changed }, '1.3.2', 'beta', notes));
+});
+
+test('collect CLI forwards the explicit channel and preserves the final body', () => {
+  const fixture = releaseFixture();
+  const notes = finalNotes();
+  put(fixture.root, 'docs/release-notes/1.3.2.md', notes);
+  execFileSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL('./release.mjs', import.meta.url)),
+      'collect',
+      '--root',
+      fixture.root,
+      '--version',
+      '1.3.2',
+      '--channel',
+      'stable',
+      '--source',
+      fixture.source,
+      '--output',
+      fixture.output,
+    ],
+    { windowsHide: true },
+  );
+  assert.equal(readFileSync(path.join(fixture.output, 'RELEASE_NOTES.md'), 'utf8'), notes);
+});
+
+test('draft workflow uses exact channel flags and refuses duplicate release creation with a local gh stub', () => {
+  const workflow = readFileSync(
+    new URL('../.github/workflows/release.yml', import.meta.url),
+    'utf8',
+  ).replaceAll('\r\n', '\n');
+  const step = workflow
+    .split('      - name: Refuse an existing release and create a draft only\n')[1]
+    .split('      - name: Read back actual draft metadata\n')[0];
+  const script = step
+    .split('        run: |\n')[1]
+    .split('\n')
+    .map((line) => line.replace(/^ {10}/, ''))
+    .join('\n');
+  // A function intercepts every gh call; this test cannot contact GitHub.
+  const fakeGh = `gh() {
+  if [ "$1" = api ]; then
+    printf '%s\\n' "$EXISTING_TAGS"
+  elif [ "$1" = release ] && [ "$2" = create ]; then
+    printf '%s\\0' "$@" > "$CAPTURE"
+  else
+    return 99
+  fi
+}
+`;
+  let bash = 'bash';
+  if (process.platform === 'win32') {
+    const git = execFileSync('where.exe', ['git.exe'], { encoding: 'utf8', windowsHide: true })
+      .trim()
+      .split(/\r?\n/)[0];
+    bash = path.join(path.dirname(path.dirname(git)), 'bin', 'bash.exe');
+  }
+  for (const channel of ['beta', 'stable', '']) {
+    for (const duplicate of [false, true]) {
+      const root = directory();
+      for (const name of [
+        'Repo-Creator-test.zip',
+        'LICENSE.txt',
+        'THIRD_PARTY_NOTICES.txt',
+        'SHA256SUMS.txt',
+        'updater.json',
+        'RELEASE_NOTES.md',
+      ])
+        put(root, `release-assets/${name}`, 'fixture');
+      const options = {
+        cwd: root,
+        windowsHide: true,
+        stdio: 'pipe',
+        env: {
+          ...process.env,
+          TAG: 'v1.3.2',
+          VERSION: '1.3.2',
+          CHANNEL: channel,
+          GH_REPO: 'fixture/repo',
+          GITHUB_STEP_SUMMARY: 'summary.md',
+          CAPTURE: 'arguments.bin',
+          EXISTING_TAGS: duplicate ? 'v1.3.2' : '',
+        },
+      };
+      if (duplicate) {
+        assert.throws(() => execFileSync(bash, ['-e', '-c', fakeGh + script], options));
+        assert.equal(existsSync(path.join(root, 'arguments.bin')), false);
+      } else {
+        execFileSync(bash, ['-e', '-c', fakeGh + script], options);
+        const args = readFileSync(path.join(root, 'arguments.bin'), 'utf8')
+          .split('\0')
+          .filter(Boolean);
+        assert.deepEqual(args.slice(0, 3), ['release', 'create', 'v1.3.2']);
+        assert(args.includes('--verify-tag') && args.includes('--draft'));
+        assert.equal(args[args.indexOf('--title') + 1], 'Repo Creator 1.3.2');
+        assert.equal(args[args.indexOf('--notes-file') + 1], 'release-assets/RELEASE_NOTES.md');
+        assert.equal(args.includes('--prerelease'), channel === 'beta');
+        assert.equal(args.includes('--prerelease=false'), channel === 'stable');
+      }
+    }
+  }
+});
 test('release assembly requires all platform sets and verifies their checksums before writing output', () => {
   const fixture = releaseFixture();
   const assets = collectRelease(fixture);
