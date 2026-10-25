@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './icons';
 import type { ProjectTechnologies } from './types';
@@ -23,6 +23,7 @@ export function TechnologySelector({
   idPrefix,
   ignorePresets = [],
   onIgnorePresets,
+  extraControl,
 }: {
   value: ProjectTechnologies;
   onChange: (value: ProjectTechnologies) => void;
@@ -30,6 +31,7 @@ export function TechnologySelector({
   idPrefix?: string;
   ignorePresets?: string[];
   onIgnorePresets?: (ids: string[]) => void;
+  extraControl?: ReactNode;
 }) {
   const generatedId = useId();
   const id = idPrefix ?? `technologies-${generatedId}`;
@@ -172,6 +174,7 @@ export function TechnologySelector({
         >
           Browse…
         </button>
+        {extraControl}
       </div>
       {count > 0 && chips()}
       {createPortal(

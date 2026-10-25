@@ -786,3 +786,48 @@
     gap: 8px;
   }
 }
+.technology-detection {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+dialog.technology-detection-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.technology-detection-dialog .dialog-heading,
+.technology-detection-dialog .dialog-actions {
+  flex-shrink: 0;
+}
+.technology-detection-content {
+  min-height: 0;
+  overflow-y: auto;
+}
+.technology-detection-dialog .dialog-actions {
+  flex-wrap: wrap;
+}
+.detection-selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.detected-technology-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+.detected-technology-list > li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.detection-evidence {
+  list-style: none;
+  padding: 4px 0 0 26px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.detection-evidence code {
+  font-size: inherit;
+}
