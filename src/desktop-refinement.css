@@ -645,6 +645,13 @@ details > summary:hover {
     block-size: auto;
     opacity: 1;
   }
+  /* A Studio disclosure can reflow after a viewport change or preview update.
+     Keep its scroll extent stable for PageDown/End while retaining the fade. */
+  .studio-subsection::details-content {
+    transition:
+      opacity var(--motion) ease,
+      content-visibility var(--motion) allow-discrete;
+  }
 }
 .disclosure > summary > svg:last-child {
   transition-duration: var(--motion);

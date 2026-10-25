@@ -1,0 +1,83 @@
+{
+  "platform": "win32",
+  "node": "v22.23.4",
+  "runs": 5,
+  "measurements": {
+    "fresh-profile launch to input": {
+      "medianMs": 605.8,
+      "samplesMs": [605.8]
+    },
+    "fresh-profile launch to Git ready": {
+      "medianMs": 2447.5,
+      "samplesMs": [2447.5]
+    },
+    "frontend DOMContentLoaded": {
+      "medianMs": 42.7,
+      "samplesMs": [50.2, 42.5, 42.8, 41.3, 42.4, 48.4]
+    },
+    "environment local IPC": {
+      "medianMs": 1730.1,
+      "samplesMs": [1567.7, 1730.1, 1923.8, 1614.7, 1786.1]
+    },
+    "library 100 IPC": {
+      "medianMs": 31.5,
+      "samplesMs": [37.8, 29.9, 31.5, 35.2, 26.1]
+    },
+    "workspace small IPC": {
+      "medianMs": 886.5,
+      "samplesMs": [854.5, 997.5, 863.6, 1305, 886.5]
+    },
+    "detection small IPC": {
+      "medianMs": 7.8,
+      "samplesMs": [7.5, 7.6, 8, 7.8, 8.2]
+    },
+    "workspace moderate IPC": {
+      "medianMs": 1030.6,
+      "samplesMs": [854.8, 1059.6, 1030.6, 1281.4, 866.4]
+    },
+    "detection moderate IPC": {
+      "medianMs": 183.3,
+      "samplesMs": [183.3, 140.4, 229.9, 192.6, 119]
+    },
+    "library 100 UI": {
+      "medianMs": 35.5,
+      "samplesMs": [65.1, 35.5, 45.5, 31.1, 35.1]
+    },
+    "open workspace UI": {
+      "medianMs": 1348.7,
+      "samplesMs": [1347.8, 1361.4, 1368.4, 1340.2, 1348.7]
+    },
+    "Commands UI": {
+      "medianMs": 28.3,
+      "samplesMs": [29.9, 28.3, 28.8, 28.3, 26.3]
+    },
+    "Readiness UI": {
+      "medianMs": 30.6,
+      "samplesMs": [30.6, 31.2, 34.7, 30.4, 30.5]
+    },
+    "Project Settings UI": {
+      "medianMs": 30.7,
+      "samplesMs": [30, 30, 30.7, 36.8, 30.9]
+    },
+    "major navigation cycle UI": {
+      "medianMs": 67.9,
+      "samplesMs": [67.9, 64.4, 75.4, 80, 62.9]
+    },
+    "preview edit UI": {
+      "medianMs": 211.7,
+      "samplesMs": [215.4, 311.8, 209.1, 205.1, 211.7]
+    },
+    "input during detection UI": {
+      "medianMs": 149.0,
+      "samplesMs": [111.2, 161.1, 149, 250.5, 101.5]
+    },
+    "warm launch to input": {
+      "medianMs": 514.7,
+      "samplesMs": [504.4, 497.7, 514.7, 516.6, 735.2]
+    },
+    "warm launch to Git ready": {
+      "medianMs": 2371.5,
+      "samplesMs": [2370.4, 2335.4, 2376.6, 2371.5, 3597.6]
+    }
+  }
+}
