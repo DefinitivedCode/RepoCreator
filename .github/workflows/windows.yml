@@ -65,7 +65,7 @@ jobs:
             exit 1
           fi
           printf 'package=%s\n' "$PACKAGE" >> "$GITHUB_OUTPUT"
-      - run: node --test scripts/release.test.mjs scripts/build-desktop.test.mjs scripts/licensing.test.mjs scripts/update-feeds.test.mjs
+      - run: node --test scripts/release.test.mjs scripts/build-desktop.test.mjs scripts/licensing.test.mjs scripts/update-feeds.test.mjs scripts/ci-timings.test.mjs
       - run: node scripts/third-party-notices.mjs --check
       - name: Verify application versions
         id: version
@@ -74,7 +74,50 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: node scripts/release.mjs version --version "$EXPECTED_VERSION" --tag "$RELEASE_TAG"
 
+  windows-browser:
+    name: Windows browser
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.build_ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run test:ui
+      - name: Retain failed browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-browser-diagnostics-${{ github.run_attempt }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 3
+
+  # Keep the required check name as an explicit gate. A failed, cancelled or
+  # skipped child must fail this check, including reusable release builds.
   windows:
+    needs: [windows-native, windows-browser]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require native and browser verification
+        env:
+          NATIVE_RESULT: ${{ needs.windows-native.result }}
+          BROWSER_RESULT: ${{ needs.windows-browser.result }}
+        run: |
+          test "$NATIVE_RESULT" = success
+          test "$BROWSER_RESULT" = success
+
+  windows-native:
+    name: Windows native
     needs: version
     runs-on: windows-latest
     env:
@@ -101,10 +144,6 @@ jobs:
           shared-key: desktop-${{ needs.version.outputs.package == 'true' && 'packages' || 'checks' }}-x86_64-pc-windows-msvc
           save-if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
       - run: npm ci
-      - run: npm run check
-      - run: npm run format:check
-      - run: npm test
-      - run: npm run test:ui
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets --target x86_64-pc-windows-msvc -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --target x86_64-pc-windows-msvc

@@ -145,7 +145,22 @@ export async function prepare(
     }, { shouldMockEvents: true });`,
   });
   await page.goto('/');
-  if (expectReady) await expect(page.getByText('Git ready', { exact: true })).toBeVisible();
+  if (expectReady) {
+    try {
+      await expect(page.getByText('Git ready', { exact: true })).toBeVisible();
+    } catch (error) {
+      const state = await page.evaluate(() => ({
+        readyState: document.readyState,
+        isTauri: (window as any).isTauri,
+        hasIpc: typeof (window as any).__TAURI_INTERNALS__?.invoke === 'function',
+        calls: ((window as any).testCalls ?? []).map((call: any) => call.command),
+        gitStatus: document.querySelector('.creation-git-status')?.textContent,
+        status: [...document.querySelectorAll('[role="status"]')].map((el) => el.textContent),
+      }));
+      console.error('Browser bootstrap did not settle:', JSON.stringify(state));
+      throw error;
+    }
+  }
 }
 
 export async function navigate(page: Page, name: string) {
