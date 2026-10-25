@@ -28,7 +28,7 @@ A desktop workspace for starting Git repositories and returning to the projects 
   <img src="docs/assets/overview-light.png" alt="New Project Overview for Field Notes, with a Website preset, local destination and exact generated-file previews." width="1100">
 </picture>
 
-**Upcoming v1.5.1 Beta.** These unedited screenshots come from the actual **1.5.1** application build prepared for the next Beta. Published downloads are currently **v1.5.0 Beta**; the Commands and layout refinements shown here await v1.5.1 publication. Check the [release notes](https://github.com/DefinitivedCode/RepoCreator/releases) for what's included in your download.
+**Upcoming v1.5.2 Beta.** These unedited screenshots come from the actual **1.5.2** application build. The latest published download is **v1.5.1 Beta**; technology detection and the performance and reliability improvements described in the [proposed v1.5.2 notes](docs/release-notes/1.5.2.md) await publication. Check the [published release notes](https://github.com/DefinitivedCode/RepoCreator/releases) for what's included in your download.
 
 ## Download
 
@@ -84,15 +84,25 @@ Choose README sections, ignore rules, a license and Git settings while checking 
 
 ## Pick up where you left off
 
-Your project library brings existing and newly created repositories into one place. Inspect Git status, open an editor or terminal, and keep the commands you use close to the project. Opening a workspace never runs those commands automatically.
+Your project library brings existing and newly created repositories into one place. Inspect Git status, open an editor or terminal, and keep the commands you use close to the project. Opening a workspace never runs those commands automatically. v1.5.2 reduces repeated setup and Git inspection work and keeps required setup checks in place before creation.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/workspace-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/workspace-light.png">
-  <img src="docs/assets/workspace-light.png" alt="Repo Creator 1.5.1 preparation build: Field Notes workspace with a clean Git tree, a suggested command to review and a running local Vite server with styled output." width="1100">
+  <img src="docs/assets/workspace-light.png" alt="Repo Creator 1.5.2 preparation build: Field Notes workspace with a clean Git tree, a suggested command to review and a running local Vite server with styled output." width="1100">
 </picture>
 
-In the upcoming **v1.5.1 Beta**, ANSI colours render as text styles, web addresses open only when chosen, and suggestions remain subject to review. [Console details and safety](docs/project-workspace.md#run-and-stop) · [Version preparation and verification](docs/v1.5.1-preparation.md) · [Before/after review](docs/commands-ux-review.md).
+ANSI colours render as text styles, web addresses open only when chosen, and suggestions remain subject to review. [Console details and safety](docs/project-workspace.md#run-and-stop) · [v1.5.2 preparation and verification](docs/v1.5.2-preparation.md) · [Before/after review](docs/commands-ux-review.md).
+
+**Review the stack already in a project.** In Project Settings, **Detect technologies** reads bounded local files and shows evidence for each suggestion. Choose what to add, then save your project settings. Detection does not run scripts, install software or change project files.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/technology-detection-review-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/technology-detection-review-light.png">
+  <img src="docs/assets/technology-detection-review-light.png" alt="Repo Creator 1.5.2 reviewing technology suggestions from the fictional Field Notes project's manifests before adding them." width="1100">
+</picture>
+
+[Detection details and inspection limits →](docs/project-workspace.md#detect-technologies-from-project-files)
 
 <details>
 <summary>Project Readiness: useful findings before you run</summary>

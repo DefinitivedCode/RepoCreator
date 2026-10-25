@@ -8,6 +8,9 @@ import { chromium, expect } from '@playwright/test';
 
 assert.equal(process.platform, 'win32');
 const root = path.resolve(import.meta.dirname, '..');
+const applicationVersion = JSON.parse(
+  await readFile(path.join(root, 'package.json'), 'utf8'),
+).version;
 const before = process.argv.includes('--before');
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'repo-creator-detection-'));
 const projectPath = path.join(temporary, 'field-notes');
@@ -138,7 +141,11 @@ try {
     .toBe(true);
   page.on('pageerror', (error) => errors.push(error.message));
   await page.getByLabel('Project name', { exact: true }).waitFor({ timeout: 30000 });
-  assert.equal((await invoke('get_update_info')).currentVersion, '1.5.1');
+  // The historical before capture predates detection; current captures must use
+  // the manifest's actual native version rather than a stale hardcoded label.
+  const expectedVersion = before ? '1.5.1' : applicationVersion;
+  assert.equal((await invoke('get_update_info')).currentVersion, expectedVersion);
+  await expect(page.locator('.app-header .version')).toHaveText(expectedVersion);
   assert.equal((await invoke('get_preferences')).accent, 'teal');
   const project = await invoke('add_existing_project', { path: projectPath });
   assert.deepEqual(project.technologies.ids, []);

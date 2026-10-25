@@ -2,7 +2,7 @@
 
 The October 25, 2026 audit starts from `main` at `618fc1b`, after PR #16.
 The required names remain `version`, `windows`, `macOS Apple-Silicon` and
-`macOS Intel`. All application versions remain `1.5.1`.
+`macOS Intel`. All builds in that audit used application version `1.5.1`.
 
 ## Baselines
 

@@ -44,6 +44,8 @@ async function theme(appearance) {
   await expect(page.locator('html')).toHaveAttribute('data-appearance', appearance);
 }
 async function capture(name) {
+  await expect(page.locator('.app-header .version')).toHaveText(version);
+  assert.equal((await invoke('get_preferences')).accent, 'teal');
   const text = await page.locator('body').innerText();
   // npm's own package/version header contains @; it is fixed fictional data.
   const privacyText = text.replaceAll('field-notes@0.1.0', 'field-notes package');
@@ -292,6 +294,27 @@ try {
       .getByRole('heading', { name: 'Configuration files', exact: true })
       .evaluate((element) => element.scrollIntoView({ block: 'start' }));
     await capture(`readiness-${appearance}`);
+  }
+  // Review real manifest evidence before any fixture command runs. Pending
+  // additions are captured without saving them to the project's native record.
+  for (const appearance of ['light', 'dark']) {
+    await theme(appearance);
+    await mainNavigation().getByRole('button', { name: 'Projects', exact: true }).click();
+    await workspace.getByRole('button', { name: 'Project Settings', exact: true }).click();
+    if (appearance === 'light') await capture('technology-detection-settings-light');
+    await page.getByRole('button', { name: 'Detect technologies', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Detected technologies', exact: true });
+    await expect(dialog.getByRole('button', { name: /^Add selected/ })).toBeEnabled();
+    await capture(`technology-detection-review-${appearance}`);
+    if (appearance === 'light') {
+      await dialog.getByRole('button', { name: /^Add selected/ }).click();
+      await expect(dialog).toBeHidden();
+      await capture('technology-detection-pending-light');
+      assert.deepEqual(
+        (await invoke('get_project_workspace', { id: added.id })).project.technologies.ids,
+        ['typescript', 'react', 'vite'],
+      );
+    } else await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   }
   // Use installed build tooling in this owned demo; never install packages.
   await symlink(path.join(root, 'node_modules'), path.join(project, 'node_modules'), 'junction');
