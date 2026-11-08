@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { Icon, type IconName } from '../icons';
+import { UiIcon, type UiIconName } from './UiIcon';
 
 export type StatusState = 'ok' | 'warning' | 'error' | 'neutral';
-const icons: Record<StatusState, IconName> = {
+const icons: Record<StatusState, UiIconName> = {
   ok: 'check',
   warning: 'alert',
   error: 'alert',
@@ -30,7 +30,7 @@ export function StatusRow({
   return (
     <div className="ui-status-row" data-state={state}>
       <span className="ui-status-icon">
-        <Icon name={icons[state]} size={16} />
+        <UiIcon name={icons[state]} size={16} />
       </span>
       <div>
         <div className="ui-status-title">
@@ -57,10 +57,10 @@ export function Banner({
   children?: ReactNode;
   action?: ReactNode;
 }) {
-  const icon: IconName = tone === 'success' ? 'check' : tone === 'info' ? 'question' : 'alert';
+  const icon: UiIconName = tone === 'success' ? 'check' : tone === 'info' ? 'question' : 'alert';
   return (
     <div className="ui-banner" data-tone={tone} role={tone === 'error' ? 'alert' : 'status'}>
-      <Icon name={icon} size={16} />
+      <UiIcon name={icon} size={16} />
       <div>
         {title && <strong className="ui-banner-title">{title}</strong>}
         {children}

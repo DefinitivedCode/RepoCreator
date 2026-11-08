@@ -6,3 +6,4 @@ export { StatusRow, Banner, Chip, type StatusState, type BannerTone } from './St
 export { Disclosure } from './Disclosure';
 export { Dialog } from './Dialog';
 export { ToastRegion, useToasts, type ToastMessage } from './Toast';
+export { UiIcon, type UiIconName, type ExtraIconName } from './UiIcon';
