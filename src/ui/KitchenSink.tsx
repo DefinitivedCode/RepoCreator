@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { accentPresets, applyAppearance } from '../appearance';
-import { Icon, type IconName } from '../icons';
+import { UiIcon, type UiIconName } from './UiIcon';
 import {
   Banner,
   Button,
@@ -14,7 +14,7 @@ import {
   useToasts,
 } from './index';
 
-const iconNames: IconName[] = [
+const iconNames: UiIconName[] = [
   'repo',
   'folder',
   'github',
@@ -178,7 +178,7 @@ export function KitchenSink() {
       <p style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {iconNames.map((name) => (
           <span key={name} title={name}>
-            <Icon name={name} size={16} />
+            <UiIcon name={name} size={16} />
           </span>
         ))}
       </p>
