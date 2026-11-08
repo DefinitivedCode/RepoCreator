@@ -739,12 +739,12 @@
 .rc-completion-launcher .compact-launcher .other-tool {
   padding: 10px 0;
 }
-@media (min-width: 1400px) {
+@container app (min-width: 1400px) {
   .rc-workspace-library .project-library {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-@media (max-width: 900px) {
+@container app (max-width: 880px) {
   .rc-project-workspace .project-git-state {
     display: none;
   }
@@ -762,7 +762,7 @@
     display: none;
   }
 }
-@media (max-width: 700px) {
+@container app (max-width: 700px) {
   .rc-workspace-library,
   .rc-project-workspace {
     padding: 18px 16px;

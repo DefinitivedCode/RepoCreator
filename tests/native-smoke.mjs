@@ -262,7 +262,7 @@ if (-not [SmokeClose]::PostMessage($owned.MainWindowHandle, 0x0010, [IntPtr]::Ze
   assert.equal(preferences.accent, 'custom');
   assert.equal(preferences.customAccent, '#386B87');
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'custom');
-  await expect(page.locator('.app-header').getByRole('combobox')).toHaveCount(0);
+  await expect(page.locator('.app-sidebar').getByRole('combobox')).toHaveCount(0);
   assert.equal(preferences.defaults.options.ai.specialists.length, 7);
   assert.equal((await invoke('list_recent_projects')).length, 3);
   await screenshot('relaunch-restored-window');
@@ -474,7 +474,7 @@ try {
     .waitFor({ timeout: 30_000 });
   assert.equal((await invoke('get_preferences')).schemaVersion, 5);
   assert.equal((await invoke('get_update_info')).currentVersion, applicationVersion);
-  await expect(page.locator('.app-header .version')).toHaveText(applicationVersion);
+  await expect(page.locator('.app-sidebar .version')).toHaveText(applicationVersion);
   await expect(page.getByRole('button', { name: 'Simple', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',

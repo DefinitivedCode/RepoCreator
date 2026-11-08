@@ -282,13 +282,13 @@
   color: var(--muted);
   font-size: 11px;
 }
-@media (max-width: 800px) {
+@container app (max-width: 800px) {
   .appearance-settings {
     gap: 20px;
     grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.8fr);
   }
 }
-@media (max-width: 620px) {
+@container app (max-width: 620px) {
   .appearance-settings {
     grid-template-columns: 1fr;
   }

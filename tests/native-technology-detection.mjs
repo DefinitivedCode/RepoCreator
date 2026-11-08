@@ -145,7 +145,7 @@ try {
   // the manifest's actual native version rather than a stale hardcoded label.
   const expectedVersion = before ? '1.5.1' : applicationVersion;
   assert.equal((await invoke('get_update_info')).currentVersion, expectedVersion);
-  await expect(page.locator('.app-header .version')).toHaveText(expectedVersion);
+  await expect(page.locator('.app-sidebar .version')).toHaveText(expectedVersion);
   assert.equal((await invoke('get_preferences')).accent, 'teal');
   const project = await invoke('add_existing_project', { path: projectPath });
   assert.deepEqual(project.technologies.ids, []);

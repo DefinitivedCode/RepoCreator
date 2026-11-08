@@ -761,7 +761,7 @@ dialog::backdrop {
 .generated-files-dialog .preview {
   max-height: 50vh;
 }
-@media (max-width: 1100px) {
+@container app (max-width: 1100px) {
   .advanced-configuration-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -779,8 +779,8 @@ dialog::backdrop {
     scroll-behavior: auto !important;
   }
 }
-@media (max-width: 1050px) {
-  :root {
+@container app (max-width: 1050px) {
+  .app-content {
     --rail-width: 164px;
   }
   .desktop-app .app-header {
@@ -810,8 +810,8 @@ dialog::backdrop {
     position: static;
   }
 }
-@media (max-width: 860px) {
-  :root {
+@container app (max-width: 860px) {
+  .app-content {
     --page-gutter: 18px;
   }
   .desktop-app .app-header {
