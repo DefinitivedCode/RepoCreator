@@ -627,6 +627,7 @@ mod tests {
                 Some(crate::process::Output {
                     success: true,
                     stdout: text.into(),
+                    code: Some(0),
                 }),
                 "saved",
             )
@@ -728,6 +729,7 @@ mod tests {
                 Ok(crate::process::Output {
                     success: true,
                     stdout: self.0.into(),
+                    code: Some(0),
                 })
             }
         }

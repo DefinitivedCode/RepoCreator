@@ -582,7 +582,8 @@ test('creation waits for refreshed prerequisites and fails closed when inspectio
   await navigate(page, 'Overview');
   await expect(review).toBeDisabled();
   await page.evaluate(() => (window as any).rejectSetupRefresh());
-  await expect(page.locator('.creation-git-status')).toContainText('Setup required');
+  await expect(page.locator('.creation-git-status')).toContainText('Setup incomplete');
+  await expect(page.locator('#creation-reason')).toContainText('Couldn’t check your setup');
   await expect(review).toBeDisabled();
 });
 

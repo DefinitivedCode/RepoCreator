@@ -2,7 +2,9 @@ mod ai;
 mod command_runner;
 mod config;
 mod desktop;
+mod environment;
 mod generation;
+mod git_identity;
 mod github;
 mod handoff;
 mod launcher;
@@ -23,7 +25,7 @@ mod workspace;
 
 use model::{AppError, CreateRequest, CreatedRepo, Destination};
 use preferences::Preferences;
-use process::{args, Program, Runner, SystemRunner};
+use process::SystemRunner;
 use repository::PendingRepo;
 use serde::Serialize;
 use std::{
@@ -108,6 +110,11 @@ struct Environment {
     identity_name: Option<String>,
     github_owners: Vec<String>,
     vscode_available: bool,
+    // Additive detail. The fields above keep their original meaning.
+    git_version: Option<String>,
+    git_state: environment::GitState,
+    identity: environment::IdentityReport,
+    github_state: environment::GithubState,
 }
 
 #[tauri::command]
@@ -123,76 +130,21 @@ async fn check_environment(
         .parent_path
         .clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let runner = SystemRunner;
-        let success = |program, values: &[&str]| {
-            runner
-                .run(program, &args(values), &parent)
-                .is_ok_and(|r| r.success)
-        };
-        // Git identity and GitHub checks are independent. Keep
-        // their results fresh on every refresh without serialising their I/O.
-        let (
-            git_installed,
-            identity_ready,
-            identity_name,
-            gh_installed,
-            github_user,
-            github_owners,
-        ) = std::thread::scope(|scope| {
-            let git = scope.spawn(|| {
-                let installed = success(Program::Git, &["--version"]);
-                let name = installed
-                    .then(|| {
-                        runner.run(
-                            Program::Git,
-                            &args(&["config", "--get", "user.name"]),
-                            &parent,
-                        )
-                    })
-                    .and_then(Result::ok)
-                    .filter(|o| o.success && !o.stdout.is_empty())
-                    .map(|o| o.stdout);
-                let ready = name.is_some()
-                    && runner
-                        .run(
-                            Program::Git,
-                            &args(&["config", "--get", "user.email"]),
-                            &parent,
-                        )
-                        .is_ok_and(|o| o.success && !o.stdout.is_empty());
-                (installed, ready, name)
-            });
-            let gh_installed = success(Program::Gh, &["--version"]);
-            let github_user = if gh_installed && include_github.unwrap_or(true) {
-                github::authenticated_owner(&runner, &parent).ok()
-            } else {
-                None
-            };
-            let mut github_owners = github_user.iter().cloned().collect::<Vec<_>>();
-            if github_user.is_some() {
-                github_owners.extend(github::organisations(&runner, &parent));
-            }
-            let (git_installed, identity_ready, identity_name) =
-                git.join().map_err(|_| lock_error())?;
-            Ok::<_, AppError>((
-                git_installed,
-                identity_ready,
-                identity_name,
-                gh_installed,
-                github_user,
-                github_owners,
-            ))
-        })?;
+        let found = environment::detect(&SystemRunner, &parent, include_github.unwrap_or(true));
         Ok(Environment {
             platform: launcher::platform(),
             optional_tools: process::optional_tools(),
-            git_installed,
-            identity_ready,
-            gh_installed,
-            github_user,
-            identity_name,
-            github_owners,
+            git_installed: found.git_installed,
+            identity_ready: found.identity_ready,
+            gh_installed: found.gh_installed,
+            github_user: found.github_user,
+            identity_name: found.identity_name,
+            github_owners: found.github_owners,
             vscode_available: desktop::vscode_path().is_some(),
+            git_version: found.git_version,
+            git_state: found.git_state,
+            identity: found.identity,
+            github_state: found.github_state,
         })
     })
     .await
@@ -248,6 +200,63 @@ fn set_destination(
     Ok(())
 }
 
+#[tauri::command(async)]
+fn set_identity_override(
+    name: Option<String>,
+    email: Option<String>,
+    state: State<'_, Arc<Runtime>>,
+) -> Result<Preferences, AppError> {
+    let saved = match (name, email) {
+        (None, None) => None,
+        (Some(name), Some(email)) => Some(git_identity::IdentityOverride::validated(name, email)?),
+        _ => {
+            return Err(AppError::new(
+                "Enter both a name and an email address.",
+                "Provide both values to save an identity, or neither to remove it.",
+            ))
+        }
+    };
+    let mut session = state.session.lock().map_err(|_| lock_error())?;
+    let mut preferences = session.preferences.clone();
+    preferences.identity_override = saved;
+    preferences
+        .save(&session.preference_file)
+        .map_err(|message| {
+            AppError::new(
+                message,
+                "Your project files are unaffected. Check settings-folder permissions.",
+            )
+        })?;
+    session.preferences = preferences.clone();
+    Ok(preferences)
+}
+
+/// The only command that writes global Git configuration. It needs `confirm: true`,
+/// which the interface sends only from its explicit "Save to my Git configuration" button.
+#[tauri::command]
+async fn set_git_identity_global(
+    name: String,
+    email: String,
+    confirm: bool,
+    state: State<'_, Arc<Runtime>>,
+) -> Result<git_identity::GlobalIdentityResult, AppError> {
+    let runtime = state.inner().clone();
+    let guard = acquire(&runtime)?;
+    let parent = runtime
+        .session
+        .lock()
+        .map_err(|_| lock_error())?
+        .preferences
+        .parent_path
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = guard;
+        git_identity::set_global(&SystemRunner, &parent, &name, &email, confirm)
+    })
+    .await
+    .map_err(|_| lock_error())?
+}
+
 #[tauri::command]
 async fn create_repository(
     request: CreateRequest,
@@ -265,13 +274,25 @@ async fn create_repository(
             let _ = app.emit_to("main", "repo-progress", stage);
         };
         progress("folder");
+        // The saved Repo Creator identity fills in only when the request has none.
+        let mut request = request;
+        let saved_identity_applied = git_identity::apply_override(
+            &mut request,
+            session.preferences.identity_override.as_ref(),
+        );
         let mut pending =
             repository::begin(&SystemRunner, &session.preferences.parent_path, request)?;
+        let mut remembered_options = pending.request.options.clone();
+        if saved_identity_applied {
+            // The saved identity is an application preference, not a form default.
+            remembered_options.commit_author_name.clear();
+            remembered_options.commit_author_email.clear();
+        }
         session.preferences.defaults = config::Configuration {
             brief: pending.request.brief.clone(),
             handoff_template: pending.request.handoff_template.clone(),
             readme: pending.request.readme,
-            options: pending.request.options.clone(),
+            options: remembered_options,
             destination: Some(pending.request.destination),
             visibility: Some(pending.request.visibility),
         };
@@ -487,6 +508,8 @@ pub fn run() {
             check_environment,
             choose_parent,
             set_destination,
+            set_identity_override,
+            set_git_identity_global,
             create_repository,
             retry_publish,
             open_project,

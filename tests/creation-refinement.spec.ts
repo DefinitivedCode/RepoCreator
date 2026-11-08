@@ -187,8 +187,8 @@ test('environment settings separate identity, GitHub and passive tools with keyb
     'aria-selected',
     'true',
   );
-  await page.getByLabel('Your name for this project').fill('Project author');
-  await page.getByLabel('Email for this project').fill('author@example.test');
+  await page.getByLabel('Name', { exact: true }).fill('Project author');
+  await page.getByLabel('Email', { exact: true }).fill('author@example.test');
   await page.getByRole('tab', { name: 'Git & identity' }).focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'GitHub', exact: true })).toBeFocused();
@@ -198,8 +198,8 @@ test('environment settings separate identity, GitHub and passive tools with keyb
   await expect(page.getByRole('tabpanel')).toContainText('Antigravity CLI');
   await expect(page.getByRole('tabpanel')).toContainText('Not checked');
   await page.getByRole('tab', { name: 'Git & identity' }).click();
-  await expect(page.getByLabel('Your name for this project')).toHaveValue('Project author');
-  await expect(page.getByLabel('Email for this project')).toHaveValue('author@example.test');
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Project author');
+  await expect(page.getByLabel('Email', { exact: true })).toHaveValue('author@example.test');
   const launched = await page.evaluate(() =>
     (window as any).testCalls.filter((call: any) =>
       [

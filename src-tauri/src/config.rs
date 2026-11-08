@@ -364,6 +364,32 @@ pub fn validate_branch(branch: &str) -> Result<(), AppError> {
     Ok(())
 }
 
+/// The one definition of an acceptable commit author, shared by the per-project
+/// override, the saved Repo Creator identity and the explicit global Git write.
+pub fn commit_identity_valid(name: &str, email: &str) -> bool {
+    !name.trim().is_empty()
+        && !email.trim().is_empty()
+        && name.len() <= 100
+        && email.len() <= 254
+        && !name
+            .chars()
+            .chain(email.chars())
+            .any(|c| c.is_control() || matches!(c, '<' | '>'))
+        && crate::environment::valid_email(email)
+}
+
+/// Stricter check for values this application saves or passes to `git config`
+/// as a separate argument: a leading `-` could be read as an option.
+pub fn validate_saved_identity(name: &str, email: &str) -> Result<(), AppError> {
+    if !commit_identity_valid(name, email) || name.starts_with('-') || email.starts_with('-') {
+        return Err(AppError::new(
+            "Enter a name and a valid email address.",
+            "Use a name of up to 100 characters and an email such as name@example.com. Do not start either with a dash or include line breaks.",
+        ));
+    }
+    Ok(())
+}
+
 pub fn validate_options(options: &ProjectOptions) -> Result<(), AppError> {
     crate::technologies::validate(&options.technologies)?;
     crate::workspace::validate_commands(&options.commands)?;
@@ -377,24 +403,8 @@ pub fn validate_options(options: &ProjectOptions) -> Result<(), AppError> {
     validate_branch(&options.initial_branch)?;
     let identity_supplied =
         !options.commit_author_name.is_empty() || !options.commit_author_email.is_empty();
-    let valid_email = options
-        .commit_author_email
-        .split_once('@')
-        .is_some_and(|(local, domain)| {
-            !local.is_empty() && !domain.is_empty() && !domain.contains('@')
-        });
     if identity_supplied
-        && (options.commit_author_name.trim().is_empty()
-            || options.commit_author_email.trim().is_empty()
-            || options.commit_author_name.len() > 100
-            || options.commit_author_email.len() > 254
-            || options
-                .commit_author_name
-                .chars()
-                .chain(options.commit_author_email.chars())
-                .any(|c| c.is_control() || matches!(c, '<' | '>'))
-            || !valid_email
-            || options.commit_author_email.contains(char::is_whitespace))
+        && !commit_identity_valid(&options.commit_author_name, &options.commit_author_email)
     {
         return Err(fail("Enter both a project Git author name and a valid email address, or leave both empty to use your existing Git identity."));
     }

@@ -136,7 +136,7 @@ test('Settings shares library gutters and keeps fields bounded', async ({ page }
     expect(tabs!.width).toBe(settings!.width);
     expect(
       await page
-        .getByLabel('Your name for this project')
+        .getByLabel('Name', { exact: true })
         .evaluate((el) => el.getBoundingClientRect().width),
     ).toBeLessThanOrEqual(400);
     expect(

@@ -97,10 +97,27 @@ export async function prepare(
         if(window.testEnvironmentError) throw {message:'Could not inspect local tools.',guidance:'Recheck your setup.'};
         const queued=window.testEnvironmentQueue?.shift();
         const result={gitInstalled:true,identityReady:true,ghInstalled:true,githubUser:'octocat',githubOwners:['octocat','sample-org'],identityName:'Test Author',vscodeAvailable:false,...window.testEnvironment,...queued?.environment};
+        // Additive detail, derived from the original fields unless a test supplies it.
+        if(!result.gitState) result.gitState = result.gitInstalled ? 'ok' : 'missing';
+        if(result.gitVersion === undefined) result.gitVersion = result.gitInstalled ? '2.45.1' : null;
+        if(!result.identity) result.identity = {name:result.identityReady?(result.identityName||'Test Author'):null,email:result.identityReady?'test@example.invalid':null,nameScope:result.identityReady?'global':null,emailScope:result.identityReady?'global':null,resolves:!!result.identityReady,emailValid:!!result.identityReady,globalConfigPath:result.identityReady?'C:/Users/test/.gitconfig':null};
+        if(!result.githubState) result.githubState = result.githubUser ? 'signed-in' : (result.ghInstalled ? 'signed-out' : 'cli-missing');
         if(queued?.delay) await new Promise(resolve=>setTimeout(resolve,queued.delay));
         return result;
       }
       if (command === 'choose_parent') return null;
+      if (command === 'set_identity_override') {
+        if(payload.name===null && payload.email===null) { preferences.identityOverride=null; return structuredClone(preferences); }
+        if(!payload.name || !payload.email || !/^[^@\\s]+@[^@\\s]+$/.test(payload.email) || payload.name.startsWith('-')) throw {message:'Enter a name and a valid email address.',guidance:'Use an email such as name@example.com.'};
+        preferences.identityOverride={name:payload.name.trim(),email:payload.email.trim()}; return structuredClone(preferences);
+      }
+      if (command === 'set_git_identity_global') {
+        if(payload.confirm !== true) throw {message:'Confirm before changing your Git configuration.',guidance:'Nothing was changed.'};
+        if(window.testGlobalWriteError) throw {message:'Could not save to your Git configuration.',guidance:'Check that the file can be written.'};
+        const previous = window.testGlobalPrevious || {};
+        window.testEnvironment = {...window.testEnvironment, identityReady:true, identityName:payload.name, identity:{name:payload.name,email:payload.email,nameScope:'global',emailScope:'global',resolves:true,emailValid:true,globalConfigPath:'C:/Users/test/.gitconfig'}};
+        return {previousName:previous.name??null,previousEmail:previous.email??null,configPath:'C:/Users/test/.gitconfig',resolvedIdentity:payload.name+' <'+payload.email+'>'};
+      }
       if (command === 'preview_files') { validateBrief(payload.request); return preview(payload.request); }
       if (command === 'save_configuration') { validateBrief(payload.configuration); preferences.defaults = payload.configuration; }
       if (command === 'set_destination') preferences.destination = payload.destination;

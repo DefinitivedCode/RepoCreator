@@ -96,6 +96,8 @@ export interface GeneratedFile {
 export interface Preferences {
   updates?: import('./useUpdates').UpdatePreferences;
   experienceMode?: ExperienceMode;
+  /** Commit author applied only inside new Repo Creator projects. Never global Git config. */
+  identityOverride?: IdentityOverride | null;
   instructionPresets: SavedInstructions[];
   specialistLibrary: Specialist[];
   recoveryNotice: string | null;
@@ -108,6 +110,28 @@ export interface Preferences {
   recentLocations: string[];
   defaults: Configuration;
   customPresets: ProjectPreset[];
+}
+export interface IdentityOverride {
+  name: string;
+  email: string;
+}
+export type GitState = 'ok' | 'missing' | 'too-old';
+export type GithubState = 'signed-in' | 'signed-out' | 'unverified' | 'not-checked' | 'cli-missing';
+export interface IdentityReport {
+  name: string | null;
+  email: string | null;
+  nameScope: string | null;
+  emailScope: string | null;
+  /** `git var GIT_AUTHOR_IDENT` succeeds in the save location. */
+  resolves: boolean;
+  emailValid: boolean;
+  globalConfigPath: string | null;
+}
+export interface GlobalIdentityResult {
+  previousName: string | null;
+  previousEmail: string | null;
+  configPath: string | null;
+  resolvedIdentity: string;
 }
 export interface Environment {
   platform?: 'windows' | 'macos' | 'other';
@@ -123,6 +147,11 @@ export interface Environment {
   githubOwners: string[];
   identityName: string | null;
   vscodeAvailable: boolean;
+  // Additive detail from the native check. Older reports and fixtures omit these.
+  gitVersion?: string | null;
+  gitState?: GitState;
+  identity?: IdentityReport;
+  githubState?: GithubState;
 }
 export interface CreatedRepo {
   name: string;
