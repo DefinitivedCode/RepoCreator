@@ -20,6 +20,10 @@ Mac users should follow the [Mac installation and testing guide](macOS-testing.m
 
 The repository and published downloads are public. For development test builds, see a successful [Actions run](https://github.com/DefinitivedCode/RepoCreator/actions/workflows/windows.yml) and its available artifacts; GitHub may require sign-in. Ordinary PR checks compile the application without creating installers. Use Releases for installable packages; see the Mac guide or [release preparation](releases.md) for packaging details.
 
+## First launch and setup
+
+The first time you open Repo Creator with no projects, a welcome checklist replaces the main window. **Required** items are Git and your commit identity; **Optional** items are publishing to GitHub and editors. Each unfinished row has a button that fixes it in place, and **Create my first project** unlocks when the required items are ready. If you already have projects, Repo Creator checks quietly instead and never interrupts you. You can revisit it any time under **Settings → Setup**, where **Run setup again** shows the checklist on the next start without resetting anything else. Repo Creator never installs software: for Git or GitHub CLI it opens the official download page and shows a command you can copy.
+
 ## Check Git
 
 1. Open Repo Creator and select **Settings**.

@@ -115,6 +115,44 @@ pub fn set_experience_mode(
 }
 
 #[tauri::command(async)]
+pub fn get_onboarding_state(
+    state: State<'_, Arc<Runtime>>,
+) -> Result<crate::preferences::Onboarding, AppError> {
+    Ok(state
+        .session
+        .lock()
+        .map_err(|_| lock_error())?
+        .preferences
+        .onboarding
+        .clone())
+}
+
+#[tauri::command(async)]
+pub fn complete_onboarding(state: State<'_, Arc<Runtime>>) -> Result<Preferences, AppError> {
+    persist_edit(&state, |prefs| {
+        prefs.onboarding.complete();
+        Ok(())
+    })
+}
+
+#[tauri::command(async)]
+pub fn skip_github_setup(state: State<'_, Arc<Runtime>>) -> Result<Preferences, AppError> {
+    persist_edit(&state, |prefs| {
+        prefs.onboarding.github_skipped = true;
+        Ok(())
+    })
+}
+
+/// Clears only the completion marker, so setup can be run again.
+#[tauri::command(async)]
+pub fn reset_onboarding(state: State<'_, Arc<Runtime>>) -> Result<Preferences, AppError> {
+    persist_edit(&state, |prefs| {
+        prefs.onboarding.reset();
+        Ok(())
+    })
+}
+
+#[tauri::command(async)]
 pub fn update_custom_preset(
     id: String,
     name: String,

@@ -10,7 +10,7 @@ Resumable log for the autonomous redesign run ([prompt](ui-redesign-autonomous-p
 | 0 Baseline                     | `redesign/phase-0-baseline`                                                                                                                 | `fix/setup-correctness`     | [#22](https://github.com/DefinitivedCode/RepoCreator/pull/22) | Verified, PR open, unmerged |
 | 2 Tokens and primitives        | `redesign/phase-2-tokens`                                                                                                                   | `redesign/phase-0-baseline` | [#23](https://github.com/DefinitivedCode/RepoCreator/pull/23) | Verified, PR open, unmerged |
 | 3 Shell and navigation         | `redesign/phase-3-shell`                                                                                                                    | `redesign/phase-2-tokens`   | [#24](https://github.com/DefinitivedCode/RepoCreator/pull/24) | Verified, PR open, unmerged |
-| 4 Onboarding                   | `redesign/phase-4-onboarding`                                                                                                               | phase 3                     | —                                                             | Not started                 |
+| 4 Onboarding                   | `redesign/phase-4-onboarding`                                                                                                               | `redesign/phase-3-shell`    | [#25](https://github.com/DefinitivedCode/RepoCreator/pull/25) | Verified, PR open, unmerged |
 | 5 New Project                  | `redesign/phase-5-new-project`                                                                                                              | phase 4                     | —                                                             | Not started                 |
 | 6 Projects, workspace, presets | `redesign/phase-6-workspace`                                                                                                                | phase 5                     | —                                                             | Not started                 |
 | 7 Settings and polish          | `redesign/phase-7-settings`                                                                                                                 | phase 6                     | —                                                             | Not started                 |
@@ -62,17 +62,27 @@ Changed existing tests (all intentional): `.app-header` → `.app-sidebar` (appe
 
 Decisions: width media queries in the existing stylesheets became container queries on the content region (`@container app`), so each screen keeps the width logic it had; `:root` variables inside them moved to `.app-content`; the two `900px` rules became `880px` so the default window (content exactly 900px) keeps its previous layout. Not done in Phase 3: the Settings tablist and the Technology category list still use their own markup; the first-time update notice remains the existing dismissible aside plus a new sidebar line; the breadcrumb is a labelled back link ("Projects") rather than "Projects / name" (the name is the page heading).
 
+## Phase 4 — verification (Windows 11 only)
+
+`check` pass; `format:check` pass; `npm test` 328 passed; `npm run test:ui` 204 passed, 2 skipped (opt-in baseline), including 18 new `onboarding.spec.ts` tests (both themes); `cargo fmt`/`clippy -D warnings` pass; `cargo test --locked` 151 passed (4 new). Native smoke on a rebuilt debug exe (empty `HOME`) passes. A manual real-app check (fresh data dir, empty `HOME`): welcome checklist shown with no sidebar, Create disabled until an identity is saved, then enabled and onboarding recorded; isolated global config stayed empty. I viewed a first-run screenshot at 1100×740 (the 820×580 layout is asserted by a test for no horizontal scroll and a reachable last action, not viewed).
+
+[Q] findings: Git for Windows' page lists `winget install --id Git.Git -e` but warns the winget package is not the official build, so the official download is offered first; GitHub CLI is `winget install --id GitHub.cli --source winget` (cli/cli install_windows.md) and `brew install gh` (cli.github.com); macOS `xcode-select --install` wording was not re-verified against Apple's docs. `SETTINGS_VERSION` stays 5 (same precedent as `updates` and `identityOverride`).
+
+Changed existing tests: `appearance.spec` expects Settings tab wrap-around to pass through the new Setup tab; native scripts seed completed onboarding in the preferences they write; the shared fixture defaults to completed onboarding (first-run specs set `window.testOnboarding`).
+
+Not done / limits: the focus recheck on the first-run page is implemented but not covered by a test; connecting-flow auto-recheck every 3 s for 2 minutes with a Cancel button is not implemented beyond Phase 1's focus recheck; no keyboard-only completion test; macOS untested.
+
 ## Blockers
 
 None open.
 
 ## Next step
 
-Run stopped cleanly after Phase 3 because of working-budget limits, not a blocker. Resume by re-sending the autonomous prompt.
+Run stopped cleanly after Phase 4 because of working-budget limits, not a blocker. Resume by re-sending the autonomous prompt.
 
-1. `git checkout redesign/phase-3-shell && git checkout -b redesign/phase-4-onboarding`.
-2. Phase 4 per [phases spec](ui-redesign-phases-spec.md): start with the Rust `onboarding` preference (additive `serde(default)`, loaded field by field in `Preferences::load` like `identityOverride`) and its four commands; then `src/setup/SetupChecklist.tsx` built on `StatusRow`/`Disclosure` reusing Phase 1's `GitSettings`/`GithubSettings` logic in `src/SetupSections.tsx`; then first-run gating in `App.tsx` using `list_recent_projects`.
-3. Phases 5–8 follow. Useful facts for them: the baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; the native smoke needs a debug build (`npm run desktop:build -- --ci --debug --no-bundle`) and an empty `HOME` (not `USERPROFILE`) for isolation; shell heredocs with many quotes fail in this environment, so write multi-line scripts with the file tool; the browser suite has occasional load flakes in `project-workspace.spec.ts`.
+1. `git checkout redesign/phase-4-onboarding && git checkout -b redesign/phase-5-new-project`.
+2. Phase 5 per the [phases spec](ui-redesign-phases-spec.md); it is the largest phase, so split into 5a layout (recipe column + Result pane + action bar), 5b sections (single scrolling page with Customize regions; remove the Simple/Advanced switch, keep the stored `experienceMode`), 5c create flow (blocker popover opened from the `aria-disabled` Create button, confirmation sheet only for GitHub/public, progress list, success screen). Start with the "Inspect first" files, especially `HandoffPanel.tsx` (does it need unsaved form data?), `WorkspaceFields.tsx` and `AgentStudio.tsx`.
+3. Phases 6–8 follow. Useful facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smoke needs a debug build (`npm run desktop:build -- --ci --debug --no-bundle`) and an empty `HOME` (not `USERPROFILE`) for isolation; shell heredocs with many quotes fail here, so write multi-line scripts with the file tool; the browser suite has occasional load flakes (mainly `project-workspace.spec.ts`); the first-run page needs `window.testOnboarding = {}` in fixtures, existing specs default to completed onboarding.
 
 ## Final deliverables still owed after Phase 8
 

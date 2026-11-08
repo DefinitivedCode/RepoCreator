@@ -281,6 +281,16 @@ export function useCreator() {
     void refresh(form?.destination === 'github');
     return result;
   }
+  async function completeOnboarding() {
+    setPreferences(await invoke<Preferences>('complete_onboarding'));
+  }
+  async function skipGithub() {
+    setPreferences(await invoke<Preferences>('skip_github_setup'));
+  }
+  /** "Run setup again": clears only the completion marker. */
+  async function resetOnboarding() {
+    setPreferences(await invoke<Preferences>('reset_onboarding'));
+  }
   async function experienceMode(mode: ExperienceMode) {
     setPreferences((preferences) =>
       preferences ? { ...preferences, experienceMode: mode } : preferences,
@@ -424,6 +434,9 @@ export function useCreator() {
     setupReady,
     saveIdentity,
     saveGlobalIdentity,
+    completeOnboarding,
+    skipGithub,
+    resetOnboarding,
     update,
     configure,
     destination,

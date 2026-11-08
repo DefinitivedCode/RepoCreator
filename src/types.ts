@@ -98,6 +98,8 @@ export interface Preferences {
   experienceMode?: ExperienceMode;
   /** Commit author applied only inside new Repo Creator projects. Never global Git config. */
   identityOverride?: IdentityOverride | null;
+  /** First-run setup progress. Absent in older settings. */
+  onboarding?: { completedAt?: string | null; githubSkipped?: boolean; version?: number };
   instructionPresets: SavedInstructions[];
   specialistLibrary: Specialist[];
   recoveryNotice: string | null;

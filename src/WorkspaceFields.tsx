@@ -17,6 +17,7 @@ import {
   type IdentityMode,
 } from './SetupSections';
 import { detailOf } from './blockers';
+import { SetupChecklist } from './setup/SetupChecklist';
 import { TechnologySelector } from './TechnologySelector';
 import { technologiesFor, technologySummary } from './technologies';
 import './creation-fields.css';
@@ -554,7 +555,7 @@ export function SetupPanel({
     vscodeAvailable: false,
   };
   const form = creator.form!;
-  const [tab, setTab] = useState<'git' | 'github' | 'tools' | 'appearance' | 'updates'>(
+  const [tab, setTab] = useState<'git' | 'github' | 'tools' | 'appearance' | 'updates' | 'setup'>(
     updateRequest ? 'updates' : (initialTab ?? 'git'),
   );
   useEffect(() => {
@@ -626,6 +627,7 @@ export function SetupPanel({
             ['tools', 'Development tools'],
             ['appearance', 'Appearance'],
             ['updates', 'Updates'],
+            ['setup', 'Setup'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -640,7 +642,7 @@ export function SetupPanel({
             onKeyDown={(event) => {
               if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                 event.preventDefault();
-                const tabs = ['git', 'github', 'tools', 'appearance', 'updates'] as const;
+                const tabs = ['git', 'github', 'tools', 'appearance', 'updates', 'setup'] as const;
                 const index =
                   event.key === 'Home'
                     ? 0
@@ -672,6 +674,7 @@ export function SetupPanel({
               : 'Computer checks are unavailable. Select Recheck to try again.'}
           </p>
         )}
+        {tab === 'setup' && <SetupChecklist creator={creator} variant="settings" />}
         {tab === 'git' && !!creator.environment && (
           <GitSettings
             creator={creator}
