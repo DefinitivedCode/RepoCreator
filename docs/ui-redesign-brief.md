@@ -243,7 +243,7 @@ The six existing accents (Slate, Teal, Gold, Copper, Monochrome, Custom) are pre
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Button**                    | Heights 28 compact / 32 default / 40 onboarding. _Primary_: accent fill (max one per view). _Secondary_: surface, 1px field border. _Tertiary_: text only with accent-text. _Danger_: secondary until confirm dialog uses error fill. Icon + label gap 8px. |
 | **Field**                     | 32px, 1px `--field-border`, 6px radius, label above (14/500), helper below (13), error replaces helper with icon + text and `aria-describedby`. Required/optional stated in text ("Optional"), not placeholder.                                             |
-| **Navigation item** (sidebar) | 36px, icon 16px + label; selected = 3px accent bar on the left + weight 600 + `--sunken` tint.                                                                                                                                                              |
+| **Navigation item** (sidebar) | 36px, icon 16px + label; selected = `--sunken` tint + weight 600 + accent-coloured icon. **No left accent bar, side stripe, underline or border** (maintainer decision 8: the side-bar treatment looks generic and machine-made).                           |
 | **Tab**                       | 40px, underline 2px accent when selected, weight 600; ARIA tab pattern everywhere.                                                                                                                                                                          |
 | **Segmented**                 | Only for one setting's values; selected = surface raised with weight 600. Never for navigation.                                                                                                                                                             |
 | **Status row**                | Icon (check / warning / minus) + title + one-line state + trailing action. Used in setup, readiness, project metadata. Same row everywhere.                                                                                                                 |
@@ -257,7 +257,7 @@ The six existing accents (Slate, Teal, Gold, Copper, Monochrome, Custom) are pre
 - **Hover:** background `--sunken`; text unchanged.
 - **Focus-visible:** 2px `--accent-text` outline, 2px offset, never removed; WCAG 2.2 focus-appearance sized.
 - **Active/pressed:** one step darker than hover.
-- **Selected:** accent bar/underline plus weight change (so it is not colour-only).
+- **Selected:** a tint plus a weight change, so it is not colour-only. Never a coloured side bar or stripe on navigation items, buttons or list rows. Tabs keep their 2px underline (a tab strip is the one place an underline is the convention); if that also looks wrong in review, switch tabs to the same tint-and-weight treatment.
 - **Disabled:** 45% opacity **and** a visible reason. Prefer `aria-disabled` + explanation over `disabled` for primary actions.
 - **Reduced motion:** transitions ≤ 160ms, none when `prefers-reduced-motion`.
 
@@ -566,6 +566,8 @@ Phase 1 is deliberately visual-free and independently valuable: it fixes the exa
 ---
 
 ## L. Decisions needed from you
+
+**Decision 8 (maintainer, after reviewing the Phase 3 build):** selected states must not use a left accent bar. Earlier drafts of E4 and E5 specified one and it shipped in the Phase 3 sidebar; it is superseded by E4/E5 above. One selected/pressed/hover/focus grammar applies to every button, navigation item and list row in the application, old screens included (see Phase 7 in the phases spec).
 
 **Decision log:** Decision 1 (visual direction "Quiet Workbench") and decisions 2–7 were approved by the maintainer as recommended: left sidebar; per-section "Customize" replacing the global Simple/Advanced switch; confirmation sheet only for GitHub/public creation; identity default "Repo Creator projects only"; handoff moves to the project workspace and stays on the success screen; Phase 1 (setup correctness) ships as its own PR before visual work. The brief is approved for implementation planning; no implementation has started.
 
