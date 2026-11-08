@@ -230,4 +230,11 @@ export async function agentTab(page: Page, name: string) {
 export async function createProject(page: Page) {
   await navigate(page, 'Review');
   await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  // Publishing to GitHub asks for confirmation first; a local project never does.
+  const confirm = page.getByRole('button', { name: 'Create on GitHub', exact: true });
+  await confirm
+    .or(page.getByRole('heading', { name: 'Creating repository' }))
+    .first()
+    .waitFor();
+  if (await confirm.isVisible()) await confirm.click();
 }

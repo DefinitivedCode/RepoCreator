@@ -4,18 +4,19 @@ Resumable log for the autonomous redesign run ([prompt](ui-redesign-autonomous-p
 
 ## Stack
 
-| Phase                                      | Branch                                                                                                                                      | Base                          | PR                                                            | Status                      |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------- | --------------------------- |
-| 1 Setup correctness                        | `fix/setup-correctness` (kept; the prompt's suggested `redesign/phase-1-setup-correctness` was not used because work was already open here) | `main`                        | [#21](https://github.com/DefinitivedCode/RepoCreator/pull/21) | Verified, PR open, unmerged |
-| 0 Baseline                                 | `redesign/phase-0-baseline`                                                                                                                 | `fix/setup-correctness`       | [#22](https://github.com/DefinitivedCode/RepoCreator/pull/22) | Verified, PR open, unmerged |
-| 2 Tokens and primitives                    | `redesign/phase-2-tokens`                                                                                                                   | `redesign/phase-0-baseline`   | [#23](https://github.com/DefinitivedCode/RepoCreator/pull/23) | Verified, PR open, unmerged |
-| 3 Shell and navigation                     | `redesign/phase-3-shell`                                                                                                                    | `redesign/phase-2-tokens`     | [#24](https://github.com/DefinitivedCode/RepoCreator/pull/24) | Verified, PR open, unmerged |
-| 4 Onboarding                               | `redesign/phase-4-onboarding`                                                                                                               | `redesign/phase-3-shell`      | [#25](https://github.com/DefinitivedCode/RepoCreator/pull/25) | Verified, PR open, unmerged |
-| 5a Result pane and drawer                  | `redesign/phase-5a-layout`                                                                                                                  | `redesign/phase-4-onboarding` | [#26](https://github.com/DefinitivedCode/RepoCreator/pull/26) | Verified, PR open, unmerged |
-| 5b–5c New Project sections and create flow | `redesign/phase-5b-sections`, then `redesign/phase-5c-create-flow`                                                                          | `redesign/phase-5a-layout`    | —                                                             | Not started                 |
-| 6 Projects, workspace, presets             | `redesign/phase-6-workspace`                                                                                                                | phase 5                       | —                                                             | Not started                 |
-| 7 Settings and polish                      | `redesign/phase-7-settings`                                                                                                                 | phase 6                       | —                                                             | Not started                 |
-| 8 Accessibility                            | `redesign/phase-8-accessibility`                                                                                                            | phase 7                       | —                                                             | Not started                 |
+| Phase                                          | Branch                                                                                                                                      | Base                            | PR                                                            | Status                      |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------- | --------------------------- |
+| 1 Setup correctness                            | `fix/setup-correctness` (kept; the prompt's suggested `redesign/phase-1-setup-correctness` was not used because work was already open here) | `main`                          | [#21](https://github.com/DefinitivedCode/RepoCreator/pull/21) | Verified, PR open, unmerged |
+| 0 Baseline                                     | `redesign/phase-0-baseline`                                                                                                                 | `fix/setup-correctness`         | [#22](https://github.com/DefinitivedCode/RepoCreator/pull/22) | Verified, PR open, unmerged |
+| 2 Tokens and primitives                        | `redesign/phase-2-tokens`                                                                                                                   | `redesign/phase-0-baseline`     | [#23](https://github.com/DefinitivedCode/RepoCreator/pull/23) | Verified, PR open, unmerged |
+| 3 Shell and navigation                         | `redesign/phase-3-shell`                                                                                                                    | `redesign/phase-2-tokens`       | [#24](https://github.com/DefinitivedCode/RepoCreator/pull/24) | Verified, PR open, unmerged |
+| 4 Onboarding                                   | `redesign/phase-4-onboarding`                                                                                                               | `redesign/phase-3-shell`        | [#25](https://github.com/DefinitivedCode/RepoCreator/pull/25) | Verified, PR open, unmerged |
+| 5a Result pane and drawer                      | `redesign/phase-5a-layout`                                                                                                                  | `redesign/phase-4-onboarding`   | [#26](https://github.com/DefinitivedCode/RepoCreator/pull/26) | Verified, PR open, unmerged |
+| 5c Create flow (confirmation, blocker popover) | `redesign/phase-5c-create-flow`                                                                                                             | `redesign/phase-5a-layout`      | PR5C_PLACEHOLDER                                              | Verified, PR open, unmerged |
+| 5b New Project single-page sections            | `redesign/phase-5b-sections`                                                                                                                | `redesign/phase-5c-create-flow` | —                                                             | Deferred (see below)        |
+| 6 Projects, workspace, presets                 | `redesign/phase-6-workspace`                                                                                                                | phase 5                         | —                                                             | Not started                 |
+| 7 Settings and polish                          | `redesign/phase-7-settings`                                                                                                                 | phase 6                         | —                                                             | Not started                 |
+| 8 Accessibility                                | `redesign/phase-8-accessibility`                                                                                                            | phase 7                         | —                                                             | Not started                 |
 
 ## Phase 1 — verification (Windows 11 only)
 
@@ -81,18 +82,32 @@ Scope actually delivered: the existing context panel is the Result pane and gain
 
 Not delivered from the spec's 5a: the new single `NewProject` page (recipe column plus always-visible pane), the constant "Create project" label (the Review step and the "Review project" button remain), and a file _tree_ (the list is flat). These belong with 5b/5c because the Review step and the rail are removed together.
 
+## Phase 5c — verification (Windows 11 only)
+
+`check` pass; `format:check` pass; `npm test` 328; `npm run test:ui` 220 passed, 2 skipped (opt-in baseline) incl. 8 new `create-flow.spec.ts` tests; `cargo fmt`/`clippy` pass; `cargo test --locked` 151; native smoke on a rebuilt debug exe (empty `HOME`) pass. Viewed the blocker popover at 1100×740; the confirmation sheet screenshot caught the dialog mid-fade, so its content is covered by tests rather than by eye.
+
+Delivered: the Create button is `aria-disabled` (focusable, inert) and opens a "To create this project" popover with a fix per blocker (Escape closes and returns focus); a confirmation sheet appears **only** for GitHub destinations (names `owner/name`, visibility with a public warning, branch; Cancel is first and focused; Cancel or Escape creates nothing). Already present and unchanged: the vertical stage list driven by `repo-progress`, and the success screen with Open Folder / VS Code / GitHub / project launcher / Create Another and an AI Project Handoff section.
+
+Order note: 5c was done before 5b because the create-flow pieces are independent of the page rewrite. 5c is based on 5a.
+
+Changed existing tests: the shared `createProject` helper confirms the GitHub sheet when it appears (it waits for the sheet or the progress heading).
+
+**5b is deferred, not dropped.** Why: the single scrolling page, removal of the rail and of the Simple/Advanced switch, and Customize disclosures would rewrite 100+ assertions, because the UI text itself differs by mode (for example "On this computer" vs "Local only", "What are you making?" vs "Description") and 18 tests click the mode switch. Doing it safely needs one coordinated change plus test helper rewrites (`navigate`, `fileTab`, `agentTab`, `createProject` already centralise most usage). Recommendation: do it as its own PR on top of 5c, keep the stored `experienceMode` key, and decide whether mode-dependent wording should be unified first (a maintainer decision, see below).
+
+## Decisions for the maintainer
+
+- Should the Simple/Advanced wording differences be unified before 5b? Unifying them removes the largest source of test churn but changes visible text for Simple users.
+
 ## Blockers
 
 None open.
 
 ## Next step
 
-Run stopped cleanly after Phase 5a because of working-budget limits, not a blocker. Resume by re-sending the autonomous prompt.
+Run stopped cleanly after Phase 5c because of working-budget limits, not a blocker. Resume by re-sending the autonomous prompt.
 
-1. `git checkout redesign/phase-5a-layout && git checkout -b redesign/phase-5b-sections`.
-2. 5b: single scrolling New Project page with a sticky section index (Name & location, Starting point, Files, AI agents, Destination) and Customize disclosures (use `Disclosure` from `src/ui`); remove the rail and the Simple/Advanced switch while keeping the stored `experienceMode` (reinterpret as "start Customize regions expanded"; add the toggle to Settings → General). This will change many existing specs (`navigate()`/`fileTab()`/`agentTab()` helpers in `tests/fixtures.ts`, `creation-refinement`, `file-editor`, `agent-studio`, `ui`); change them through those helpers where possible and list every changed assertion in the PR.
-3. 5c: blocker popover from the `aria-disabled` Create button (reuse `creator.blockers`), confirmation sheet only for GitHub or Public (new `Dialog`), vertical stage list from `repo-progress`, success screen actions including Handoff prompt.
-4. Then Phases 6–8. Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smoke needs a debug build and an empty `HOME`; write multi-line scripts with the file tool (shell heredocs with many quotes fail here); occasional load flakes in `project-workspace.spec.ts`; existing specs default to completed onboarding via the shared fixture.
+1. `git checkout redesign/phase-5c-create-flow && git checkout -b redesign/phase-5b-sections`. Implement 5b as described above (single scrolling page, sticky section index, Customize `Disclosure`s, remove the mode switch, Settings → General toggle for `experienceMode`). Rewrite the test helpers first, then fix the direct assertions, listing every change in the PR.
+2. Then Phases 6–8. Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smoke needs a debug build and an empty `HOME`; write multi-line scripts with the file tool; occasional load flakes in `project-workspace.spec.ts`; `aria-disabled` buttons need `click({ force: true })` in Playwright.
 
 ## Final deliverables still owed after Phase 8
 
