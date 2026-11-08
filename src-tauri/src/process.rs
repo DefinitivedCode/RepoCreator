@@ -201,6 +201,9 @@ pub fn optional_tools() -> Vec<ToolStatus> {
 pub struct Output {
     pub success: bool,
     pub stdout: String,
+    /// The process exit code, when the platform reports one. Used only to tell
+    /// documented failure classes apart (for example `gh` exit code 4).
+    pub code: Option<i32>,
 }
 
 // Stderr is deliberately discarded: CLI failures can include credentials or remote URLs.
@@ -374,6 +377,7 @@ fn run_bounded(
     Ok(Output {
         success: status.success(),
         stdout: String::from_utf8_lossy(&bytes).trim().to_string(),
+        code: status.code(),
     })
 }
 

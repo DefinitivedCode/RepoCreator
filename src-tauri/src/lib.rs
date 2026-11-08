@@ -2,6 +2,7 @@ mod ai;
 mod command_runner;
 mod config;
 mod desktop;
+mod environment;
 mod generation;
 mod github;
 mod handoff;
@@ -23,7 +24,7 @@ mod workspace;
 
 use model::{AppError, CreateRequest, CreatedRepo, Destination};
 use preferences::Preferences;
-use process::{args, Program, Runner, SystemRunner};
+use process::SystemRunner;
 use repository::PendingRepo;
 use serde::Serialize;
 use std::{
@@ -108,6 +109,11 @@ struct Environment {
     identity_name: Option<String>,
     github_owners: Vec<String>,
     vscode_available: bool,
+    // Additive detail. The fields above keep their original meaning.
+    git_version: Option<String>,
+    git_state: environment::GitState,
+    identity: environment::IdentityReport,
+    github_state: environment::GithubState,
 }
 
 #[tauri::command]
@@ -123,76 +129,21 @@ async fn check_environment(
         .parent_path
         .clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let runner = SystemRunner;
-        let success = |program, values: &[&str]| {
-            runner
-                .run(program, &args(values), &parent)
-                .is_ok_and(|r| r.success)
-        };
-        // Git identity and GitHub checks are independent. Keep
-        // their results fresh on every refresh without serialising their I/O.
-        let (
-            git_installed,
-            identity_ready,
-            identity_name,
-            gh_installed,
-            github_user,
-            github_owners,
-        ) = std::thread::scope(|scope| {
-            let git = scope.spawn(|| {
-                let installed = success(Program::Git, &["--version"]);
-                let name = installed
-                    .then(|| {
-                        runner.run(
-                            Program::Git,
-                            &args(&["config", "--get", "user.name"]),
-                            &parent,
-                        )
-                    })
-                    .and_then(Result::ok)
-                    .filter(|o| o.success && !o.stdout.is_empty())
-                    .map(|o| o.stdout);
-                let ready = name.is_some()
-                    && runner
-                        .run(
-                            Program::Git,
-                            &args(&["config", "--get", "user.email"]),
-                            &parent,
-                        )
-                        .is_ok_and(|o| o.success && !o.stdout.is_empty());
-                (installed, ready, name)
-            });
-            let gh_installed = success(Program::Gh, &["--version"]);
-            let github_user = if gh_installed && include_github.unwrap_or(true) {
-                github::authenticated_owner(&runner, &parent).ok()
-            } else {
-                None
-            };
-            let mut github_owners = github_user.iter().cloned().collect::<Vec<_>>();
-            if github_user.is_some() {
-                github_owners.extend(github::organisations(&runner, &parent));
-            }
-            let (git_installed, identity_ready, identity_name) =
-                git.join().map_err(|_| lock_error())?;
-            Ok::<_, AppError>((
-                git_installed,
-                identity_ready,
-                identity_name,
-                gh_installed,
-                github_user,
-                github_owners,
-            ))
-        })?;
+        let found = environment::detect(&SystemRunner, &parent, include_github.unwrap_or(true));
         Ok(Environment {
             platform: launcher::platform(),
             optional_tools: process::optional_tools(),
-            git_installed,
-            identity_ready,
-            gh_installed,
-            github_user,
-            identity_name,
-            github_owners,
+            git_installed: found.git_installed,
+            identity_ready: found.identity_ready,
+            gh_installed: found.gh_installed,
+            github_user: found.github_user,
+            identity_name: found.identity_name,
+            github_owners: found.github_owners,
             vscode_available: desktop::vscode_path().is_some(),
+            git_version: found.git_version,
+            git_state: found.git_state,
+            identity: found.identity,
+            github_state: found.github_state,
         })
     })
     .await

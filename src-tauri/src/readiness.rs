@@ -1942,6 +1942,7 @@ mod tests {
         Ok(Output {
             success: true,
             stdout: stdout.into(),
+            code: Some(0),
         })
     }
     fn tools(names: Vec<&'static str>) -> impl Fn(&str) -> Option<PathBuf> + Send + Sync {

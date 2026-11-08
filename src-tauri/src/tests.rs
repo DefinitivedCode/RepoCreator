@@ -37,6 +37,105 @@ impl Runner for IsolatedGit {
     }
 }
 
+/// Real Git with fully isolated configuration, for tests of identity handling.
+///
+/// `process::command` deliberately strips `GIT_*` variables, so this runner starts
+/// Git itself. It points the global and system configuration and every home
+/// directory variable at a temporary directory, so a test can neither read nor
+/// change the developer's real Git configuration. The isolated system file sets
+/// `user.useConfigOnly`, which makes "no identity" deterministic on machines whose
+/// host name would otherwise let Git guess an email address.
+pub(crate) struct ConfigSandbox {
+    dir: tempfile::TempDir,
+}
+
+impl ConfigSandbox {
+    pub(crate) fn new() -> Self {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("home")).unwrap();
+        fs::create_dir(dir.path().join("work")).unwrap();
+        fs::write(
+            dir.path().join("system-gitconfig"),
+            "[user]\n\tuseConfigOnly = true\n",
+        )
+        .unwrap();
+        Self { dir }
+    }
+    pub(crate) fn global_file(&self) -> std::path::PathBuf {
+        self.dir.path().join("home").join(".gitconfig")
+    }
+    pub(crate) fn work(&self) -> std::path::PathBuf {
+        self.dir.path().join("work")
+    }
+    pub(crate) fn write_global(&self, text: &str) {
+        fs::write(self.global_file(), text).unwrap();
+    }
+    pub(crate) fn git(&self, cwd: &Path, values: &[&str]) -> Output {
+        self.run(Program::Git, &args(values), cwd).unwrap()
+    }
+}
+
+impl Runner for ConfigSandbox {
+    fn run(&self, program: Program, values: &[String], cwd: &Path) -> Result<Output, String> {
+        if program != Program::Git {
+            // Identity tests never reach GitHub: the CLI simply does not exist here.
+            return Err("unavailable".into());
+        }
+        let git = crate::process::resolve_executable("git").ok_or("unavailable")?;
+        let home = self.dir.path().join("home");
+        let mut process = std::process::Command::new(git);
+        process
+            .args(values)
+            .current_dir(cwd)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null());
+        for (key, _) in std::env::vars_os() {
+            let name = key.to_string_lossy().to_ascii_uppercase();
+            if name.starts_with("GIT_") || name == "EMAIL" {
+                process.env_remove(key);
+            }
+        }
+        process
+            .env("GIT_CONFIG_GLOBAL", self.global_file())
+            .env(
+                "GIT_CONFIG_SYSTEM",
+                self.dir.path().join("system-gitconfig"),
+            )
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("HOME", &home)
+            .env("USERPROFILE", &home)
+            .env("XDG_CONFIG_HOME", home.join("xdg"));
+        let output = process.output().map_err(|_| "unavailable".to_string())?;
+        Ok(Output {
+            success: output.status.success(),
+            stdout: String::from_utf8_lossy(&output.stdout).trim().to_string(),
+            code: output.status.code(),
+        })
+    }
+}
+
+#[test]
+fn config_sandbox_never_reads_or_writes_the_real_git_configuration() {
+    let sandbox = ConfigSandbox::new();
+    sandbox.write_global("[user]\n\tname = Sandbox Only\n");
+    let name = sandbox.git(&sandbox.work(), &["config", "--get", "user.name"]);
+    assert_eq!(name.stdout, "Sandbox Only");
+    // Only sandbox files may be a source of configuration values. Git may quote and
+    // double backslashes in Windows paths, so compare on a normalised form.
+    let normalise = |text: &str| text.replace("\\\\", "/").replace('\\', "/");
+    let root = normalise(sandbox.dir.path().to_str().unwrap());
+    let sources = sandbox.git(&sandbox.work(), &["config", "--list", "--show-origin"]);
+    assert!(sources.stdout.contains("Sandbox Only"));
+    for line in sources.stdout.lines() {
+        let origin = normalise(line.split('\t').next().unwrap());
+        assert!(
+            origin.contains(&root),
+            "a configuration value came from outside the sandbox: {line}"
+        );
+    }
+}
+
 #[test]
 fn validates_names_at_the_native_boundary() {
     for value in ["a", "Repo_2.0", "my-project", "com10", &"x".repeat(100)] {
@@ -370,7 +469,11 @@ impl Runner for FakeGithub {
         } else {
             (true, String::new())
         };
-        Ok(Output { success, stdout })
+        Ok(Output {
+            success,
+            stdout,
+            code: Some(i32::from(!success)),
+        })
     }
 }
 
@@ -552,6 +655,7 @@ fn missing_git_or_identity_is_reported_before_creating_a_folder() {
                 success: values == args(&["--version"])
                     || values.starts_with(&args(&["check-ref-format"])),
                 stdout: "git version".into(),
+                code: None,
             })
         }
     }
@@ -634,12 +738,14 @@ fn github_initial_commit_uses_verified_noreply_address_without_global_changes() 
                 return Ok(Output {
                     success: true,
                     stdout: r#"{"login":"octocat","id":123}"#.into(),
+                    code: Some(0),
                 });
             }
             if values == args(&["config", "--get", "user.email"]) {
                 return Ok(Output {
                     success: true,
                     stdout: "private@example.invalid".into(),
+                    code: Some(0),
                 });
             }
             let mut prefixed = args(&["-c", "user.name=Repo Creator Test"]);
