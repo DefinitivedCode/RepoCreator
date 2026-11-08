@@ -7,6 +7,7 @@ import { FocusedFilePreview } from './FocusedFilePreview';
 import { GeneratedFilesDialog } from './GeneratedFilesDialog';
 import { AgentStudio, type AgentSection } from './AgentStudio';
 import { HandoffPanel } from './HandoffPanel';
+import { WorkspaceDialog } from './WorkspaceDialog';
 import { Projects } from './ProjectWorkspace';
 import type { ProjectCommand } from './workspaceTypes';
 import { technologySummary } from './technologies';
@@ -48,6 +49,8 @@ export default function App() {
   const [presetId, setPresetId] = useState('');
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [handoffOpen, setHandoffOpen] = useState(false);
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ configuration: Configuration; id: string } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -629,10 +632,24 @@ export default function App() {
                     presetDescription={preset?.description}
                     fileSection={fileSection}
                     onPreview={setPreviewPath}
+                    onHandoff={() => setHandoffOpen(true)}
                   />
                 </aside>
               )}
             </div>
+            {drawerOpen && (
+              <section className="result-drawer" id="result-drawer" aria-label="Result preview">
+                <Context
+                  creator={creator}
+                  section={section}
+                  presetName={presetName}
+                  presetDescription={preset?.description}
+                  fileSection={fileSection}
+                  onPreview={setPreviewPath}
+                  onHandoff={() => setHandoffOpen(true)}
+                />
+              </section>
+            )}
             <footer className="action-bar creation-status-bar">
               <button
                 type="button"
@@ -660,6 +677,15 @@ export default function App() {
                 {form.destination === 'github'
                   ? `${form.visibility === 'private' ? 'Private' : 'Public'} GitHub repository`
                   : 'On this computer'}
+                <button
+                  type="button"
+                  className="text-button preview-drawer-trigger"
+                  aria-expanded={drawerOpen}
+                  aria-controls="result-drawer"
+                  onClick={() => setDrawerOpen(!drawerOpen)}
+                >
+                  Preview files ({creator.files.length})
+                </button>
               </div>
               <p
                 id="creation-reason"
@@ -705,6 +731,18 @@ export default function App() {
             }}
             onApply={apply}
           />
+        )}
+        {handoffOpen && form && preferences && (
+          <WorkspaceDialog title="Handoff prompt" onClose={() => setHandoffOpen(false)}>
+            <HandoffPanel
+              form={form}
+              files={creator.files}
+              parentPath={preferences.parentPath}
+              presetName={presetName}
+              copy={creator.copy}
+              simple={simple}
+            />
+          </WorkspaceDialog>
         )}
         {previewPath && form && (
           <GeneratedFilesDialog
