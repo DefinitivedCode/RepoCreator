@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { applyAppearance, normalizeHex } from './appearance';
+import { deriveBlockers, isSetupBlocker } from './blockers';
 import {
   appError,
   blankForm,
@@ -25,6 +26,7 @@ import type {
   Environment,
   ExperienceMode,
   GeneratedFile,
+  GlobalIdentityResult,
   Preferences,
   ProjectPreset,
   RepositoryForm,
@@ -260,6 +262,25 @@ export function useCreator() {
       setNotice(appError(value).message);
     }
   }
+  /** Saves the identity applied (locally) to new Repo Creator projects. Global Git is untouched. */
+  async function saveIdentity(identity: { name: string; email: string } | null) {
+    const updated = await invoke<Preferences>('set_identity_override', {
+      name: identity?.name ?? null,
+      email: identity?.email ?? null,
+    });
+    setPreferences(updated);
+    return updated;
+  }
+  /** The only call that writes global Git config; the caller must be an explicit, confirmed click. */
+  async function saveGlobalIdentity(name: string, email: string) {
+    const result = await invoke<GlobalIdentityResult>('set_git_identity_global', {
+      name,
+      email,
+      confirm: true,
+    });
+    void refresh(form?.destination === 'github');
+    return result;
+  }
   async function experienceMode(mode: ExperienceMode) {
     setPreferences((preferences) =>
       preferences ? { ...preferences, experienceMode: mode } : preferences,
@@ -270,21 +291,22 @@ export function useCreator() {
       setNotice(appError(value).message);
     }
   }
-  const setupReady =
-    !!environment?.gitInstalled &&
-    (environment.identityReady ||
-      !!(form?.options.commitAuthorName?.trim() && form.options.commitAuthorEmail?.trim())) &&
-    (form?.destination !== 'github' || (!!environment.ghInstalled && !!environment.githubUser));
-  const ready =
-    !!form &&
-    !formError(form) &&
-    !previewError &&
-    !previewing &&
-    !!preferences?.parentPath &&
-    setupReady &&
-    !checking &&
-    !picking &&
-    !busy;
+  // Why creation is not possible yet, most important first. Empty means ready.
+  const blockers = deriveBlockers({
+    environment,
+    checking,
+    picking,
+    previewing,
+    destination: form?.destination ?? 'local',
+    hasLocation: !!preferences?.parentPath,
+    formMessage: (form && formError(form)) || previewError,
+    projectIdentity: !!(
+      form?.options.commitAuthorName?.trim() && form.options.commitAuthorEmail?.trim()
+    ),
+    savedIdentity: preferences?.identityOverride,
+  });
+  const setupReady = !!environment && !blockers.some(isSetupBlocker);
+  const ready = !!form && blockers.length === 0 && !busy;
   async function execute(retry = false, presetName = '') {
     if (locked.current || (!retry && !ready)) return;
     locked.current = true;
@@ -396,7 +418,10 @@ export function useCreator() {
     previewing,
     busy,
     ready,
+    blockers,
     setupReady,
+    saveIdentity,
+    saveGlobalIdentity,
     update,
     configure,
     destination,

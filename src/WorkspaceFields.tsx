@@ -523,11 +523,13 @@ export function SetupPanel({
   onReturn,
   updates,
   updateRequest,
+  initialTab,
 }: {
   creator: Creator;
   onReturn: () => void;
   updates: Updates;
   updateRequest: number;
+  initialTab?: 'git' | 'github';
 }) {
   const env: Environment = creator.environment ?? {
     gitInstalled: false,
@@ -540,7 +542,7 @@ export function SetupPanel({
   };
   const form = creator.form!;
   const [tab, setTab] = useState<'git' | 'github' | 'tools' | 'appearance' | 'updates'>(
-    updateRequest ? 'updates' : 'git',
+    updateRequest ? 'updates' : (initialTab ?? 'git'),
   );
   useEffect(() => {
     if (updateRequest) setTab('updates');

@@ -13,7 +13,8 @@ import { RepositoryState } from './RepositoryState';
 import { Overview, ProjectSummary, SetupPanel, Context } from './WorkspaceFields';
 import { useCreator } from './useCreator';
 import { useUpdates } from './useUpdates';
-import { configurationOf, formError } from './validation';
+import { configurationOf } from './validation';
+import { isSetupBlocker, summarizeBlockers, type FixTarget } from './blockers';
 import type { Configuration, Readme } from './types';
 import { normalizeProjectName } from './projectName';
 
@@ -35,6 +36,7 @@ export default function App() {
   const [updateRequest, setUpdateRequest] = useState(0);
   const [section, setSection] = useState<Section>('overview');
   const [page, setPage] = useState<'new' | 'projects' | 'presets' | 'settings'>('new');
+  const [settingsTab, setSettingsTab] = useState<'git' | 'github'>();
   const [selectedProjectId, setSelectedProjectId] = useState<string>();
   const [presetOverride, setPresetOverride] = useState<Configuration>();
   const [fileSection, setFileSection] = useState<FileSection | 'ignore'>('readme');
@@ -51,18 +53,22 @@ export default function App() {
   const allPresets = [...(catalog?.builtInPresets ?? []), ...(preferences?.customPresets ?? [])];
   const preset = allPresets.find((p) => p.id === presetId);
   const presetName = preset?.name ?? 'Last used settings';
-  const blocking =
-    (form && formError(form)) ||
-    creator.previewError ||
-    (!preferences?.parentPath
-      ? 'Choose a save location.'
-      : !creator.setupReady
-        ? 'Complete the required setup.'
-        : creator.previewing
-          ? 'Updating generated files…'
-          : creator.picking
-            ? 'Finish the open dialog.'
-            : '');
+  const requiredBlockers = creator.blockers.filter((blocker) => blocker.required);
+  const summary = summarizeBlockers(creator.blockers);
+  const firstSetupBlocker = requiredBlockers.find(isSetupBlocker);
+  // An inline fix is shown only when one thing needs doing; several get a list.
+  const inlineFix = requiredBlockers.length <= 1 ? summary.first?.fix : undefined;
+  function openSettings(tab?: 'git' | 'github') {
+    setSettingsTab(tab);
+    setPage('settings');
+  }
+  function runFix(target: FixTarget) {
+    if (target === 'settings-git') openSettings('git');
+    else if (target === 'settings-github') openSettings('github');
+    else if (target === 'choose-location') void creator.chooseFolder();
+    else if (target === 'switch-local') void creator.destination('local');
+    else void creator.refresh(form?.destination === 'github');
+  }
   function navigate(next: Section) {
     if (next === 'setup') {
       setPage('settings');
@@ -111,6 +117,7 @@ export default function App() {
                   creator.reset();
                   navigate('overview');
                 }
+                setSettingsTab(undefined);
                 setPage(id);
               }}
             >
@@ -248,7 +255,7 @@ export default function App() {
                   ? 'Checking setup…'
                   : creator.setupReady
                     ? 'Git ready'
-                    : 'Setup required'}
+                    : 'Setup incomplete'}
               </p>
             </div>
           </div>
@@ -267,6 +274,7 @@ export default function App() {
             creator={creator}
             updates={updates}
             updateRequest={updateRequest}
+            initialTab={settingsTab}
             onReturn={() => {
               setPage('new');
               navigate('overview');
@@ -356,6 +364,40 @@ export default function App() {
                   </div>
                 )}
               </div>
+              {requiredBlockers.length > 1 && (
+                <div
+                  className="error-banner blocker-list"
+                  role="group"
+                  aria-label="To create this project"
+                >
+                  <strong>{requiredBlockers.length} things to fix</strong>
+                  <ul>
+                    {requiredBlockers.map((blocker) => (
+                      <li key={blocker.id}>
+                        <span>{blocker.title}</span>{' '}
+                        {blocker.fix && (
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() => runFix(blocker.fix!.target)}
+                          >
+                            {blocker.fix.label}
+                          </button>
+                        )}
+                        {blocker.alternative && (
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() => runFix(blocker.alternative!.target)}
+                          >
+                            {blocker.alternative.label}
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <fieldset disabled={creator.picking || creator.busy} className="workspace-fields">
                 {section === 'overview' && (
                   <>
@@ -491,9 +533,9 @@ export default function App() {
                         expanded
                       />
                     </div>
-                    {!creator.setupReady && (
-                      <button type="button" onClick={() => navigate('setup')}>
-                        Complete required setup
+                    {firstSetupBlocker?.fix && (
+                      <button type="button" onClick={() => runFix(firstSetupBlocker.fix!.target)}>
+                        {firstSetupBlocker.title}
                       </button>
                     )}
                   </>
@@ -549,7 +591,7 @@ export default function App() {
               className="creation-git-status git-readiness"
               data-ready={!creator.checking && creator.setupReady}
               title="Open setup settings"
-              onClick={() => setPage('settings')}
+              onClick={() => openSettings()}
             >
               <span className="status-dot" aria-hidden="true" />
               <span>
@@ -557,7 +599,7 @@ export default function App() {
                   ? 'Checking setup…'
                   : creator.setupReady
                     ? 'Git ready'
-                    : 'Setup required'}
+                    : 'Setup incomplete'}
               </span>
             </button>
             <div className="footer-summary">
@@ -571,10 +613,31 @@ export default function App() {
                 ? `${form.visibility === 'private' ? 'Private' : 'Public'} GitHub repository`
                 : 'On this computer'}
             </div>
-            <p className={`creation-validation ${blocking ? 'help' : 'ready-text'}`} role="status">
-              {blocking || 'Ready to create'}
+            <p
+              id="creation-reason"
+              className={`creation-validation ${summary.text ? 'help' : 'ready-text'}`}
+              role="status"
+            >
+              {summary.text || 'Ready to create'}
+              {inlineFix && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => runFix(inlineFix.target)}
+                  >
+                    {inlineFix.label}
+                  </button>
+                </>
+              )}
             </p>
-            <button type="submit" className="primary create-button" disabled={!creator.ready}>
+            <button
+              type="submit"
+              className="primary create-button"
+              disabled={!creator.ready}
+              aria-describedby="creation-reason"
+            >
               {section === 'review' ? 'Create Project' : 'Review project'}
               <Icon name="arrow" size={14} />
             </button>
