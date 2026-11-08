@@ -169,21 +169,29 @@ export async function prepare(
   });
   await page.goto('/');
   if (expectReady) {
+    const ready = page.getByText('Git ready', { exact: true });
     try {
-      // Startup runs the mocked environment check; a loaded CI runner can take longer than
-      // the 5s default, so allow it generously (a real failure still fails, just later).
-      await expect(page.getByText('Git ready', { exact: true })).toBeVisible({ timeout: 20_000 });
-    } catch (error) {
-      const state = await page.evaluate(() => ({
-        readyState: document.readyState,
-        isTauri: (window as any).isTauri,
-        hasIpc: typeof (window as any).__TAURI_INTERNALS__?.invoke === 'function',
-        calls: ((window as any).testCalls ?? []).map((call: any) => call.command),
-        gitStatus: document.querySelector('.creation-git-status')?.textContent,
-        status: [...document.querySelectorAll('[role="status"]')].map((el) => el.textContent),
-      }));
-      console.error('Browser bootstrap did not settle:', JSON.stringify(state));
-      throw error;
+      await expect(ready).toBeVisible({ timeout: 10_000 });
+    } catch {
+      // A loaded CI runner can be slow, and the Vite dev server can occasionally leave a
+      // first page load without its modules (the app then makes no IPC call at all).
+      // Reload once in that case; a genuinely broken app still fails below.
+      const started = await page.evaluate(() => ((window as any).testCalls ?? []).length > 0);
+      if (!started) await page.reload();
+      try {
+        await expect(ready).toBeVisible({ timeout: 20_000 });
+      } catch (error) {
+        const state = await page.evaluate(() => ({
+          readyState: document.readyState,
+          isTauri: (window as any).isTauri,
+          hasIpc: typeof (window as any).__TAURI_INTERNALS__?.invoke === 'function',
+          calls: ((window as any).testCalls ?? []).map((call: any) => call.command),
+          gitStatus: document.querySelector('.creation-git-status')?.textContent,
+          status: [...document.querySelectorAll('[role="status"]')].map((el) => el.textContent),
+        }));
+        console.error('Browser bootstrap did not settle:', JSON.stringify(state));
+        throw error;
+      }
     }
   }
 }
@@ -232,4 +240,11 @@ export async function agentTab(page: Page, name: string) {
 export async function createProject(page: Page) {
   await navigate(page, 'Review');
   await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  // Publishing to GitHub asks for confirmation first; a local project never does.
+  const confirm = page.getByRole('button', { name: 'Create on GitHub', exact: true });
+  await confirm
+    .or(page.getByRole('heading', { name: 'Creating repository' }))
+    .first()
+    .waitFor();
+  if (await confirm.isVisible()) await confirm.click();
 }

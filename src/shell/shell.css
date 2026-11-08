@@ -170,6 +170,36 @@
     display: none;
   }
 }
+.blocker-popover {
+  position: relative;
+  align-self: flex-end;
+  width: min(420px, calc(100% - 2 * var(--space-4)));
+  margin: 0 var(--space-4) var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  z-index: var(--z-popover);
+}
+.blocker-popover h3 {
+  margin: 0 0 var(--space-2);
+  font: 600 var(--fs-body) / var(--lh-body) var(--font-ui);
+}
+.blocker-popover ul {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-4);
+  font-size: var(--fs-secondary);
+}
+.confirm-details {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+.confirm-details dd {
+  margin: 0;
+}
 .mode-switch-row {
   display: flex;
   justify-content: flex-end;

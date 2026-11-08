@@ -8,6 +8,7 @@ import { GeneratedFilesDialog } from './GeneratedFilesDialog';
 import { AgentStudio, type AgentSection } from './AgentStudio';
 import { HandoffPanel } from './HandoffPanel';
 import { WorkspaceDialog } from './WorkspaceDialog';
+import { BlockerPopover, ConfirmPublish } from './create/CreateFlow';
 import { Projects } from './ProjectWorkspace';
 import type { ProjectCommand } from './workspaceTypes';
 import { technologySummary } from './technologies';
@@ -51,6 +52,9 @@ export default function App() {
   const [contextOpen, setContextOpen] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
+  const [blockersOpen, setBlockersOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const createButton = useRef<HTMLButtonElement>(null);
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ configuration: Configuration; id: string } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -335,7 +339,13 @@ export default function App() {
             className="workspace-form"
             onSubmit={(e) => {
               e.preventDefault();
+              // The Create button stays focusable when unavailable; it explains instead.
+              if (!creator.ready) {
+                setBlockersOpen(true);
+                return;
+              }
               if (section !== 'review') navigate('review');
+              else if (form.destination === 'github') setConfirmOpen(true);
               else void creator.execute(false, presetName);
             }}
           >
@@ -650,6 +660,29 @@ export default function App() {
                 />
               </section>
             )}
+            {blockersOpen && !creator.ready && (
+              <BlockerPopover
+                blockers={requiredBlockers.length ? requiredBlockers : creator.blockers}
+                onFix={(fix) => runFix(fix.target)}
+                onClose={() => {
+                  setBlockersOpen(false);
+                  createButton.current?.focus();
+                }}
+              />
+            )}
+            {confirmOpen && (
+              <ConfirmPublish
+                owner={form.githubOwner || creator.environment?.githubUser || ''}
+                name={normalizeProjectName(form.name)}
+                visibility={form.visibility}
+                branch={form.options.initialBranch}
+                onCancel={() => setConfirmOpen(false)}
+                onConfirm={() => {
+                  setConfirmOpen(false);
+                  void creator.execute(false, presetName);
+                }}
+              />
+            )}
             <footer className="action-bar creation-status-bar">
               <button
                 type="button"
@@ -708,8 +741,9 @@ export default function App() {
               </p>
               <button
                 type="submit"
+                ref={createButton}
                 className="primary create-button"
-                disabled={!creator.ready}
+                aria-disabled={!creator.ready || undefined}
                 aria-describedby="creation-reason"
               >
                 {section === 'review' ? 'Create Project' : 'Review project'}
