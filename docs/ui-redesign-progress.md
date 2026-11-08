@@ -4,17 +4,17 @@ Resumable log for the autonomous redesign run ([prompt](ui-redesign-autonomous-p
 
 ## Stack
 
-| Phase                          | Branch                                                                                                                                      | Base                    | PR                                                            | Status                      |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------- | --------------------------- |
-| 1 Setup correctness            | `fix/setup-correctness` (kept; the prompt's suggested `redesign/phase-1-setup-correctness` was not used because work was already open here) | `main`                  | [#21](https://github.com/DefinitivedCode/RepoCreator/pull/21) | Verified, PR open, unmerged |
-| 0 Baseline                     | `redesign/phase-0-baseline`                                                                                                                 | `fix/setup-correctness` | [#22](https://github.com/DefinitivedCode/RepoCreator/pull/22) | Verified, PR open, unmerged |
-| 2 Tokens and primitives        | `redesign/phase-2-tokens`                                                                                                                   | phase 0                 | —                                                             | Not started                 |
-| 3 Shell and navigation         | `redesign/phase-3-shell`                                                                                                                    | phase 2                 | —                                                             | Not started                 |
-| 4 Onboarding                   | `redesign/phase-4-onboarding`                                                                                                               | phase 3                 | —                                                             | Not started                 |
-| 5 New Project                  | `redesign/phase-5-new-project`                                                                                                              | phase 4                 | —                                                             | Not started                 |
-| 6 Projects, workspace, presets | `redesign/phase-6-workspace`                                                                                                                | phase 5                 | —                                                             | Not started                 |
-| 7 Settings and polish          | `redesign/phase-7-settings`                                                                                                                 | phase 6                 | —                                                             | Not started                 |
-| 8 Accessibility                | `redesign/phase-8-accessibility`                                                                                                            | phase 7                 | —                                                             | Not started                 |
+| Phase                          | Branch                                                                                                                                      | Base                        | PR                                                            | Status                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------- | --------------------------- |
+| 1 Setup correctness            | `fix/setup-correctness` (kept; the prompt's suggested `redesign/phase-1-setup-correctness` was not used because work was already open here) | `main`                      | [#21](https://github.com/DefinitivedCode/RepoCreator/pull/21) | Verified, PR open, unmerged |
+| 0 Baseline                     | `redesign/phase-0-baseline`                                                                                                                 | `fix/setup-correctness`     | [#22](https://github.com/DefinitivedCode/RepoCreator/pull/22) | Verified, PR open, unmerged |
+| 2 Tokens and primitives        | `redesign/phase-2-tokens`                                                                                                                   | `redesign/phase-0-baseline` | [#23](https://github.com/DefinitivedCode/RepoCreator/pull/23) | Verified, PR open, unmerged |
+| 3 Shell and navigation         | `redesign/phase-3-shell`                                                                                                                    | phase 2                     | —                                                             | Not started                 |
+| 4 Onboarding                   | `redesign/phase-4-onboarding`                                                                                                               | phase 3                     | —                                                             | Not started                 |
+| 5 New Project                  | `redesign/phase-5-new-project`                                                                                                              | phase 4                     | —                                                             | Not started                 |
+| 6 Projects, workspace, presets | `redesign/phase-6-workspace`                                                                                                                | phase 5                     | —                                                             | Not started                 |
+| 7 Settings and polish          | `redesign/phase-7-settings`                                                                                                                 | phase 6                     | —                                                             | Not started                 |
+| 8 Accessibility                | `redesign/phase-8-accessibility`                                                                                                            | phase 7                     | —                                                             | Not started                 |
 
 ## Phase 1 — verification (Windows 11 only)
 
@@ -46,10 +46,18 @@ All seven work items, tests and docs are implemented. Deliberate additions and d
 
 `check` pass; `format:check` pass; `npm test` 302 passed; `npm run test:ui` 144 passed, 2 skipped (the opt-in baseline spec); `cargo fmt`/`clippy -D warnings` pass; `cargo test --locked` 147 passed. Added `tests/baseline.spec.ts` (172 screenshots captured, gaps in [redesign-baseline.md](redesign-baseline.md)), `scripts/audit-styles.mjs` (+ node tests), `npm run lint:styles` (report-only) and `audit:styles`, and the baseline doc. No product change. Axe is not a dependency; recorded as a gap, not added.
 
+## Phase 2 — verification (Windows 11 only)
+
+`check` (tsc + gated style lint) pass; `format:check` pass; `npm test` 323 passed (new `tokens.test.ts`: 6 accents plus awkward custom colours × 2 themes); `npm run test:ui` 166 passed, 2 skipped (opt-in baseline); node tests for the audit script 3 passed; `cargo fmt`/`clippy -D warnings` pass; `cargo test --locked` 147 passed. New `tests/ui-kit.spec.ts`: 22 passed (both themes).
+
+No-regression evidence: the baseline was recaptured on this branch (`REPO_CREATOR_BASELINE_DIR=artifacts/redesign-phase2`) and all 172 PNGs are byte-identical to Phase 0. Kitchen sink: tree-shaken from the production build (no matching strings in `dist/`); reachable only in `npm run dev` at `/?kitchen-sink`.
+
+Decisions: tokens.css does not redefine variable names the old styles use (`--surface`, `--text`, `--background`, `--primary`, `--radius`, `--motion`), so no alias layer was needed and nothing changed visually; those take new values during migration (Phases 3–7). `--motion` (160ms) already existed and is reused. Primitives were not wired into existing screens (Phase 3 does that), and no component-test library was added (Playwright against the kitchen sink instead).
+
 ## Blockers
 
 None open.
 
 ## Next step
 
-Phase 2: create `redesign/phase-2-tokens` from `redesign/phase-0-baseline`.
+Phase 3: create `redesign/phase-3-shell` from `redesign/phase-2-tokens`.

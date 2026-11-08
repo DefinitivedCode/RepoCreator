@@ -28,7 +28,12 @@ export function pixels(value) {
   return match[2] === 'rem' || match[2] === 'em' ? number * 16 : number;
 }
 
+/** Files held to the design-token rules today: new primitives and the tokens themselves. */
+export const gated = (relative) => /^src\/(ui\/|tokens\.css$)/.test(relative);
+const TOKEN_RADII = new Set([6, 8, 999]);
+
 export function audit(files = walk(root)) {
+  const gateViolations = [];
   const fontSizes = new Map();
   const radii = new Map();
   const colours = new Map();
@@ -49,17 +54,28 @@ export function audit(files = walk(root)) {
           tally(fontSizes, key);
           if (px !== null && px < 12) {
             small.push(`${relative}:${index + 1}`);
-            violations.push(`${relative}:${index + 1} font-size ${key} is below 12px`);
+            const message = `${relative}:${index + 1} font-size ${key} is below 12px`;
+            violations.push(message);
+            if (gated(relative)) gateViolations.push(message);
           }
         }
         for (const [, value] of line.matchAll(/(?<![\w-])border-radius\s*:\s*([^;}]+)/g)) {
           for (const part of value.trim().split(/\s+/)) {
             const px = pixels(part);
             if (px !== null) tally(radii, `${px}px`);
+            if (gated(relative) && px !== null && px !== 0 && !TOKEN_RADII.has(px))
+              gateViolations.push(
+                `${relative}:${index + 1} border-radius ${px}px is outside 6/8/999`,
+              );
           }
         }
-        for (const [colour] of line.matchAll(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)/g))
+        for (const [colour] of line.matchAll(
+          /#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)/g,
+        )) {
           tally(colours, colour.toLowerCase().replaceAll(/\s+/g, ''));
+          if (gated(relative) && !relative.endsWith('tokens.css'))
+            gateViolations.push(`${relative}:${index + 1} raw colour ${colour} outside tokens.css`);
+        }
       });
     } else {
       ariaPressed += (text.match(/aria-pressed/g) ?? []).length;
@@ -80,6 +96,7 @@ export function audit(files = walk(root)) {
     roleTab,
     pressedStyleNavigationGroups: pressedNavigation,
     violations,
+    gateViolations,
   };
 }
 
@@ -87,10 +104,17 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const result = audit();
   if (process.argv.includes('--json')) console.log(JSON.stringify(result, null, 2));
   else if (process.argv.includes('--lint')) {
-    for (const line of result.violations) console.log(line);
+    if (process.argv.includes('--verbose')) for (const line of result.violations) console.log(line);
     console.log(
-      `\n${result.violations.length} style violation(s) (report-only: this check does not fail the build yet).`,
+      `\n${result.violations.length} style violation(s) across src/ (report-only outside the gated files).`,
     );
+    if (result.gateViolations.length) {
+      console.error(
+        `\n${result.gateViolations.length} violation(s) in gated files (src/ui, tokens.css):`,
+      );
+      for (const line of result.gateViolations) console.error(`  ${line}`);
+      process.exitCode = 1;
+    } else console.log('Gated files (src/ui, tokens.css): clean.');
   } else {
     console.log(`Scanned ${result.files} source files under src/`);
     console.log(`Distinct font sizes: ${result.distinctFontSizes}`);
