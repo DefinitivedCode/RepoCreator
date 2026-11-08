@@ -10,19 +10,19 @@ export async function configureNativeStudio({ page, invoke, verifyOverview }) {
   await page.getByRole('textbox', { name: 'Description', exact: false }).fill(description);
   await verifyOverview?.('advanced');
   const nav = page.getByRole('navigation', { name: 'Project setup' });
-  const fileTabs = page.getByRole('group', { name: 'Project file settings' });
+  const fileTabs = page.getByRole('tablist', { name: 'Project file settings' });
   await nav.getByRole('button', { name: 'Project Files', exact: true }).click();
   await page.getByRole('combobox', { name: /^README/ }).selectOption('custom');
   await page
     .getByLabel('Overview content', { exact: true })
     .fill('Keep the native contracts intact.');
-  await fileTabs.getByRole('button', { name: 'License', exact: true }).click();
+  await fileTabs.getByRole('tab', { name: 'License', exact: true }).click();
   await page.getByLabel('License type', { exact: true }).selectOption('MIT');
   await page.getByLabel('Copyright holder', { exact: true }).fill('Native Smoke Author');
-  await fileTabs.getByRole('button', { name: 'Git Settings', exact: true }).click();
+  await fileTabs.getByRole('tab', { name: 'Git Settings', exact: true }).click();
   await page.getByLabel('Initial branch', { exact: true }).fill('work/start');
   await page.getByLabel('Initial commit message', { exact: true }).fill('Start verified workspace');
-  await fileTabs.getByRole('button', { name: 'Gitignore', exact: true }).click();
+  await fileTabs.getByRole('tab', { name: 'Gitignore', exact: true }).click();
   for (const pattern of ['scratch/*', '!scratch/keep.txt', 'AGENTS.md']) {
     await page.getByLabel('Custom patterns', { exact: true }).fill(pattern);
     await page.getByRole('button', { name: 'Add', exact: true }).click();
@@ -33,8 +33,8 @@ export async function configureNativeStudio({ page, invoke, verifyOverview }) {
   const assistants = catalog.agents.map((agent) => agent.name);
   assert.equal(assistants.length, 6);
   for (const name of assistants) await page.getByRole('checkbox', { name, exact: true }).check();
-  const tabs = page.getByRole('group', { name: 'AI agent settings' });
-  await tabs.getByRole('button', { name: 'Instructions', exact: true }).click();
+  const tabs = page.getByRole('tablist', { name: 'AI agent settings' });
+  await tabs.getByRole('tab', { name: 'Instructions', exact: true }).click();
   await page.getByLabel('Instruction preset', { exact: true }).selectOption('autonomous');
   const custom = 'Preserve café and 日本語 🦀.\n<script>window.injected = true</script>\n';
   await page.getByLabel('Additional project instructions', { exact: false }).fill(custom);
@@ -43,12 +43,12 @@ export async function configureNativeStudio({ page, invoke, verifyOverview }) {
   await expect
     .poll(async () => (await invoke('get_preferences')).instructionPresets.length)
     .toBe(1);
-  await tabs.getByRole('button', { name: 'Specialists & Skills', exact: true }).click();
+  await tabs.getByRole('tab', { name: 'Specialists & Skills', exact: true }).click();
   await page.locator('.specialist-panel > summary').click();
   for (const { name } of [...catalog.specialists, ...catalog.skills]) {
     await page.getByRole('checkbox', { name, exact: true }).check();
   }
-  await tabs.getByRole('button', { name: 'Advanced', exact: true }).click();
+  await tabs.getByRole('tab', { name: 'Advanced', exact: true }).click();
   await page.locator('.studio-advanced > summary').click();
   await page
     .getByLabel('Intended stack', { exact: true })
@@ -74,7 +74,7 @@ export async function configureNativeStudio({ page, invoke, verifyOverview }) {
   );
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();
   await nav.getByRole('button', { name: 'AI Agents', exact: true }).click();
-  await tabs.getByRole('button', { name: 'Assistants', exact: true }).click();
+  await tabs.getByRole('tab', { name: 'Assistants', exact: true }).click();
   for (const name of assistants)
     await expect(page.getByRole('checkbox', { name, exact: true })).toBeChecked();
   await expect

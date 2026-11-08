@@ -1,0 +1,131 @@
+/* Application shell: sidebar, content region, skip link. Uses tokens.css. */
+.app.desktop-app {
+  flex-direction: row;
+}
+.app-sidebar {
+  display: flex;
+  flex: 0 0 200px;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 200px;
+  min-height: 0;
+  padding: var(--space-4) var(--space-3);
+  border-right: 1px solid var(--separator);
+  background: var(--secondary);
+  overflow-y: auto;
+}
+.app-sidebar .app-title {
+  padding: 0 var(--space-2);
+}
+.sidebar-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 0;
+}
+.sidebar-spacer {
+  flex: 1;
+}
+.sidebar-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-secondary);
+  font-weight: 500;
+  text-align: left;
+}
+.sidebar-item:hover:not(:disabled) {
+  background: var(--hover);
+}
+.sidebar-item[aria-current='page'] {
+  background: var(--selected-background);
+  color: var(--selected-text);
+  font-weight: 600;
+  box-shadow: inset 3px 0 var(--accent);
+}
+.sidebar-item[data-primary]:not([aria-current='page']) {
+  color: var(--accent-text);
+}
+.sidebar-dot {
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-radius: var(--radius-pill);
+  background: var(--warning);
+}
+.app-content {
+  /* Width rules in the other stylesheets are container queries on this region, so a
+     screen sees the width it has beside the sidebar rather than the window's. */
+  container: app / inline-size;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.app-content:focus {
+  outline: none;
+}
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--z-toast);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--accent-text);
+  transform: translateY(-200%);
+}
+.skip-link:focus {
+  transform: none;
+}
+.mode-switch-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .app-sidebar {
+    flex-basis: 52px;
+    width: 52px;
+    padding: var(--space-3) var(--space-1);
+    align-items: center;
+  }
+  .app-sidebar .app-title {
+    padding: 0;
+  }
+  .app-sidebar .sidebar-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .sidebar-nav {
+    align-items: stretch;
+  }
+  .sidebar-item {
+    justify-content: center;
+    padding: 0;
+    width: 40px;
+  }
+  .sidebar-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    margin: 0;
+  }
+}

@@ -30,8 +30,8 @@ const invoke = (command, args = {}) =>
 const navigation = () => page.getByRole('navigation', { name: 'Main navigation' });
 const section = (name) =>
   page
-    .getByRole('group', { name: 'Project workspace sections' })
-    .getByRole('button', { name, exact: true })
+    .getByRole('tablist', { name: 'Project workspace sections' })
+    .getByRole('tab', { name, exact: true })
     .click();
 async function capture(name) {
   const dialog = page.getByRole('dialog', { name: 'Detected technologies', exact: true });
@@ -145,7 +145,7 @@ try {
   // the manifest's actual native version rather than a stale hardcoded label.
   const expectedVersion = before ? '1.5.1' : applicationVersion;
   assert.equal((await invoke('get_update_info')).currentVersion, expectedVersion);
-  await expect(page.locator('.app-header .version')).toHaveText(expectedVersion);
+  await expect(page.locator('.app-sidebar .version')).toHaveText(expectedVersion);
   assert.equal((await invoke('get_preferences')).accent, 'teal');
   const project = await invoke('add_existing_project', { path: projectPath });
   assert.deepEqual(project.technologies.ids, []);

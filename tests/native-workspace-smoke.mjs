@@ -161,9 +161,9 @@ try {
   await page
     .getByRole('textbox', { name: 'Project name', exact: true })
     .waitFor({ timeout: 30000 });
-  await expect(page.locator('.app-header').getByRole('combobox')).toHaveCount(0);
+  await expect(page.locator('.app-sidebar').getByRole('combobox')).toHaveCount(0);
   assert.equal((await invoke('get_update_info')).currentVersion, applicationVersion);
-  await expect(page.locator('.app-header .version')).toHaveText(applicationVersion);
+  await expect(page.locator('.app-sidebar .version')).toHaveText(applicationVersion);
   const freshPreferences = await invoke('get_preferences');
   assert.equal(freshPreferences.accent, 'teal');
   assert.equal(freshPreferences.customAccent, '#4FA69B');

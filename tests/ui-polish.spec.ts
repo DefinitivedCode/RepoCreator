@@ -143,6 +143,8 @@ test('disclosures, enlarged previews and accents remain accessible at desktop wi
   );
   await summary.press('Enter');
 
+  // The context panel needs room beside the sidebar; it appears from 1250px up.
+  await page.setViewportSize({ width: 1440, height: 900 });
   const context = page.getByRole('complementary', { name: 'Project context' });
   await context.getByRole('button', { name: '.gitignore', exact: true }).click();
   const raw = await context.getByLabel('.gitignore preview', { exact: true }).textContent();

@@ -407,8 +407,8 @@ async function openWorkspace(page: Page) {
 }
 async function section(page: Page, name: string) {
   await page
-    .getByRole('group', { name: 'Project workspace sections' })
-    .getByRole('button', { name, exact: true })
+    .getByRole('tablist', { name: 'Project workspace sections' })
+    .getByRole('tab', { name, exact: true })
     .click();
 }
 
@@ -1461,13 +1461,13 @@ test('readiness inspects automatically, separates states and copies suggested fi
   await workspaceFixture(page);
   await openWorkspace(page);
   const tab = page
-    .getByRole('group', { name: 'Project workspace sections' })
-    .getByRole('button', { name: 'Readiness, 2 need attention', exact: true });
+    .getByRole('tablist', { name: 'Project workspace sections' })
+    .getByRole('tab', { name: 'Readiness, 2 need attention', exact: true });
   await expect(tab).toBeVisible();
   expect(await calls(page, 'get_project_readiness')).toHaveLength(1);
   await tab.focus();
   await page.keyboard.press('Enter');
-  await expect(tab).toHaveAttribute('aria-pressed', 'true');
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
   const view = page.locator('.rc-readiness');
   await expect(view.getByRole('heading', { name: 'Project readiness' })).toBeVisible();
   await expect(view.getByRole('status').first()).toContainText('2 need attention');

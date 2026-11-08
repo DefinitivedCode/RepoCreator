@@ -65,7 +65,7 @@ test('System follows OS appearance changes while explicit themes stay fixed and 
   page,
 }) => {
   await prepare(page, false, 'simple');
-  const header = page.locator('.app-header');
+  const header = page.locator('.app-sidebar');
   await expect(header.getByRole('combobox')).toHaveCount(0);
   await expect(header.getByRole('radio')).toHaveCount(0);
   const panel = await openAppearance(page);

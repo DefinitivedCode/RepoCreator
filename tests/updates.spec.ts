@@ -11,7 +11,7 @@ test('both version displays follow the native version, including future releases
 }) => {
   await page.addInitScript('window.testCurrentVersion="9.8.7-beta.2";');
   await prepare(page);
-  await expect(page.locator('.app-header .version')).toHaveText('9.8.7-beta.2');
+  await expect(page.locator('.app-sidebar .version')).toHaveText('9.8.7-beta.2');
   // The accessible name must exclude the dynamic repository-name helper used by native smoke.
   const name = page.getByRole('textbox', { name: 'Project name', exact: true });
   await name.fill('Version display');

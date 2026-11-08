@@ -335,7 +335,7 @@
   align-items: center;
   gap: 7px;
 }
-@media (max-width: 900px) {
+@container app (max-width: 880px) {
   .setup-status-row {
     gap: 10px;
   }
@@ -343,7 +343,7 @@
     max-width: 230px;
   }
 }
-@media (max-width: 600px) {
+@container app (max-width: 600px) {
   .setup-status-row {
     grid-template-columns: minmax(0, 1fr) auto;
   }

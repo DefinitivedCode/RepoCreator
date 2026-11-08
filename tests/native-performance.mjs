@@ -33,8 +33,8 @@ const nav = (name) =>
     .getByRole('button', { name, exact: true });
 const section = (name) =>
   page
-    .getByRole('group', { name: 'Project workspace sections' })
-    .getByRole('button', { name: name === 'Readiness' ? /^Readiness/ : name, exact: true });
+    .getByRole('tablist', { name: 'Project workspace sections' })
+    .getByRole('tab', { name: name === 'Readiness' ? /^Readiness/ : name, exact: true });
 async function measure(name, action) {
   const start = performance.now();
   await action();
@@ -225,7 +225,7 @@ try {
           () =>
             new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
         );
-        assert.equal(await section(name).getAttribute('aria-pressed'), 'true', selector);
+        assert.equal(await section(name).getAttribute('aria-selected'), 'true', selector);
       });
     }
     await page.getByRole('button', { name: 'All projects', exact: true }).click();

@@ -44,7 +44,7 @@ async function theme(appearance) {
   await expect(page.locator('html')).toHaveAttribute('data-appearance', appearance);
 }
 async function capture(name) {
-  await expect(page.locator('.app-header .version')).toHaveText(version);
+  await expect(page.locator('.app-sidebar .version')).toHaveText(version);
   assert.equal((await invoke('get_preferences')).accent, 'teal');
   const text = await page.locator('body').innerText();
   // npm's own package/version header contains @; it is fixed fictional data.
@@ -157,7 +157,7 @@ try {
     version,
     'Build the current application version before capturing screenshots',
   );
-  await expect(page.locator('.app-header .version')).toHaveText(version);
+  await expect(page.locator('.app-sidebar .version')).toHaveText(version);
   assert.equal(
     (await invoke('check_environment', { includeGithub: false })).identityName,
     'Example Developer',

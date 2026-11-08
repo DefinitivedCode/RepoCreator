@@ -474,7 +474,7 @@
   border-bottom: 2px solid transparent;
   color: var(--muted);
 }
-.workspace-tabs > button[aria-pressed='true'] {
+.workspace-tabs > button:is([aria-pressed='true'], [aria-selected='true']) {
   border-bottom-color: var(--accent);
   color: var(--text);
 }
@@ -984,7 +984,7 @@
   font-size: 11px;
   margin-top: 5px;
 }
-@media (max-width: 1030px) {
+@container app (max-width: 1030px) {
   .desktop-app .app-header {
     gap: 10px;
     padding-inline: 14px;
@@ -1023,7 +1023,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-@media (max-width: 850px) {
+@container app (max-width: 850px) {
   .desktop-app .app-header {
     min-height: 59px;
     gap: 5px;
@@ -1102,7 +1102,7 @@
     margin-bottom: 14px;
   }
 }
-@media (max-width: 700px) {
+@container app (max-width: 700px) {
   .app-header {
     flex-wrap: wrap;
   }
