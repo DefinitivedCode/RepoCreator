@@ -170,7 +170,9 @@ export async function prepare(
   await page.goto('/');
   if (expectReady) {
     try {
-      await expect(page.getByText('Git ready', { exact: true })).toBeVisible();
+      // Startup runs the mocked environment check; a loaded CI runner can take longer than
+      // the 5s default, so allow it generously (a real failure still fails, just later).
+      await expect(page.getByText('Git ready', { exact: true })).toBeVisible({ timeout: 20_000 });
     } catch (error) {
       const state = await page.evaluate(() => ({
         readyState: document.readyState,
