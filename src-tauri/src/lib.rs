@@ -4,6 +4,7 @@ mod config;
 mod desktop;
 mod environment;
 mod generation;
+mod git_identity;
 mod github;
 mod handoff;
 mod launcher;
@@ -199,6 +200,63 @@ fn set_destination(
     Ok(())
 }
 
+#[tauri::command(async)]
+fn set_identity_override(
+    name: Option<String>,
+    email: Option<String>,
+    state: State<'_, Arc<Runtime>>,
+) -> Result<Preferences, AppError> {
+    let saved = match (name, email) {
+        (None, None) => None,
+        (Some(name), Some(email)) => Some(git_identity::IdentityOverride::validated(name, email)?),
+        _ => {
+            return Err(AppError::new(
+                "Enter both a name and an email address.",
+                "Provide both values to save an identity, or neither to remove it.",
+            ))
+        }
+    };
+    let mut session = state.session.lock().map_err(|_| lock_error())?;
+    let mut preferences = session.preferences.clone();
+    preferences.identity_override = saved;
+    preferences
+        .save(&session.preference_file)
+        .map_err(|message| {
+            AppError::new(
+                message,
+                "Your project files are unaffected. Check settings-folder permissions.",
+            )
+        })?;
+    session.preferences = preferences.clone();
+    Ok(preferences)
+}
+
+/// The only command that writes global Git configuration. It needs `confirm: true`,
+/// which the interface sends only from its explicit "Save to my Git configuration" button.
+#[tauri::command]
+async fn set_git_identity_global(
+    name: String,
+    email: String,
+    confirm: bool,
+    state: State<'_, Arc<Runtime>>,
+) -> Result<git_identity::GlobalIdentityResult, AppError> {
+    let runtime = state.inner().clone();
+    let guard = acquire(&runtime)?;
+    let parent = runtime
+        .session
+        .lock()
+        .map_err(|_| lock_error())?
+        .preferences
+        .parent_path
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = guard;
+        git_identity::set_global(&SystemRunner, &parent, &name, &email, confirm)
+    })
+    .await
+    .map_err(|_| lock_error())?
+}
+
 #[tauri::command]
 async fn create_repository(
     request: CreateRequest,
@@ -216,13 +274,25 @@ async fn create_repository(
             let _ = app.emit_to("main", "repo-progress", stage);
         };
         progress("folder");
+        // The saved Repo Creator identity fills in only when the request has none.
+        let mut request = request;
+        let saved_identity_applied = git_identity::apply_override(
+            &mut request,
+            session.preferences.identity_override.as_ref(),
+        );
         let mut pending =
             repository::begin(&SystemRunner, &session.preferences.parent_path, request)?;
+        let mut remembered_options = pending.request.options.clone();
+        if saved_identity_applied {
+            // The saved identity is an application preference, not a form default.
+            remembered_options.commit_author_name.clear();
+            remembered_options.commit_author_email.clear();
+        }
         session.preferences.defaults = config::Configuration {
             brief: pending.request.brief.clone(),
             handoff_template: pending.request.handoff_template.clone(),
             readme: pending.request.readme,
-            options: pending.request.options.clone(),
+            options: remembered_options,
             destination: Some(pending.request.destination),
             visibility: Some(pending.request.visibility),
         };
@@ -438,6 +508,8 @@ pub fn run() {
             check_environment,
             choose_parent,
             set_destination,
+            set_identity_override,
+            set_git_identity_global,
             create_repository,
             retry_publish,
             open_project,

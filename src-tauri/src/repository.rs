@@ -102,7 +102,10 @@ pub fn begin(
             .run(Program::Git, &args(&["config", "--get", key]), &parent)
             .ok();
         if !value.is_some_and(|v| v.success && !v.stdout.trim().is_empty()) {
-            return Err(AppError::new("Set your Git commit identity first.", "Enter your name and email in Project Files → Git Settings to use them only for this new project, or configure Git yourself and recheck setup."));
+            return Err(AppError::new(
+                "Git needs your name and email to record commits.",
+                "Open Settings → Git & identity and add them, either for Repo Creator projects only or as your Git default.",
+            ));
         }
     }
     let account = if request.destination == Destination::Github {

@@ -46,6 +46,10 @@ pub struct Preferences {
     pub updates: crate::updates::UpdatePreferences,
     #[serde(default)]
     pub experience_mode: ExperienceMode,
+    /// Commit author applied with `git config --local` to new projects. Additive:
+    /// absent in older settings files, and never written to global Git config.
+    #[serde(default)]
+    pub identity_override: Option<crate::git_identity::IdentityOverride>,
     pub recent_locations: Vec<PathBuf>,
     pub defaults: Configuration,
     pub custom_presets: Vec<ProjectPreset>,
@@ -73,6 +77,7 @@ impl Preferences {
             custom_accent: default_custom_accent(),
             updates: crate::updates::UpdatePreferences::default(),
             experience_mode: ExperienceMode::Simple,
+            identity_override: None,
             recent_locations: Vec::new(),
             defaults: Configuration::default(),
             custom_presets: Vec::new(),
@@ -134,6 +139,16 @@ impl Preferences {
             match serde_json::from_value(updates.clone()) {
                 Ok(updates) => result.updates = updates,
                 Err(_) => result.recover_notice(),
+            }
+        }
+        match value.get("identityOverride") {
+            None | Some(serde_json::Value::Null) => {}
+            Some(saved) => {
+                match serde_json::from_value::<crate::git_identity::IdentityOverride>(saved.clone())
+                {
+                    Ok(saved) if saved.is_valid() => result.identity_override = Some(saved),
+                    _ => result.recover_notice(),
+                }
             }
         }
         // An existing installation keeps its established copper appearance.

@@ -675,6 +675,28 @@ fn missing_git_or_identity_is_reported_before_creating_a_folder() {
 }
 
 #[test]
+fn missing_identity_error_names_the_screen_that_contains_the_fields() {
+    // Git is present but nothing is configured: creation must fail before a folder exists.
+    let sandbox = ConfigSandbox::new();
+    let error = match repository::begin(&sandbox, &sandbox.work(), request(Readme::None)) {
+        Ok(_) => panic!("A missing identity should fail"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        error.message,
+        "Git needs your name and email to record commits."
+    );
+    // Settings → Git & identity is where the identity fields live.
+    assert!(error.guidance.contains("Settings → Git & identity"));
+    // The screen that has no identity fields must not be named as the fix.
+    assert!(!error.guidance.contains("Project Files"));
+    assert!(!error.guidance.contains("Git Settings"));
+    assert!(error.guidance.contains("Repo Creator projects only"));
+    assert!(error.guidance.contains("Git default"));
+    assert_eq!(fs::read_dir(sandbox.work()).unwrap().count(), 0);
+}
+
+#[test]
 fn github_account_check_distinguishes_missing_cli_from_timeouts_without_exposing_diagnostics() {
     struct FailingGithub(&'static str);
     impl Runner for FailingGithub {

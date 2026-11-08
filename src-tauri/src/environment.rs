@@ -132,7 +132,7 @@ fn config_value(runner: &dyn Runner, cwd: &Path, key: &str) -> (Option<String>, 
     (value, None)
 }
 
-fn global_config_path(runner: &dyn Runner, cwd: &Path) -> Option<String> {
+pub(crate) fn global_config_path(runner: &dyn Runner, cwd: &Path) -> Option<String> {
     let output = runner
         .run(
             Program::Git,
