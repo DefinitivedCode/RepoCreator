@@ -30,8 +30,8 @@ const invoke = (command, args = {}) =>
 const navigation = () => page.getByRole('navigation', { name: 'Main navigation' });
 const section = (name) =>
   page
-    .getByRole('group', { name: 'Project workspace sections' })
-    .getByRole('button', { name, exact: true })
+    .getByRole('tablist', { name: 'Project workspace sections' })
+    .getByRole('tab', { name, exact: true })
     .click();
 async function capture(name) {
   const dialog = page.getByRole('dialog', { name: 'Detected technologies', exact: true });

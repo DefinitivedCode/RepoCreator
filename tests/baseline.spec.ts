@@ -262,7 +262,7 @@ test.describe('redesign baseline', () => {
         await main(page, 'Projects').click();
       });
       await at('workspace-overview', async () => {
-        const group = page.getByRole('group', { name: 'Project workspace sections' });
+        const group = page.getByRole('tablist', { name: 'Project workspace sections' });
         if (await group.count())
           await group.getByRole('button', { name: 'Overview', exact: true }).click();
         else await page.getByRole('button', { name: 'Open workspace', exact: true }).click();
@@ -270,14 +270,14 @@ test.describe('redesign baseline', () => {
       for (const tab of ['Open', 'Commands', 'Readiness', 'Project Settings'])
         await at(`workspace-${tab.toLowerCase()}`, async () => {
           await page
-            .getByRole('group', { name: 'Project workspace sections' })
-            .getByRole('button', { name: new RegExp(`^${tab}`) })
+            .getByRole('tablist', { name: 'Project workspace sections' })
+            .getByRole('tab', { name: new RegExp(`^${tab}`) })
             .click();
         });
       await at('command-editor-dialog', async () => {
         await page
-          .getByRole('group', { name: 'Project workspace sections' })
-          .getByRole('button', { name: 'Commands', exact: true })
+          .getByRole('tablist', { name: 'Project workspace sections' })
+          .getByRole('tab', { name: 'Commands', exact: true })
           .click();
         await page
           .getByRole('button', { name: /Add command|New command/ })

@@ -474,7 +474,7 @@
   border-bottom: 2px solid transparent;
   color: var(--muted);
 }
-.workspace-tabs > button[aria-pressed='true'] {
+.workspace-tabs > button:is([aria-pressed='true'], [aria-selected='true']) {
   border-bottom-color: var(--accent);
   color: var(--text);
 }

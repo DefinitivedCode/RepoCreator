@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useReducer, useRef, useState } from 'react';
 import { Icon } from './icons';
 import { AdvancedPanel, FilePreview, IgnorePanel, type FileSection } from './ConfigurationPanels';
 import { PresetDialog } from './PresetDialog';
@@ -12,6 +12,8 @@ import { technologySummary } from './technologies';
 import { RepositoryState } from './RepositoryState';
 import { Overview, ProjectSummary, SetupPanel, Context } from './WorkspaceFields';
 import { Sidebar } from './shell/Sidebar';
+import { initialRoute, routeReducer, type SettingsTarget } from './shell/route';
+import { TabList, panelIdOf, tabId } from './ui/Tabs';
 import './shell/shell.css';
 import { useCreator } from './useCreator';
 import { useUpdates } from './useUpdates';
@@ -20,15 +22,13 @@ import { isSetupBlocker, summarizeBlockers, type FixTarget } from './blockers';
 import type { Configuration, Readme } from './types';
 import { normalizeProjectName } from './projectName';
 
-export type Section = 'overview' | 'files' | 'agents' | 'review' | 'handoff' | 'recent' | 'setup';
+export type Section = 'overview' | 'files' | 'agents' | 'review' | 'handoff';
 const labels: Record<Section, string> = {
   overview: 'Overview',
   files: 'Project Files',
   agents: 'AI Agents',
   review: 'Review',
   handoff: 'AI Handoff',
-  recent: 'Recent Projects',
-  setup: 'Setup & status',
 };
 
 export default function App() {
@@ -37,9 +37,8 @@ export default function App() {
   const updates = useUpdates(preferences);
   const [updateRequest, setUpdateRequest] = useState(0);
   const [section, setSection] = useState<Section>('overview');
-  const [page, setPage] = useState<'new' | 'projects' | 'presets' | 'settings'>('new');
-  const [settingsTab, setSettingsTab] = useState<'git' | 'github'>();
-  const [selectedProjectId, setSelectedProjectId] = useState<string>();
+  const [route, navigateTo] = useReducer(routeReducer, initialRoute);
+  const { page, tab: settingsTab, projectId: selectedProjectId } = route;
   const [presetOverride, setPresetOverride] = useState<Configuration>();
   const [fileSection, setFileSection] = useState<FileSection | 'ignore'>('readme');
   const [agentSection, setAgentSection] = useState<AgentSection>('assistants');
@@ -60,9 +59,8 @@ export default function App() {
   const firstSetupBlocker = requiredBlockers.find(isSetupBlocker);
   // An inline fix is shown only when one thing needs doing; several get a list.
   const inlineFix = requiredBlockers.length <= 1 ? summary.first?.fix : undefined;
-  function openSettings(tab?: 'git' | 'github') {
-    setSettingsTab(tab);
-    setPage('settings');
+  function openSettings(tab?: SettingsTarget) {
+    navigateTo({ type: 'settings', tab });
   }
   function runFix(target: FixTarget) {
     if (target === 'settings-git') openSettings('git');
@@ -72,10 +70,6 @@ export default function App() {
     else void creator.refresh(form?.destination === 'github');
   }
   function navigate(next: Section) {
-    if (next === 'setup') {
-      setPage('settings');
-      return;
-    }
     setSection(next);
     requestAnimationFrame(() => {
       heading.current?.focus();
@@ -88,7 +82,7 @@ export default function App() {
     creator.configure(configuration);
     setPresetId(id);
     if (page !== 'new') {
-      setPage('new');
+      navigateTo({ type: 'go', page: 'new' });
       navigate('overview');
     }
   }
@@ -108,12 +102,11 @@ export default function App() {
             creator.reset();
             navigate('overview');
           }
-          setSettingsTab(undefined);
-          setPage(id);
+          navigateTo({ type: 'go', page: id });
         }}
         onReviewUpdate={() => {
           setUpdateRequest((value) => value + 1);
-          setPage('settings');
+          navigateTo({ type: 'settings' });
         }}
       />
       <div className="app-content" id="main-content" tabIndex={-1}>
@@ -124,7 +117,7 @@ export default function App() {
               type="button"
               onClick={() => {
                 setUpdateRequest((value) => value + 1);
-                setPage('settings');
+                navigateTo({ type: 'settings' });
               }}
             >
               Review update
@@ -149,7 +142,7 @@ export default function App() {
         ) : page === 'projects' ? (
           <Projects
             initialProjectId={selectedProjectId}
-            onSelect={setSelectedProjectId}
+            onSelect={(id) => navigateTo({ type: 'select-project', id })}
             copy={creator.copy}
             commandPresets={allPresets}
             onSaveCommandPreset={(commands: ProjectCommand[]) => {
@@ -198,7 +191,7 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       apply(item.configuration, item.id);
-                      setPage('new');
+                      navigateTo({ type: 'go', page: 'new' });
                       navigate('overview');
                     }}
                   >
@@ -244,7 +237,7 @@ export default function App() {
               updateRequest={updateRequest}
               initialTab={settingsTab}
               onReturn={() => {
-                setPage('new');
+                navigateTo({ type: 'go', page: 'new' });
                 navigate('overview');
               }}
             />
@@ -254,8 +247,7 @@ export default function App() {
             creator={creator}
             presetName={presetName}
             onWorkspace={(id) => {
-              setSelectedProjectId(id);
-              setPage('projects');
+              navigateTo({ type: 'open-project', id });
             }}
             onAnother={() => {
               creator.reset();
@@ -275,11 +267,7 @@ export default function App() {
               <nav className="navigation-rail" aria-label="Project setup">
                 <span className="nav-caption">PROJECT SETUP</span>
                 {(Object.keys(labels) as Section[])
-                  .filter(
-                    (s) =>
-                      !['recent', 'setup'].includes(s) &&
-                      (!simple || !['files', 'agents'].includes(s)),
-                  )
+                  .filter((s) => !simple || !['files', 'agents'].includes(s))
                   .map((s) => (
                     <button
                       key={s}
@@ -294,9 +282,7 @@ export default function App() {
                             ? 'file'
                             : s === 'agents' || s === 'handoff'
                               ? 'code'
-                              : s === 'setup'
-                                ? 'settings'
-                                : 'folder'
+                              : 'folder'
                         }
                         size={15}
                       />
@@ -410,6 +396,7 @@ export default function App() {
                   {section === 'files' && (
                     <>
                       <Subnav
+                        base="file-settings"
                         label="Project file settings"
                         value={fileSection}
                         items={[
@@ -422,6 +409,9 @@ export default function App() {
                         onChange={(v) => setFileSection(v as typeof fileSection)}
                       />
                       <div
+                        role="tabpanel"
+                        id={panelIdOf('file-settings')}
+                        aria-labelledby={tabId('file-settings', fileSection)}
                         className={`file-editor-layout ${fileSection === 'git' ? 'git-configuration' : ''}`}
                       >
                         <div className="file-configuration">
@@ -482,6 +472,7 @@ export default function App() {
                   {section === 'agents' && (
                     <>
                       <Subnav
+                        base="agent-settings"
                         label="AI agent settings"
                         value={agentSection}
                         items={[
@@ -493,6 +484,9 @@ export default function App() {
                         onChange={(v) => setAgentSection(v as AgentSection)}
                       />
                       <div
+                        role="tabpanel"
+                        id={panelIdOf('agent-settings')}
+                        aria-labelledby={tabId('agent-settings', agentSection)}
                         className={`agent-editor-layout ${agentSection === 'instructions' ? 'with-instruction-preview' : ''}`}
                       >
                         <AgentStudio creator={creator} section={agentSection} />
@@ -538,14 +532,6 @@ export default function App() {
                       simple={simple}
                       onTemplateChange={(id) => creator.update('handoffTemplate', id)}
                       copy={creator.copy}
-                    />
-                  )}
-                  {section === 'setup' && (
-                    <SetupPanel
-                      creator={creator}
-                      updates={updates}
-                      updateRequest={updateRequest}
-                      onReturn={() => navigate('overview')}
                     />
                   )}
                 </fieldset>
@@ -660,23 +646,26 @@ export default function App() {
 }
 
 function Subnav({
+  base,
   label,
   value,
   items,
   onChange,
 }: {
+  base: string;
   label: string;
   value: string;
   items: string[][];
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="subnavigation" role="group" aria-label={label}>
-      {items.map(([id, name]) => (
-        <button key={id} type="button" aria-pressed={value === id} onClick={() => onChange(id)}>
-          {name}
-        </button>
-      ))}
-    </div>
+    <TabList
+      base={base}
+      className="subnavigation"
+      label={label}
+      value={value}
+      items={items.map(([id, name]) => ({ id, label: name }))}
+      onChange={onChange}
+    />
   );
 }

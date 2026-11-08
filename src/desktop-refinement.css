@@ -229,7 +229,7 @@ select {
   border-radius: 3px;
   font-size: 12px;
 }
-.subnavigation > button[aria-pressed='true'] {
+.subnavigation > button:is([aria-pressed='true'], [aria-selected='true']) {
   color: var(--selected-text);
   border-color: var(--selected-border);
   background: var(--selected-background);

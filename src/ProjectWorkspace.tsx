@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { TabList, panelIdOf, tabId } from './ui/Tabs';
 import { Icon } from './icons';
 import { WorkspaceDialog } from './WorkspaceDialog';
 import { CommandOutput } from './CommandOutput';
@@ -362,14 +363,19 @@ function ProjectWorkspace({
       ) : (
         <>
           <div className="project-workspace-heading">
-            <button
-              type="button"
-              className="text-button library-back"
-              onClick={onBack}
-              aria-label="All projects"
-            >
-              <Icon name="chevron" size={17} />
-            </button>
+            <nav aria-label="Breadcrumb" className="library-breadcrumb">
+              <button
+                type="button"
+                className="text-button library-back"
+                onClick={onBack}
+                aria-label="All projects"
+              >
+                <Icon name="chevron" size={17} />
+                <span aria-hidden="true" className="library-back-label">
+                  Projects
+                </span>
+              </button>
+            </nav>
             <div className="project-glyph">
               <Icon name="repo" size={20} />
             </div>
@@ -387,37 +393,29 @@ function ProjectWorkspace({
               {workspace.branch || 'No branch'}
             </span>
           </div>
-          <div className="workspace-tabs" role="group" aria-label="Project workspace sections">
-            {[
-              ['overview', 'Overview'],
-              ['open', 'Open'],
-              ['commands', 'Commands'],
-              ['readiness', 'Readiness'],
-              ['settings', 'Project Settings'],
-            ].map(([value, label]) => (
-              <button
-                type="button"
-                key={value}
-                aria-pressed={tab === value}
-                aria-label={
-                  value === 'readiness' && attention > 0
-                    ? `${label}, ${countLabel('attention', attention)}`
-                    : undefined
-                }
-                onClick={() => {
-                  setTab(value);
-                  setHandoff(false);
-                }}
-              >
-                {label}
-                {value === 'readiness' && attention > 0 && (
-                  <span className="tab-count" aria-hidden="true">
-                    {attention}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+          <TabList
+            base="project-workspace"
+            className="workspace-tabs"
+            label="Project workspace sections"
+            value={tab}
+            onChange={(value) => {
+              setTab(value);
+              setHandoff(false);
+            }}
+            items={[
+              { id: 'overview', label: 'Overview' },
+              { id: 'open', label: 'Open' },
+              { id: 'commands', label: 'Commands' },
+              {
+                id: 'readiness',
+                label: 'Readiness',
+                badge: attention,
+                accessibleName:
+                  attention > 0 ? `Readiness, ${countLabel('attention', attention)}` : undefined,
+              },
+              { id: 'settings', label: 'Project Settings' },
+            ]}
+          />
           {!workspace.exists && (
             <div className="missing-project" role="alert">
               <Icon name="alert" size={20} />
@@ -430,7 +428,12 @@ function ProjectWorkspace({
               </button>
             </div>
           )}
-          <div className="project-view">
+          <div
+            className="project-view"
+            role="tabpanel"
+            id={panelIdOf('project-workspace')}
+            aria-labelledby={tabId('project-workspace', tab)}
+          >
             {tab === 'overview' && (
               <>
                 <div className="workspace-overview-grid">

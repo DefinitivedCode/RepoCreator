@@ -208,16 +208,16 @@ export async function navigate(page: Page, name: string) {
 export async function fileTab(page: Page, name: string) {
   await navigate(page, 'Project Files');
   await page
-    .getByRole('group', { name: 'Project file settings' })
-    .getByRole('button', { name, exact: true })
+    .getByRole('tablist', { name: 'Project file settings' })
+    .getByRole('tab', { name, exact: true })
     .click();
 }
 
 export async function agentTab(page: Page, name: string) {
   await navigate(page, 'AI Agents');
   await page
-    .getByRole('group', { name: 'AI agent settings' })
-    .getByRole('button', { name, exact: true })
+    .getByRole('tablist', { name: 'AI agent settings' })
+    .getByRole('tab', { name, exact: true })
     .click();
 }
 

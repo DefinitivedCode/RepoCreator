@@ -76,11 +76,18 @@
   gap: 11px;
   align-items: center;
 }
+.rc-project-workspace .library-breadcrumb {
+  flex-shrink: 0;
+}
 .rc-project-workspace .library-back {
-  width: 28px;
-  padding: 4px;
+  width: auto;
+  padding: 4px 8px 4px 4px;
   margin: 0;
   flex-shrink: 0;
+  gap: 2px;
+}
+.rc-project-workspace .library-back-label {
+  font-size: 12px;
 }
 .rc-project-workspace .library-back svg {
   transform: rotate(90deg);
@@ -140,7 +147,7 @@
   min-height: 39px;
   border-bottom-width: 2px;
 }
-.rc-project-workspace .workspace-tabs > button[aria-pressed='true'] {
+.rc-project-workspace .workspace-tabs > button:is([aria-pressed='true'], [aria-selected='true']) {
   background: var(--selected-background);
   color: var(--selected-text);
   font-weight: 600;

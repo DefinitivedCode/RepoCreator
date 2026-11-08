@@ -1236,7 +1236,7 @@ pre,
   padding: 6px 9px;
   color: var(--muted);
 }
-.subnavigation button[aria-pressed='true'] {
+.subnavigation button:is([aria-pressed='true'], [aria-selected='true']) {
   background: var(--secondary);
   border-color: var(--border);
   color: var(--text);

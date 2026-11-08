@@ -8,8 +8,8 @@ Resumable log for the autonomous redesign run ([prompt](ui-redesign-autonomous-p
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------- | --------------------------- |
 | 1 Setup correctness            | `fix/setup-correctness` (kept; the prompt's suggested `redesign/phase-1-setup-correctness` was not used because work was already open here) | `main`                      | [#21](https://github.com/DefinitivedCode/RepoCreator/pull/21) | Verified, PR open, unmerged |
 | 0 Baseline                     | `redesign/phase-0-baseline`                                                                                                                 | `fix/setup-correctness`     | [#22](https://github.com/DefinitivedCode/RepoCreator/pull/22) | Verified, PR open, unmerged |
-| 2 Tokens and primitives        | `redesign/phase-2-tokens`                                                                                                                   | `redesign/phase-0-baseline` | [#23](https://github.com/DefinitivedCode/RepoCreator/pull/23)                                               | Verified, PR open, unmerged |
-| 3 Shell and navigation         | `redesign/phase-3-shell`                                                                                                                    | phase 2                     | —                                                             | Not started                 |
+| 2 Tokens and primitives        | `redesign/phase-2-tokens`                                                                                                                   | `redesign/phase-0-baseline` | [#23](https://github.com/DefinitivedCode/RepoCreator/pull/23) | Verified, PR open, unmerged |
+| 3 Shell and navigation         | `redesign/phase-3-shell`                                                                                                                    | `redesign/phase-2-tokens`   | PR3_PLACEHOLDER                                               | Verified, PR open, unmerged |
 | 4 Onboarding                   | `redesign/phase-4-onboarding`                                                                                                               | phase 3                     | —                                                             | Not started                 |
 | 5 New Project                  | `redesign/phase-5-new-project`                                                                                                              | phase 4                     | —                                                             | Not started                 |
 | 6 Projects, workspace, presets | `redesign/phase-6-workspace`                                                                                                                | phase 5                     | —                                                             | Not started                 |
@@ -54,10 +54,18 @@ No-regression evidence: the baseline was recaptured on this branch (`REPO_CREATO
 
 Decisions: tokens.css does not redefine variable names the old styles use (`--surface`, `--text`, `--background`, `--primary`, `--radius`, `--motion`), so no alias layer was needed and nothing changed visually; those take new values during migration (Phases 3–7). `--motion` (160ms) already existed and is reused. Primitives were not wired into existing screens (Phase 3 does that), and no component-test library was added (Playwright against the kitchen sink instead).
 
+## Phase 3 — verification (Windows 11 only)
+
+`check` pass; `format:check` pass; `npm test` 328 passed (new `route.test.ts`); `npm run test:ui` 185 passed, 2 skipped (opt-in baseline) in the final run (earlier runs each had one load flake in `project-workspace.spec.ts`/`creation-refinement.spec.ts`/`ui-kit.spec.ts` that passed on repeat); `cargo fmt`/`clippy -D warnings` pass; `cargo test --locked` 147 passed. New `tests/shell.spec.ts`: 20 passed. Native smoke on a rebuilt debug exe with empty `HOME`: pass. Screenshots at 820×580 and 1100×740 viewed for the sidebar and icon rail.
+
+Changed existing tests (all intentional): `.app-header` → `.app-sidebar` (appearance, updates, native scripts, public-screenshots); workspace/file/agent tab selectors `group`+`button` → `tablist`+`tab` (fixtures, project-workspace, native scripts); two `aria-pressed` assertions on converted tabs → `aria-selected`; `ui-polish` widens the viewport to 1440 before using the context panel (it now needs 1250px beside the sidebar). Test strings and nav labels (`New Project`, `Projects`, `Presets`, `Settings`) are unchanged.
+
+Decisions: width media queries in the existing stylesheets became container queries on the content region (`@container app`), so each screen keeps the width logic it had; `:root` variables inside them moved to `.app-content`; the two `900px` rules became `880px` so the default window (content exactly 900px) keeps its previous layout. Not done in Phase 3: the Settings tablist and the Technology category list still use their own markup; the first-time update notice remains the existing dismissible aside plus a new sidebar line; the breadcrumb is a labelled back link ("Projects") rather than "Projects / name" (the name is the page heading).
+
 ## Blockers
 
 None open.
 
 ## Next step
 
-Phase 3: create `redesign/phase-3-shell` from `redesign/phase-2-tokens`.
+Phase 4: create `redesign/phase-4-onboarding` from `redesign/phase-3-shell`.

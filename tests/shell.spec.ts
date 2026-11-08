@@ -143,3 +143,64 @@ test('the experience mode switch stays available on the New Project page', async
   await nav(page).getByRole('button', { name: 'Projects', exact: true }).click();
   await expect(page.getByRole('group', { name: 'Experience mode' })).toHaveCount(0);
 });
+
+test('file and agent sections are real tabs with arrow-key navigation and labelled panels', async ({
+  page,
+}) => {
+  await prepare(page, false, 'advanced');
+  for (const [section, group, first, second] of [
+    ['Project Files', 'Project file settings', 'README', 'Gitignore'],
+    ['AI Agents', 'AI agent settings', 'Assistants', 'Instructions'],
+  ]) {
+    await page
+      .getByRole('navigation', { name: 'Project setup' })
+      .getByRole('button', { name: section, exact: true })
+      .click();
+    const tabs = page.getByRole('tablist', { name: group });
+    await expect(tabs.getByRole('tab', { name: first, exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(tabs.getByRole('tab', { name: second, exact: true })).toHaveAttribute(
+      'tabindex',
+      '-1',
+    );
+    await tabs.getByRole('tab', { name: first, exact: true }).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(tabs.getByRole('tab', { name: second, exact: true })).toBeFocused();
+    await expect(tabs.getByRole('tab', { name: second, exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const panel = page.getByRole('tabpanel');
+    await expect(panel).toHaveAccessibleName(second);
+    await page.keyboard.press('Home');
+    await expect(tabs.getByRole('tab', { name: first, exact: true })).toBeFocused();
+  }
+});
+
+test('navigation strips never use pressed-state buttons', async ({ page }) => {
+  await prepare(page, false, 'advanced');
+  await page
+    .getByRole('navigation', { name: 'Project setup' })
+    .getByRole('button', { name: 'Project Files', exact: true })
+    .click();
+  const offenders = await page.evaluate(() =>
+    [
+      ...document.querySelectorAll(
+        '.subnavigation button, .workspace-tabs button, [role="tablist"] button, nav button',
+      ),
+    ]
+      .filter((element) => element.hasAttribute('aria-pressed'))
+      .map((element) => element.textContent),
+  );
+  expect(offenders).toEqual([]);
+  // The tablist buttons all carry the tab role.
+  expect(
+    await page.evaluate(() =>
+      [...document.querySelectorAll('.subnavigation > button')].every(
+        (element) => element.getAttribute('role') === 'tab',
+      ),
+    ),
+  ).toBe(true);
+});
