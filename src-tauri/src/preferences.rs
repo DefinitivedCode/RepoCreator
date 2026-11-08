@@ -10,6 +10,38 @@ use std::{
 };
 
 pub const SETTINGS_VERSION: u32 = 5;
+/// Bumped only if first-run onboarding changes enough to be shown again.
+pub const ONBOARDING_VERSION: u32 = 1;
+
+/// First-run setup progress. Additive: absent in older settings files.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", default, deny_unknown_fields)]
+pub struct Onboarding {
+    /// Seconds since the Unix epoch, as text, when setup was completed.
+    pub completed_at: Option<String>,
+    /// The person chose to skip the optional GitHub step.
+    pub github_skipped: bool,
+    pub version: u32,
+}
+
+fn unix_seconds() -> String {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        .to_string()
+}
+
+impl Onboarding {
+    pub fn complete(&mut self) {
+        self.completed_at = Some(unix_seconds());
+        self.version = ONBOARDING_VERSION;
+    }
+    /// "Run setup again": clears only the completion marker, nothing else.
+    pub fn reset(&mut self) {
+        self.completed_at = None;
+    }
+}
 fn legacy_accent() -> String {
     "copper".into()
 }
@@ -49,6 +81,8 @@ pub struct Preferences {
     /// Commit author applied with `git config --local` to new projects. Additive:
     /// absent in older settings files, and never written to global Git config.
     #[serde(default)]
+    pub onboarding: Onboarding,
+    #[serde(default)]
     pub identity_override: Option<crate::git_identity::IdentityOverride>,
     pub recent_locations: Vec<PathBuf>,
     pub defaults: Configuration,
@@ -77,6 +111,7 @@ impl Preferences {
             custom_accent: default_custom_accent(),
             updates: crate::updates::UpdatePreferences::default(),
             experience_mode: ExperienceMode::Simple,
+            onboarding: Onboarding::default(),
             identity_override: None,
             recent_locations: Vec::new(),
             defaults: Configuration::default(),
@@ -140,6 +175,13 @@ impl Preferences {
                 Ok(updates) => result.updates = updates,
                 Err(_) => result.recover_notice(),
             }
+        }
+        match value.get("onboarding") {
+            None | Some(serde_json::Value::Null) => {}
+            Some(saved) => match serde_json::from_value::<Onboarding>(saved.clone()) {
+                Ok(saved) => result.onboarding = saved,
+                Err(_) => result.recover_notice(),
+            },
         }
         match value.get("identityOverride") {
             None | Some(serde_json::Value::Null) => {}

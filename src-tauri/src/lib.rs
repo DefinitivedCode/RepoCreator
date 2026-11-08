@@ -9,6 +9,8 @@ mod github;
 mod handoff;
 mod launcher;
 mod model;
+#[cfg(test)]
+mod onboarding_tests;
 mod preferences;
 mod preset_commands;
 mod process;
@@ -517,6 +519,10 @@ pub fn run() {
             open_setup_resource,
             connect_github,
             preset_commands::set_experience_mode,
+            preset_commands::get_onboarding_state,
+            preset_commands::complete_onboarding,
+            preset_commands::skip_github_setup,
+            preset_commands::reset_onboarding,
             preset_commands::update_custom_preset,
             preset_commands::confirm_project_preset_import,
             preset_commands::preview_project_preset_import,
