@@ -13,7 +13,7 @@ Resumable log for the autonomous redesign run ([prompt](ui-redesign-autonomous-p
 | 4 Onboarding                                   | `redesign/phase-4-onboarding`                                                                                                               | `redesign/phase-3-shell`        | [#25](https://github.com/DefinitivedCode/RepoCreator/pull/25) | Verified, PR open, unmerged |
 | 5a Result pane and drawer                      | `redesign/phase-5a-layout`                                                                                                                  | `redesign/phase-4-onboarding`   | [#26](https://github.com/DefinitivedCode/RepoCreator/pull/26) | Verified, PR open, unmerged |
 | 5c Create flow (confirmation, blocker popover) | `redesign/phase-5c-create-flow`                                                                                                             | `redesign/phase-5a-layout`      | [#27](https://github.com/DefinitivedCode/RepoCreator/pull/27) | Verified, PR open, unmerged |
-| 5b New Project single-page sections            | `redesign/phase-5b-sections`                                                                                                                | `redesign/phase-5c-create-flow` | —                                                             | Deferred (see below)        |
+| 5b Unified wording, no mode switch (partial)   | `redesign/phase-5b-sections`                                                                                                                | `redesign/phase-5c-create-flow` | [#28](https://github.com/DefinitivedCode/RepoCreator/pull/28) | Verified, PR open, unmerged |
 | 6 Projects, workspace, presets                 | `redesign/phase-6-workspace`                                                                                                                | phase 5                         | —                                                             | Not started                 |
 | 7 Settings and polish                          | `redesign/phase-7-settings`                                                                                                                 | phase 6                         | —                                                             | Not started                 |
 | 8 Accessibility                                | `redesign/phase-8-accessibility`                                                                                                            | phase 7                         | —                                                             | Not started                 |
@@ -94,6 +94,16 @@ Changed existing tests: the shared `createProject` helper confirms the GitHub sh
 
 **5b is deferred, not dropped.** Why: the single scrolling page, removal of the rail and of the Simple/Advanced switch, and Customize disclosures would rewrite 100+ assertions, because the UI text itself differs by mode (for example "On this computer" vs "Local only", "What are you making?" vs "Description") and 18 tests click the mode switch. Doing it safely needs one coordinated change plus test helper rewrites (`navigate`, `fileTab`, `agentTab`, `createProject` already centralise most usage). Recommendation: do it as its own PR on top of 5c, keep the stored `experienceMode` key, and decide whether mode-dependent wording should be unified first (a maintainer decision, see below).
 
+## Phase 5b — verification (Windows 11 only)
+
+`check` pass; `format:check` pass; `npm test` 328; `npm run test:ui` 220 passed, 2 skipped (opt-in baseline); `cargo fmt`/`clippy` pass; `cargo test --locked` 151; native smoke on a rebuilt debug exe (empty `HOME`) pass.
+
+Decision taken (yours): **unify the wording**. Both modes now read: Description, Starting point, Destination, On this computer, GitHub. Delivered: the Simple/Advanced switch is removed from the New Project page; Project Files and AI Agents, "Reset configuration", "More…" (multiple assistants) and all project-brief fields are available to everyone; `experienceMode` (stored key unchanged) is now Settings → General → "Show advanced options by default" and only sets how much detail pickers such as the technology selector show at first.
+
+Changed existing tests (all intentional): wording (`Local only`→`On this computer`, `Computer and GitHub`→`GitHub`, `Project preset`→`Starting point`, `What are you making?`→`Description`); switch clicks replaced by a `setMode` helper (`tests/fixtures.ts`, `tests/mode.mjs`) that uses Settings → General; `ui.spec` no longer expects Project Files hidden in Simple mode (it is now visible by design); `appearance.spec` tab wrap-around includes General; native scripts updated (the old switch also returned to Overview, now explicit).
+
+**Still not delivered from the spec's 5b:** the single scrolling page with a sticky section index and per-section Customize disclosures (the rail with section views remains), and Customize regions that start expanded in advanced mode. An attempt to open the project brief by default in advanced mode was reverted because it broke the existing zero-scroll guarantee at 1100×740; the general approach for expanded Customize regions should be designed together with the single-page layout.
+
 ## Decisions for the maintainer
 
 - Should the Simple/Advanced wording differences be unified before 5b? Unifying them removes the largest source of test churn but changes visible text for Simple users.
@@ -104,10 +114,11 @@ None open.
 
 ## Next step
 
-Run stopped cleanly after Phase 5c because of working-budget limits, not a blocker. Resume by re-sending the autonomous prompt.
+Run stopped cleanly after Phase 5b (partial) because of working-budget limits, not a blocker. Resume by re-sending the autonomous prompt.
 
-1. `git checkout redesign/phase-5c-create-flow && git checkout -b redesign/phase-5b-sections`. Implement 5b as described above (single scrolling page, sticky section index, Customize `Disclosure`s, remove the mode switch, Settings → General toggle for `experienceMode`). Rewrite the test helpers first, then fix the direct assertions, listing every change in the PR.
-2. Then Phases 6–8. Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smoke needs a debug build and an empty `HOME`; write multi-line scripts with the file tool; occasional load flakes in `project-workspace.spec.ts`; `aria-disabled` buttons need `click({ force: true })` in Playwright.
+1. Remaining 5b work (optional, can be folded into later phases): single scrolling page with sticky section index and Customize `Disclosure`s (`git checkout redesign/phase-5b-sections && git checkout -b redesign/phase-5b2-single-page`). Rewrite the helpers `navigate`/`fileTab`/`agentTab`/`createProject` first.
+2. Phase 6 (projects, workspace, presets): `git checkout redesign/phase-5b-sections && git checkout -b redesign/phase-6-workspace`. Start by splitting `src/ProjectWorkspace.tsx` by tab with no behaviour change (own commit), then the library rows, header and Open-in menu, commands/readiness/handoff restyle, presets page.
+3. Then Phases 7–8. Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smoke needs a debug build and an empty `HOME`; write multi-line scripts with the file tool; occasional load flakes in `project-workspace.spec.ts`; `aria-disabled` buttons need `click({ force: true })`; use `setMode` to change mode in tests.
 
 ## Final deliverables still owed after Phase 8
 

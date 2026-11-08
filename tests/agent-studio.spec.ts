@@ -15,7 +15,7 @@ test('agent selection, rules, specialists, scoped configuration and previews rea
   test.setTimeout(60_000);
   await prepare(page);
   await page.getByLabel('Project name').fill('agent-workspace');
-  await page.getByLabel('Project preset').selectOption('tauri');
+  await page.getByLabel('Starting point').selectOption('tauri');
   await enableStudio(page);
   await page.getByLabel('Claude Code', { exact: true }).check();
   await page.getByLabel('GitHub Copilot', { exact: true }).check();
@@ -82,12 +82,12 @@ test('agent selection, rules, specialists, scoped configuration and previews rea
   await page.getByRole('button', { name: 'Save preset', exact: true }).click();
   await expect(page.getByText('Saved “Tauri + agents”.')).toBeVisible();
   await page.getByRole('button', { name: 'Close presets' }).click();
-  await page.getByLabel('Project preset').selectOption('blank');
-  await page.getByRole('button', { name: 'Local only', exact: true }).click();
+  await page.getByLabel('Starting point').selectOption('blank');
+  await page.getByRole('button', { name: 'On this computer', exact: true }).click();
   await agentTab(page, 'Assistants');
   await expect(page.getByLabel('Generate AI agent files')).not.toBeChecked();
   await navigate(page, 'Overview');
-  await page.getByLabel('Project preset').selectOption('custom-1');
+  await page.getByLabel('Starting point').selectOption('custom-1');
   await expect(page.getByRole('radio', { name: /^Public/ })).toBeChecked();
   await agentTab(page, 'Assistants');
   await expect(page.getByLabel('Generate AI agent files')).toBeChecked();
@@ -179,7 +179,7 @@ test('complex Studio subsections keep controls and footer inside supported frame
   test.setTimeout(90_000);
   await prepare(page);
   await page.getByLabel('Project name').fill('studio-scroll');
-  await page.getByLabel('Project preset').selectOption('tauri');
+  await page.getByLabel('Starting point').selectOption('tauri');
   await enableStudio(page);
   await page.getByLabel('Claude Code', { exact: true }).check();
   await page.getByLabel('GitHub Copilot', { exact: true }).check();

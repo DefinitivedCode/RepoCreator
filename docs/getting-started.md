@@ -38,7 +38,7 @@ Local creation requires Git and a commit identity. While something is missing, t
 
 ## Create your first local project
 
-1. Select **Simple** and enter a project name, for example `Learning Notes`. Repo Creator shows the final repository name (`learning-notes`) before creation. Spaces, underscores and repeated hyphens become a single hyphen; letters become lowercase. The readable title is kept in the README. Names must still be valid on Windows and macOS: paths, control characters, reserved device names and `.git` endings are rejected.
+1. Enter a project name, for example `Learning Notes`. Repo Creator shows the final repository name (`learning-notes`) before creation. Spaces, underscores and repeated hyphens become a single hyphen; letters become lowercase. The readable title is kept in the README. Names must still be valid on Windows and macOS: paths, control characters, reserved device names and `.git` endings are rejected.
 2. Add a short description if useful, then select **Experiment** as the starting point. It creates a lightweight README and safe file exclusions without choosing a license.
 3. Leave **AI coding assistant** set to **None**, or select a tool whose project instructions you want to generate. Installation of the assistant is not required.
 4. Choose **Browse…** and a parent folder you can write to, such as a folder inside Documents. Select **On this computer**.
@@ -51,7 +51,7 @@ The project gets a new child folder. Repo Creator refuses to overwrite an existi
 
 Install [GitHub CLI](https://cli.github.com/) first. In **Settings → GitHub**, select **Connect to GitHub**. A terminal window opens and shows a one-time code; enter it on github.com, then return to Repo Creator. The app checks again when you return to its window, or you can select **Check GitHub connection**. Repo Creator never asks for a password or token. If it cannot reach GitHub to check your sign-in, it says so and offers **Retry** instead of reporting that you are signed out.
 
-In Overview, select **Computer and GitHub**, choose an owner, and review **Private** or **Public** visibility. GitHub enforces account and organisation permissions. Creation still makes a local repository, then publishes its initial commit. GitHub projects use the verified account's no-reply commit email for that initial commit.
+In Overview, set the destination to **GitHub**, choose an owner, and review **Private** or **Public** visibility. GitHub enforces account and organisation permissions. Creation still makes a local repository, then publishes its initial commit. GitHub projects use the verified account's no-reply commit email for that initial commit.
 
 Keep the app open while it creates the project. If publication fails after local creation, the local files and commit remain available. Read the displayed recovery guidance before retrying; see [publication recovery](troubleshooting.md#github-publication-failed).
 
@@ -71,7 +71,7 @@ change project configuration or generated files.
 
 ## Adjust the project
 
-Simple and Advanced use the same settings. Switching modes does not discard configuration. Advanced exposes **Project Files**, **AI Agents** and their local subsections.
+Every section, including **Project Files** and **AI Agents**, is available to everyone. **Settings → General → Show advanced options by default** only changes how much detail pickers such as the technology selector show at first; it never discards configuration.
 
 - **Project Files** controls README sections, ignore rules, project license text, optional `.editorconfig`/`.gitattributes`, Git branch/commit and opening actions. Preview before creation. A generated project's license is your choice and is separate from Repo Creator's MIT License.
 

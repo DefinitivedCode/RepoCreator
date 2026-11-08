@@ -27,7 +27,7 @@ Do not disable Gatekeeper, remove quarantine attributes or change system-wide pr
 1. Open Repo Creator and choose **Settings**.
 2. If Git is missing, open its official installation instructions, install it, then return and select **Recheck**.
 3. If asked for a commit identity, enter the name and email you want recorded in the new project. These fields do not change global Git settings.
-4. Select **Simple**, give the project a new name, choose **Experiment**, and select a writable parent folder inside Documents.
+4. Give the project a new name, choose **Experiment**, and select a writable parent folder inside Documents.
 5. Leave the destination as **On this computer** and the assistant as **None**. Choose **Review project**, inspect the files, then **Create Project**.
 6. Use **Open Folder** and confirm that the README contains your description. No GitHub or coding-assistant account is required.
 
@@ -40,7 +40,7 @@ Use new local demonstration projects and preserve previous project files.
 - [ ] Launch from Applications and complete Git detection/identity setup.
 - [ ] Create **Blank repository** and **Experiment** locally; verify path, branch and initial commit on success.
 - [ ] Create an optional assistant configuration and compare files with Review previews, without the assistant installed.
-- [ ] Try Simple/Advanced, Project Files, AI Agents, Review, AI Handoff and Projects in light/dark modes.
+- [ ] Try the advanced-options preference (Settings → General), Project Files, AI Agents, Review, AI Handoff and Projects in light/dark modes.
 - [ ] Test the default window, a smaller window and 125%/150% display or text scaling where available. Controls must remain reachable and the primary action visible.
 - [ ] Open the folder and optional editor; test a parent folder containing spaces and non-ASCII characters.
 - [ ] Add an existing Git repository in Projects; check missing-folder recovery and local settings persistence.

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { prepare } from './fixtures';
+import { prepare, setMode } from './fixtures';
 
 const nav = (page: import('@playwright/test').Page) =>
   page.getByRole('navigation', { name: 'Main navigation' });
@@ -128,79 +128,49 @@ test('an available update appears as a sidebar line that opens Settings → Upda
   );
 });
 
-test('the experience mode switch stays available on the New Project page', async ({ page }) => {
-  await prepare(page, false, 'simple');
-  const modes = page.getByRole('group', { name: 'Experience mode' });
-  await expect(modes.getByRole('button', { name: 'Simple' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await modes.getByRole('button', { name: 'Advanced' }).click();
-  await expect(modes.getByRole('button', { name: 'Advanced' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await nav(page).getByRole('button', { name: 'Projects', exact: true }).click();
-  await expect(page.getByRole('group', { name: 'Experience mode' })).toHaveCount(0);
-});
-
-test('file and agent sections are real tabs with arrow-key navigation and labelled panels', async ({
+test('the mode switch is gone; the preference lives in Settings and sets picker detail', async ({
   page,
 }) => {
-  await prepare(page, false, 'advanced');
-  for (const [section, group, first, second] of [
-    ['Project Files', 'Project file settings', 'README', 'Gitignore'],
-    ['AI Agents', 'AI agent settings', 'Assistants', 'Instructions'],
-  ]) {
-    await page
-      .getByRole('navigation', { name: 'Project setup' })
-      .getByRole('button', { name: section, exact: true })
-      .click();
-    const tabs = page.getByRole('tablist', { name: group });
-    await expect(tabs.getByRole('tab', { name: first, exact: true })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    await expect(tabs.getByRole('tab', { name: second, exact: true })).toHaveAttribute(
-      'tabindex',
-      '-1',
-    );
-    await tabs.getByRole('tab', { name: first, exact: true }).focus();
-    await page.keyboard.press('ArrowRight');
-    await expect(tabs.getByRole('tab', { name: second, exact: true })).toBeFocused();
-    await expect(tabs.getByRole('tab', { name: second, exact: true })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    const panel = page.getByRole('tabpanel');
-    await expect(panel).toHaveAccessibleName(second);
-    await page.keyboard.press('Home');
-    await expect(tabs.getByRole('tab', { name: first, exact: true })).toBeFocused();
-  }
+  await prepare(page, false, 'simple');
+  await expect(page.getByRole('group', { name: 'Experience mode' })).toHaveCount(0);
+  // Every section is available to everyone.
+  const rail = page.getByRole('navigation', { name: 'Project setup' });
+  for (const name of ['Overview', 'Project Files', 'AI Agents', 'Review'])
+    await expect(rail.getByRole('button', { name, exact: true })).toBeVisible();
+  const picker = page.locator('.technology-selector').first();
+  await expect(picker).toHaveAttribute('data-simple', 'true');
+  await setMode(page, 'advanced');
+  await expect(picker).toHaveAttribute('data-simple', 'false');
+  await nav(page).getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('tab', { name: 'General', exact: true }).click();
+  await expect(
+    page.getByRole('checkbox', { name: 'Show advanced options by default' }),
+  ).toBeChecked();
 });
 
-test('navigation strips never use pressed-state buttons', async ({ page }) => {
-  await prepare(page, false, 'advanced');
-  await page
-    .getByRole('navigation', { name: 'Project setup' })
-    .getByRole('button', { name: 'Project Files', exact: true })
-    .click();
-  const offenders = await page.evaluate(() =>
-    [
-      ...document.querySelectorAll(
-        '.subnavigation button, .workspace-tabs button, [role="tablist"] button, nav button',
-      ),
-    ]
-      .filter((element) => element.hasAttribute('aria-pressed'))
-      .map((element) => element.textContent),
-  );
-  expect(offenders).toEqual([]);
-  // The tablist buttons all carry the tab role.
-  expect(
-    await page.evaluate(() =>
-      [...document.querySelectorAll('.subnavigation > button')].every(
-        (element) => element.getAttribute('role') === 'tab',
-      ),
-    ),
-  ).toBe(true);
-});
+for (const mode of ['simple', 'advanced'] as const)
+  test(`${mode} mode uses the same wording and offers the same capabilities`, async ({ page }) => {
+    await prepare(page, false, mode);
+    for (const label of ['Project name', 'Description', 'Starting point', 'AI coding assistant'])
+      await expect(page.getByLabel(label, { exact: false }).first()).toBeVisible();
+    await expect(page.getByText('Destination', { exact: true })).toBeVisible();
+    for (const name of ['On this computer', 'GitHub'])
+      await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Reset configuration' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Configure multiple assistants' })).toBeVisible();
+    // The brief's optional fields exist in both modes.
+    await page.locator('.brief-details > summary').click();
+    for (const label of ['Who is it for?', 'Additional context or constraints'])
+      await expect(page.getByLabel(label)).toBeVisible();
+    // Project Files and AI Agents open and work.
+    await page
+      .getByRole('navigation', { name: 'Project setup' })
+      .getByRole('button', { name: 'Project Files', exact: true })
+      .click();
+    await expect(page.getByRole('tablist', { name: 'Project file settings' })).toBeVisible();
+    await page
+      .getByRole('navigation', { name: 'Project setup' })
+      .getByRole('button', { name: 'AI Agents', exact: true })
+      .click();
+    await expect(page.getByRole('tablist', { name: 'AI agent settings' })).toBeVisible();
+  });

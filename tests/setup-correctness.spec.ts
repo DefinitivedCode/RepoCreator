@@ -130,7 +130,7 @@ test('an unreachable GitHub is never shown as not connected, and offers a retry'
   );
   // A local project is unaffected by an unreachable GitHub.
   await page.getByRole('button', { name: 'Return to project setup' }).click();
-  await page.getByRole('button', { name: 'Local only', exact: true }).click();
+  await page.getByRole('button', { name: 'On this computer', exact: true }).click();
   await expect(page.locator('#creation-reason')).toHaveText('Ready to create');
 });
 

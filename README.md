@@ -63,7 +63,7 @@ Windows packages are unsigned at the operating-system level. Mac builds are ad-h
 
 | Create & configure                                                                                                                                    | Continue & check                                                                                                                                                 |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Start a repository.** Create local Git projects or publish to GitHub. Simple and Advanced share settings, with a review before creation.            | **Keep a project workspace.** Add existing repositories, reopen editors and terminals, and save commands with live output and stop controls.                     |
+| **Start a repository.** Create local Git projects or publish to GitHub. Every option is available, with a review before creation.                     | **Keep a project workspace.** Add existing repositories, reopen editors and terminals, and save commands with live output and stop controls.                     |
 | **Shape the files.** Choose technologies and stack presets, reuse project presets, and preview README, gitignore, license and optional project files. | **See what's missing.** Project Readiness inspects files without running programs and offers actionable findings. Full checks show a plan for explicit approval. |
 | **Give AI useful context.** Configure coding-agent instructions, specialists and skills. Prepare handoff prompts locally, without a model request.    | **Make it yours.** Light, dark and system themes, configurable accent colours, and Stable/Beta updates for supported installations.                              |
 
@@ -72,7 +72,7 @@ Selecting a technology describes your intended stack; it doesn't install a frame
 <details>
 <summary>Look inside Advanced mode</summary>
 
-Choose README sections, ignore rules, a license and Git settings while checking the exact generated content. Switching between Simple and Advanced preserves your configuration.
+Choose README sections, ignore rules, a license and Git settings while checking the exact generated content. Changing the advanced-options preference never discards your configuration.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/configuration-dark.png">
@@ -126,7 +126,7 @@ This fixture intentionally has no lockfile, installed packages or local environm
 ## Your first project
 
 1. Open **Settings** to check Git and your commit identity.
-2. Choose **Simple**, enter a project name and select a starting point such as **Experiment**.
+2. Enter a project name and select a starting point such as **Experiment**.
 3. Pick a save location and **On this computer**.
 4. Select **Review project**, inspect the files, then **Create Project**.
 

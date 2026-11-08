@@ -352,29 +352,27 @@ export default function App() {
             <div className={`workspace ${showContext ? 'with-context' : ''}`}>
               <nav className="navigation-rail" aria-label="Project setup">
                 <span className="nav-caption">PROJECT SETUP</span>
-                {(Object.keys(labels) as Section[])
-                  .filter((s) => !simple || !['files', 'agents'].includes(s))
-                  .map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      className={`nav-item ${section === s ? 'active' : ''}`}
-                      aria-current={section === s ? 'page' : undefined}
-                      onClick={() => navigate(s)}
-                    >
-                      <Icon
-                        name={
-                          s === 'files' || s === 'review'
-                            ? 'file'
-                            : s === 'agents' || s === 'handoff'
-                              ? 'code'
-                              : 'folder'
-                        }
-                        size={15}
-                      />
-                      {labels[s]}
-                    </button>
-                  ))}
+                {(Object.keys(labels) as Section[]).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`nav-item ${section === s ? 'active' : ''}`}
+                    aria-current={section === s ? 'page' : undefined}
+                    onClick={() => navigate(s)}
+                  >
+                    <Icon
+                      name={
+                        s === 'files' || s === 'review'
+                          ? 'file'
+                          : s === 'agents' || s === 'handoff'
+                            ? 'code'
+                            : 'folder'
+                      }
+                      size={15}
+                    />
+                    {labels[s]}
+                  </button>
+                ))}
               </nav>
               <main className="workspace-main" aria-label="Repository configuration" tabIndex={0}>
                 <div className="workspace-heading">
@@ -382,27 +380,6 @@ export default function App() {
                     <h2 ref={heading} tabIndex={-1}>
                       {labels[section]}
                     </h2>
-                  </div>
-                  <div className="segmented mode-switch" role="group" aria-label="Experience mode">
-                    <button
-                      type="button"
-                      aria-pressed={simple}
-                      disabled={creator.busy}
-                      onClick={() => {
-                        void creator.experienceMode('simple');
-                        if (section === 'files' || section === 'agents') navigate('overview');
-                      }}
-                    >
-                      Simple
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={!simple}
-                      disabled={creator.busy}
-                      onClick={() => void creator.experienceMode('advanced')}
-                    >
-                      Advanced
-                    </button>
                   </div>
                   {!contextualFiles && (
                     <div className="workspace-heading-actions">

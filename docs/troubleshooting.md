@@ -28,7 +28,7 @@ For a GitHub project, Repo Creator verifies the authenticated account and uses i
 
 Check the explanation beside the primary action: it names the first thing to fix and offers a button for it. When several things need fixing, the footer says how many and the list sits under the page heading. Complete the project name, save location, required setup and invalid configuration. Wait for preview updates or an open native dialog to finish. Existing project names, invalid branch names and incomplete license/identity fields must be corrected.
 
-If a settings or tool check failed, use the retry action. Advanced settings remain active when switching to Simple Mode; return to Advanced if a hidden setting needs correction.
+If a settings or tool check failed, use the retry action. All settings are available in every section, so open **Project Files** or **AI Agents** if a setting needs correction.
 
 ## A folder with this name already exists
 
@@ -53,7 +53,7 @@ Recent Projects records the original location; moved or deleted folders may no l
 
 ## Presets, prompts or settings look different
 
-Applying a preset offers **Undo preset change**. Simple and Advanced share configuration. A selected prompt template or changed project context does not overwrite edited prompt text until **Regenerate** is selected.
+Applying a preset offers **Undo preset change**. A selected prompt template or changed project context does not overwrite edited prompt text until **Regenerate** is selected.
 
 If custom prompt-template storage is unreadable or from a newer version, the app keeps the original data and disables saving template changes for that session. Do not clear application data if you need to recover custom templates. For general settings recovery notices, preserve any backup before changing files.
 

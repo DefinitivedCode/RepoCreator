@@ -25,7 +25,7 @@ test('visual audit of creation, settings and dialogs', async ({ page }, info) =>
   await prepare(page);
   await page.getByLabel('Project name').fill('river-workbench');
   await page.getByLabel('Description').fill('A small desktop tool for local projects');
-  await page.getByLabel('Project preset').selectOption('tauri');
+  await page.getByLabel('Starting point').selectOption('tauri');
   await page.getByLabel('AI coding assistant').selectOption('codex');
   await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
   await page.setViewportSize({ width: 1440, height: 900 });

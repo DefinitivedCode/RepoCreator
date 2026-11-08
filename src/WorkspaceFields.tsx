@@ -74,8 +74,7 @@ export function Overview({
         </label>
         <label className="field">
           <span className="control-label">
-            {simple ? 'What are you making?' : 'Description'}{' '}
-            <span className="optional">optional</span>
+            Description <span className="optional">optional</span>
           </span>
           <textarea
             className="short-description"
@@ -88,7 +87,7 @@ export function Overview({
         </label>
       </div>
       <div className="field overview-preset">
-        <label htmlFor="project-preset">{simple ? 'Starting point' : 'Project preset'}</label>
+        <label htmlFor="project-preset">Starting point</label>
         <div className="inline-actions">
           <select
             id="project-preset"
@@ -123,37 +122,31 @@ export function Overview({
       </div>
       <div className="overview-assistants two-columns creation-development">
         <Technology creator={creator} simple={simple} />
-        <Assistant creator={creator} simple={simple} onAdvanced={onAgents} />
+        <Assistant creator={creator} onAdvanced={onAgents} />
       </div>
       <div className="creation-location-group">
         <Location creator={creator} />
-        <Destination creator={creator} simple={simple} />
+        <Destination creator={creator} />
       </div>
       <div className="overview-tools">
         <details className="brief-details">
           <summary>
             Project brief <span className="help">optional</span>
           </summary>
-          <ProjectBrief
-            value={form.brief}
-            onChange={(brief) => creator.update('brief', brief)}
-            simple={simple}
-          />
+          <ProjectBrief value={form.brief} onChange={(brief) => creator.update('brief', brief)} />
         </details>
         {canUndo && (
           <button type="button" className="text-button" onClick={onUndo}>
             Undo preset change
           </button>
         )}
-        {!simple && (
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => onApply(catalog.defaultConfiguration, 'default')}
-          >
-            Reset configuration
-          </button>
-        )}
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => onApply(catalog.defaultConfiguration, 'default')}
+        >
+          Reset configuration
+        </button>
       </div>
     </div>
   );
@@ -172,31 +165,21 @@ function Technology({ creator, simple }: { creator: Creator; simple: boolean }) 
     />
   );
 }
-function Assistant({
-  creator,
-  simple,
-  onAdvanced,
-}: {
-  creator: Creator;
-  simple: boolean;
-  onAdvanced: () => void;
-}) {
+function Assistant({ creator, onAdvanced }: { creator: Creator; onAdvanced: () => void }) {
   const form = creator.form!,
     ai = form.options.ai;
   return (
     <div className="field">
       <div className="field-label-row">
         <label htmlFor="quick-assistant">AI coding assistant</label>
-        {!simple && (
-          <button
-            type="button"
-            className="text-button"
-            aria-label="Configure multiple assistants"
-            onClick={onAdvanced}
-          >
-            More…
-          </button>
-        )}
+        <button
+          type="button"
+          className="text-button"
+          aria-label="Configure multiple assistants"
+          onClick={onAdvanced}
+        >
+          More…
+        </button>
       </div>
       <select
         id="quick-assistant"
@@ -275,15 +258,13 @@ function Location({ creator }: { creator: Creator }) {
     </div>
   );
 }
-function Destination({ creator, simple }: { creator: Creator; simple: boolean }) {
+function Destination({ creator }: { creator: Creator }) {
   const form = creator.form!,
     env = creator.environment;
   return (
     <div className="overview-destination" data-github={form.destination === 'github'}>
       <div className="field">
-        <label id="destination-label">
-          {simple ? 'Where should the project live?' : 'Destination'}
-        </label>
+        <label id="destination-label">Destination</label>
         <div
           className="segmented destination-options"
           role="group"
@@ -294,14 +275,14 @@ function Destination({ creator, simple }: { creator: Creator; simple: boolean })
             aria-pressed={form.destination === 'local'}
             onClick={() => void creator.destination('local')}
           >
-            {simple ? 'On this computer' : 'Local only'}
+            On this computer
           </button>
           <button
             type="button"
             aria-pressed={form.destination === 'github'}
             onClick={() => void creator.destination('github')}
           >
-            {simple ? 'Computer and GitHub' : 'GitHub'}
+            GitHub
           </button>
         </div>
       </div>
@@ -591,9 +572,9 @@ export function SetupPanel({
     vscodeAvailable: false,
   };
   const form = creator.form!;
-  const [tab, setTab] = useState<'git' | 'github' | 'tools' | 'appearance' | 'updates' | 'setup'>(
-    updateRequest ? 'updates' : (initialTab ?? 'git'),
-  );
+  const [tab, setTab] = useState<
+    'git' | 'github' | 'tools' | 'appearance' | 'updates' | 'setup' | 'general'
+  >(updateRequest ? 'updates' : (initialTab ?? 'git'));
   useEffect(() => {
     if (updateRequest) setTab('updates');
   }, [updateRequest]);
@@ -664,6 +645,7 @@ export function SetupPanel({
             ['appearance', 'Appearance'],
             ['updates', 'Updates'],
             ['setup', 'Setup'],
+            ['general', 'General'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -678,7 +660,15 @@ export function SetupPanel({
             onKeyDown={(event) => {
               if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                 event.preventDefault();
-                const tabs = ['git', 'github', 'tools', 'appearance', 'updates', 'setup'] as const;
+                const tabs = [
+                  'git',
+                  'github',
+                  'tools',
+                  'appearance',
+                  'updates',
+                  'setup',
+                  'general',
+                ] as const;
                 const index =
                   event.key === 'Home'
                     ? 0
@@ -711,6 +701,27 @@ export function SetupPanel({
           </p>
         )}
         {tab === 'setup' && <SetupChecklist creator={creator} variant="settings" />}
+        {tab === 'general' && (
+          <div className="setup-identity">
+            <div className="setup-section-heading">
+              <h3>Project options</h3>
+            </div>
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={creator.preferences?.experienceMode === 'advanced'}
+                onChange={(event) =>
+                  void creator.experienceMode(event.target.checked ? 'advanced' : 'simple')
+                }
+              />
+              Show advanced options by default
+            </label>
+            <p className="help">
+              Every option is always available. This only decides how much detail pickers such as
+              the technology selector show at first.
+            </p>
+          </div>
+        )}
         {tab === 'git' && !!creator.environment && (
           <GitSettings
             creator={creator}
