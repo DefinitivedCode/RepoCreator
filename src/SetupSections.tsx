@@ -228,32 +228,41 @@ export function GitSettings({
           </p>
         </fieldset>
         <div className="two-columns">
-          <label className="field">
-            <span>Name</span>
-            <input
-              value={draft.name}
-              placeholder={identity.name || 'Your name'}
-              aria-invalid={!!nameError}
-              onChange={(event) => edit({ name: event.target.value })}
-            />
-            {nameError && <span className="help">{nameError}</span>}
-          </label>
-          <label className="field">
-            <span>Email</span>
-            <input
-              type="email"
-              value={draft.email}
-              placeholder="author@example.com"
-              aria-invalid={!!emailError}
-              aria-describedby={emailError ? 'identity-email-error' : undefined}
-              onChange={(event) => edit({ email: event.target.value })}
-            />
+          <div className="identity-field">
+            <label className="field">
+              <span>Name</span>
+              <input
+                value={draft.name}
+                placeholder={identity.name || 'Your name'}
+                aria-invalid={!!nameError}
+                aria-describedby={nameError ? 'identity-name-error' : undefined}
+                onChange={(event) => edit({ name: event.target.value })}
+              />
+            </label>
+            {nameError && (
+              <span className="help" id="identity-name-error">
+                {nameError}
+              </span>
+            )}
+          </div>
+          <div className="identity-field">
+            <label className="field">
+              <span>Email</span>
+              <input
+                type="email"
+                value={draft.email}
+                placeholder="author@example.com"
+                aria-invalid={!!emailError}
+                aria-describedby={emailError ? 'identity-email-error' : undefined}
+                onChange={(event) => edit({ email: event.target.value })}
+              />
+            </label>
             {emailError && (
               <span className="help" id="identity-email-error">
                 {emailError}
               </span>
             )}
-          </label>
+          </div>
         </div>
         {mode === 'project' ? (
           <div className="inline-actions">
@@ -326,12 +335,15 @@ export function GithubSettings({ creator, env }: { creator: Creator; env: Enviro
   const detail = detailOf(env);
   const state = detail.githubState;
   const [connecting, setConnecting] = useState(false);
+  // Zero until the first check; also stops a quick remount from checking twice.
   const lastCheck = useRef(0);
   const { refresh, checking } = creator;
 
   // Opening this tab always checks GitHub, even for a local project.
   useEffect(() => {
-    lastCheck.current = Date.now();
+    const now = Date.now();
+    if (lastCheck.current && now - lastCheck.current < 1000) return;
+    lastCheck.current = now;
     void refresh(true);
   }, [refresh]);
   useEffect(() => {
