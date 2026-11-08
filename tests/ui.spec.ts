@@ -1,4 +1,4 @@
-import { prepare, navigate, fileTab, createProject } from './fixtures';
+import { prepare, navigate, fileTab, createProject, setMode } from './fixtures';
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { verifyExpandedScrolling } from './scrolling.mjs';
@@ -7,13 +7,11 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
   page,
 }) => {
   await prepare(page, false, 'simple');
-  await expect(page.getByRole('button', { name: 'Simple', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(page.getByRole('group', { name: 'Experience mode' })).toHaveCount(0);
+  // Every section is available in every mode: Simple no longer hides Project Files.
   await expect(
     page.getByRole('navigation').getByRole('button', { name: 'Project Files' }),
-  ).toHaveCount(0);
+  ).toHaveCount(1);
   await page.getByLabel('Project name').fill('learning-lab');
   await page.getByLabel('Description').fill('Try a useful local tool');
   await page.getByLabel('Starting point').selectOption('experiment');
@@ -43,13 +41,13 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
   await page.getByRole('button', { name: 'Undo preset change' }).click();
   await expect(page.getByRole('button', { name: 'Remove Python', exact: true })).toBeVisible();
   await page.getByLabel('Project name').fill('learning-lab');
-  await page.getByRole('button', { name: 'Advanced', exact: true }).click();
+  await setMode(page, 'advanced');
   await fileTab(page, 'Git Settings');
   await page.getByLabel('Initial branch').fill('experiment/start');
   await navigate(page, 'Overview');
   await expect(page.getByLabel('Project name')).toHaveValue('learning-lab');
   await expect(page.getByLabel('Description')).toHaveValue('Try a useful local tool');
-  await page.getByRole('button', { name: 'Simple', exact: true }).click();
+  await setMode(page, 'simple');
   await expect(page.getByRole('button', { name: 'Remove Python', exact: true })).toBeVisible();
   await expect(page.getByLabel('AI coding assistant')).toHaveValue('claude');
   await page.getByRole('button', { name: 'Review project', exact: true }).click();
@@ -103,7 +101,7 @@ test('workspace uses available width and retains one pane scroller at supported 
   expect(panes.context).toBeGreaterThan(200);
   mkdirSync('artifacts', { recursive: true });
   await page.screenshot({ path: `artifacts/v1.3-overview-${info.project.name}-wide.png` });
-  await page.getByRole('button', { name: 'Simple', exact: true }).click();
+  await setMode(page, 'simple');
   await page.setViewportSize({ width: 820, height: 580 });
   await page.screenshot({ path: `artifacts/v1.3-simple-${info.project.name}-minimum.png` });
   await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
@@ -386,9 +384,7 @@ test('ordinary Overview fits the default window across display ratios and enlarg
     await page.getByLabel('Starting point').selectOption('experiment');
     await page.getByLabel('AI coding assistant').selectOption('claude');
     for (const mode of ['simple', 'advanced']) {
-      await page
-        .getByRole('button', { name: mode === 'simple' ? 'Simple' : 'Advanced', exact: true })
-        .click();
+      await setMode(page, mode as 'simple' | 'advanced');
       for (const destination of ['local', 'github']) {
         const name = destination === 'local' ? 'On this computer' : 'GitHub';
         await page.getByRole('button', { name, exact: true }).click();
@@ -456,9 +452,7 @@ test('ordinary Overview fits the default window across display ratios and enlarg
       if (scale === 1.5) {
         await page.setViewportSize({ width: 820, height: 580 });
         for (const mode of ['simple', 'advanced']) {
-          await page
-            .getByRole('button', { name: mode === 'simple' ? 'Simple' : 'Advanced', exact: true })
-            .click();
+          await setMode(page, mode as 'simple' | 'advanced');
           await description.focus();
           expect(
             await description.evaluate((el) => el.scrollHeight - el.clientHeight),
@@ -537,14 +531,11 @@ test('operational settings persist without redundant previews and stale checks c
         (window as any).testCalls.filter((call: any) => call.command === 'preview_files').length,
     ),
   ).toBe(count);
-  await page.getByRole('button', { name: 'Simple', exact: true }).click();
+  await setMode(page, 'simple');
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Simple', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(page.getByRole('group', { name: 'Experience mode' })).toHaveCount(0);
   await expect(page.getByRole('radio', { name: 'Public', exact: true })).toBeChecked();
-  await page.getByRole('button', { name: 'Advanced', exact: true }).click();
+  await setMode(page, 'advanced');
   await fileTab(page, 'Git Settings');
   await expect(page.getByLabel('Initial branch')).toHaveValue('feature/context');
   await expect(page.getByLabel('Initial commit message')).toHaveValue('Begin a focused workflow');

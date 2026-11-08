@@ -476,10 +476,7 @@ try {
   assert.equal((await invoke('get_preferences')).schemaVersion, 5);
   assert.equal((await invoke('get_update_info')).currentVersion, applicationVersion);
   await expect(page.locator('.app-sidebar .version')).toHaveText(applicationVersion);
-  await expect(page.getByRole('button', { name: 'Simple', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(page.getByRole('group', { name: 'Experience mode' })).toHaveCount(0);
   hostDisplay = await readHostDisplay();
   await screenshot('first-launch-monitor-bounds');
   await page.getByLabel('Starting point', { exact: true }).selectOption('blank');

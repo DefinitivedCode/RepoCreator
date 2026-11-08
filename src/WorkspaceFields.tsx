@@ -122,7 +122,7 @@ export function Overview({
       </div>
       <div className="overview-assistants two-columns creation-development">
         <Technology creator={creator} simple={simple} />
-        <Assistant creator={creator} simple={simple} onAdvanced={onAgents} />
+        <Assistant creator={creator} onAdvanced={onAgents} />
       </div>
       <div className="creation-location-group">
         <Location creator={creator} />
@@ -133,26 +133,20 @@ export function Overview({
           <summary>
             Project brief <span className="help">optional</span>
           </summary>
-          <ProjectBrief
-            value={form.brief}
-            onChange={(brief) => creator.update('brief', brief)}
-            simple={simple}
-          />
+          <ProjectBrief value={form.brief} onChange={(brief) => creator.update('brief', brief)} />
         </details>
         {canUndo && (
           <button type="button" className="text-button" onClick={onUndo}>
             Undo preset change
           </button>
         )}
-        {!simple && (
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => onApply(catalog.defaultConfiguration, 'default')}
-          >
-            Reset configuration
-          </button>
-        )}
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => onApply(catalog.defaultConfiguration, 'default')}
+        >
+          Reset configuration
+        </button>
       </div>
     </div>
   );
@@ -171,31 +165,21 @@ function Technology({ creator, simple }: { creator: Creator; simple: boolean }) 
     />
   );
 }
-function Assistant({
-  creator,
-  simple,
-  onAdvanced,
-}: {
-  creator: Creator;
-  simple: boolean;
-  onAdvanced: () => void;
-}) {
+function Assistant({ creator, onAdvanced }: { creator: Creator; onAdvanced: () => void }) {
   const form = creator.form!,
     ai = form.options.ai;
   return (
     <div className="field">
       <div className="field-label-row">
         <label htmlFor="quick-assistant">AI coding assistant</label>
-        {!simple && (
-          <button
-            type="button"
-            className="text-button"
-            aria-label="Configure multiple assistants"
-            onClick={onAdvanced}
-          >
-            More…
-          </button>
-        )}
+        <button
+          type="button"
+          className="text-button"
+          aria-label="Configure multiple assistants"
+          onClick={onAdvanced}
+        >
+          More…
+        </button>
       </div>
       <select
         id="quick-assistant"
@@ -588,9 +572,9 @@ export function SetupPanel({
     vscodeAvailable: false,
   };
   const form = creator.form!;
-  const [tab, setTab] = useState<'git' | 'github' | 'tools' | 'appearance' | 'updates' | 'setup'>(
-    updateRequest ? 'updates' : (initialTab ?? 'git'),
-  );
+  const [tab, setTab] = useState<
+    'git' | 'github' | 'tools' | 'appearance' | 'updates' | 'setup' | 'general'
+  >(updateRequest ? 'updates' : (initialTab ?? 'git'));
   useEffect(() => {
     if (updateRequest) setTab('updates');
   }, [updateRequest]);
@@ -661,6 +645,7 @@ export function SetupPanel({
             ['appearance', 'Appearance'],
             ['updates', 'Updates'],
             ['setup', 'Setup'],
+            ['general', 'General'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -675,7 +660,15 @@ export function SetupPanel({
             onKeyDown={(event) => {
               if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                 event.preventDefault();
-                const tabs = ['git', 'github', 'tools', 'appearance', 'updates', 'setup'] as const;
+                const tabs = [
+                  'git',
+                  'github',
+                  'tools',
+                  'appearance',
+                  'updates',
+                  'setup',
+                  'general',
+                ] as const;
                 const index =
                   event.key === 'Home'
                     ? 0
@@ -708,6 +701,27 @@ export function SetupPanel({
           </p>
         )}
         {tab === 'setup' && <SetupChecklist creator={creator} variant="settings" />}
+        {tab === 'general' && (
+          <div className="setup-identity">
+            <div className="setup-section-heading">
+              <h3>Project options</h3>
+            </div>
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={creator.preferences?.experienceMode === 'advanced'}
+                onChange={(event) =>
+                  void creator.experienceMode(event.target.checked ? 'advanced' : 'simple')
+                }
+              />
+              Show advanced options by default
+            </label>
+            <p className="help">
+              Every option is always available. This only decides how much detail pickers such as
+              the technology selector show at first.
+            </p>
+          </div>
+        )}
         {tab === 'git' && !!creator.environment && (
           <GitSettings
             creator={creator}

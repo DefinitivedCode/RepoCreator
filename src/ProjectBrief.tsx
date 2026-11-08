@@ -4,11 +4,9 @@ import type { ProjectBrief as Brief } from './types';
 export function ProjectBrief({
   value,
   onChange,
-  simple = false,
 }: {
   value?: Brief;
   onChange: (brief: Brief) => void;
-  simple?: boolean;
 }) {
   const brief = { ...emptyBrief, ...value };
   const fields: { key: keyof Brief; label: string; help?: string }[] = [
@@ -17,13 +15,9 @@ export function ProjectBrief({
       label: 'What are you building?',
       help: 'An optional idea for your AI planning prompt.',
     },
-    ...(!simple
-      ? [
-          { key: 'audience' as const, label: 'Who is it for?' },
-          { key: 'firstVersion' as const, label: 'What should the first version accomplish?' },
-          { key: 'context' as const, label: 'Additional context or constraints' },
-        ]
-      : []),
+    { key: 'audience' as const, label: 'Who is it for?' },
+    { key: 'firstVersion' as const, label: 'What should the first version accomplish?' },
+    { key: 'context' as const, label: 'Additional context or constraints' },
   ];
   return (
     <div className="project-brief">

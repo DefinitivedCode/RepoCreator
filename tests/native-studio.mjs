@@ -1,9 +1,10 @@
+import { setMode } from './mode.mjs';
 import { expect } from '@playwright/test';
 import assert from 'node:assert/strict';
 
 // Configure the production UI; generation and creation remain in native Rust.
 export async function configureNativeStudio({ page, invoke, verifyOverview }) {
-  await page.getByRole('button', { name: 'Advanced', exact: true }).click();
+  await setMode(page, 'advanced');
   await page.getByLabel('Starting point', { exact: true }).selectOption('tauri');
   await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('native-advanced');
   const description = 'Production workspace verification with six optional assistants.';
@@ -68,11 +69,13 @@ export async function configureNativeStudio({ page, invoke, verifyOverview }) {
     .getByLabel('Scoped rule instructions', { exact: true })
     .fill('Preserve keyboard navigation and public component contracts.');
   await page.getByRole('button', { name: 'Add scoped rule', exact: true }).click();
-  await page.getByRole('button', { name: 'Simple', exact: true }).click();
+  await setMode(page, 'simple');
+  // The old switch also returned to Overview; do that explicitly.
+  await nav.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Project name', exact: true })).toHaveValue(
     'native-advanced',
   );
-  await page.getByRole('button', { name: 'Advanced', exact: true }).click();
+  await setMode(page, 'advanced');
   await nav.getByRole('button', { name: 'AI Agents', exact: true }).click();
   await tabs.getByRole('tab', { name: 'Assistants', exact: true }).click();
   for (const name of assistants)

@@ -3,7 +3,7 @@
 Repo Creator 1.4 adds a local project library and development workspace alongside
 repository creation. Choose **New Project** to create a repository, **Projects**
 to return to one, **Presets** for reusable configurations, or **Settings** to
-check the computer's setup. Simple and Advanced modes continue to share settings.
+check the computer's setup.
 
 ## Choose a technology stack
 

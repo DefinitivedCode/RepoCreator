@@ -60,6 +60,8 @@ test('appearance themes and accent presets apply live through native preferences
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Setup', exact: true })).toBeFocused();
   await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'General', exact: true })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Git & identity' })).toBeFocused();
 });
 

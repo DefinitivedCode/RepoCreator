@@ -1,5 +1,6 @@
 // Capture the real Windows WebView2 app with isolated, fictional local data.
 // Build the intended source first; no UI mocks, model calls or remote repositories.
+import { setMode } from './mode.mjs';
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
@@ -195,7 +196,7 @@ try {
     await page.getByRole('heading', { name: 'Overview', exact: true }).click();
     await capture(`overview-${appearance}`);
   }
-  await page.getByRole('button', { name: 'Advanced', exact: true }).click();
+  await setMode(page, 'advanced');
   await page
     .getByRole('navigation', { name: 'Project setup' })
     .getByRole('button', { name: 'Project Files', exact: true })
