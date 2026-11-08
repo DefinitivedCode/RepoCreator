@@ -14,7 +14,7 @@ Resumable log for the autonomous redesign run ([prompt](ui-redesign-autonomous-p
 | 5a Result pane and drawer                      | `redesign/phase-5a-layout`                                                                                                                  | `redesign/phase-4-onboarding`   | [#26](https://github.com/DefinitivedCode/RepoCreator/pull/26) | Verified, PR open, unmerged |
 | 5c Create flow (confirmation, blocker popover) | `redesign/phase-5c-create-flow`                                                                                                             | `redesign/phase-5a-layout`      | [#27](https://github.com/DefinitivedCode/RepoCreator/pull/27) | Verified, PR open, unmerged |
 | 5b Unified wording, no mode switch (partial)   | `redesign/phase-5b-sections`                                                                                                                | `redesign/phase-5c-create-flow` | [#28](https://github.com/DefinitivedCode/RepoCreator/pull/28) | Verified, PR open, unmerged |
-| 6 Projects, workspace, presets                 | `redesign/phase-6-workspace`                                                                                                                | phase 5                         | —                                                             | Not started                 |
+| 6 Projects, workspace, presets (partial)       | `redesign/phase-6-workspace`                                                                                                                | `redesign/phase-5b-sections`    | [#29](https://github.com/DefinitivedCode/RepoCreator/pull/29) | Verified, PR open, unmerged |
 | 7 Settings and polish                          | `redesign/phase-7-settings`                                                                                                                 | phase 6                         | —                                                             | Not started                 |
 | 8 Accessibility                                | `redesign/phase-8-accessibility`                                                                                                            | phase 7                         | —                                                             | Not started                 |
 
@@ -104,6 +104,20 @@ Changed existing tests (all intentional): wording (`Local only`→`On this compu
 
 **Still not delivered from the spec's 5b:** the single scrolling page with a sticky section index and per-section Customize disclosures (the rail with section views remains), and Customize regions that start expanded in advanced mode. An attempt to open the project brief by default in advanced mode was reverted because it broke the existing zero-scroll guarantee at 1100×740; the general approach for expanded Customize regions should be designed together with the single-page layout.
 
+## Phase 6 — verification (Windows 11 only)
+
+`check` pass; `format:check` pass; notices check pass; `npm test` 331 (3 new `middleTruncate` tests); `npm run test:ui` 232 passed, 2 skipped (opt-in baseline) incl. 2 new library tests in `project-workspace.spec.ts` and 8 new `presets.spec.ts` tests; `cargo fmt`/`clippy` pass; `cargo test --locked` 151; **native workspace smoke** on a rebuilt debug exe (empty `HOME`) pass after two script fixes (below). Presets page screenshot viewed at 1100×740.
+
+Delivered:
+
+1. **Split** `ProjectWorkspace.tsx` (1,839 lines) into `src/workspace/{Library,Workspace,Tools,Settings,Commands,shared}` with no behaviour change, in its own commit; the full browser suite was unchanged (220 passed) before anything was restyled.
+2. **Library:** the pin is an icon (no ★/☆ glyphs, still a toggle), middle-truncated path with the full value in the title and a copy button, branch shown, **New project** action, arrow-key navigation between projects, and **Remove from history** now asks first ("The folder on disk is kept"; Cancel is the default focus). Search, sort and distinct empty states already existed.
+3. **Presets page:** one-sentence explanation, **Yours** and **Built-in** sections, **Use preset**, **Duplicate** (unique "copy" names) and **Delete** (custom only, confirmed). Editing remains in the existing preset manager, unchanged. The all-caps eyebrow is gone from this page.
+
+Changed existing tests: the remove-from-history flow now confirms; `native-workspace-smoke.mjs` uses tab selectors for the workspace tabs (they became tabs in Phase 3) and seeds `accent: 'teal'` (my Phase 4 seeding made the file look like an older install, which keeps the legacy copper accent).
+
+**Not delivered from the spec's Phase 6:** the workspace header "Open in…" split button replacing the Open tab; moving launcher configuration to Project Settings → Tools; the Handoff workspace tab; definition-list Overview with expandable technology evidence; Commands list with one primary action plus a menu for Edit/Delete/reorder and a run-history list; Readiness grouping into Needs attention / Passing / Not run with a single Run checks; Edit on the Presets page opening that specific preset. These are each their own change to command and readiness behaviour that needs careful tests; recorded for a follow-up.
+
 ## Decisions for the maintainer
 
 - Should the Simple/Advanced wording differences be unified before 5b? Unifying them removes the largest source of test churn but changes visible text for Simple users.
@@ -114,11 +128,13 @@ None open.
 
 ## Next step
 
-Run stopped cleanly after Phase 5b (partial) because of working-budget limits, not a blocker. Resume by re-sending the autonomous prompt.
+Run stopped cleanly after Phase 6 (partial) because of working-budget limits, not a blocker. Resume by re-sending the autonomous prompt.
 
-1. Remaining 5b work (optional, can be folded into later phases): single scrolling page with sticky section index and Customize `Disclosure`s (`git checkout redesign/phase-5b-sections && git checkout -b redesign/phase-5b2-single-page`). Rewrite the helpers `navigate`/`fileTab`/`agentTab`/`createProject` first.
-2. Phase 6 (projects, workspace, presets): `git checkout redesign/phase-5b-sections && git checkout -b redesign/phase-6-workspace`. Start by splitting `src/ProjectWorkspace.tsx` by tab with no behaviour change (own commit), then the library rows, header and Open-in menu, commands/readiness/handoff restyle, presets page.
-3. Then Phases 7–8. Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smoke needs a debug build and an empty `HOME`; write multi-line scripts with the file tool; occasional load flakes in `project-workspace.spec.ts`; `aria-disabled` buttons need `click({ force: true })`; use `setMode` to change mode in tests.
+1. Optional remainder of Phase 6 (list above), on `git checkout redesign/phase-6-workspace && git checkout -b redesign/phase-6b-workspace-details`. Start with the Readiness grouping (pure presentation in `src/Readiness.tsx`), then the Commands primary-action menu and run history (`list_command_runs`), then the header Open-in menu. Re-verify [Q] items before touching `commandOutputModel.ts` (raw ANSI) and launcher state.
+2. Phase 7 (settings, appearance, updates, polish; repo-wide `lint:styles` gate) on `git checkout redesign/phase-6-workspace && git checkout -b redesign/phase-7-settings`.
+3. Phase 8 (accessibility, forced colours, checklist doc, `docs/redesign-summary.md`).
+
+Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smokes need a debug build (`npm run desktop:build -- --ci --debug --no-bundle`) and an empty `HOME`; write multi-line scripts with the file tool; the browser suite has occasional load flakes; `aria-disabled` buttons need `click({ force: true })`; use `setMode` for mode; CI runs `scripts/third-party-notices.mjs --check`, so never edit `src/icons.tsx` (use `src/ui/UiIcon.tsx`); merge, never rebase, to propagate fixes up the stack.
 
 ## Final deliverables still owed after Phase 8
 
