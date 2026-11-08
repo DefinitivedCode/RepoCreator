@@ -53,6 +53,14 @@ cargo test --manifest-path src-tauri/Cargo.toml --locked
 
 `npm run build` checks TypeScript and builds the frontend. `npm run format` formats application/test sources and root configuration; review the diff. Browser tests use Tauri's IPC mock and cover both themes, modes, supported dimensions, enlarged text, recovery and configuration preservation. Rust tests create temporary local Git repositories and simulate remote failures. Automated tests do not create real GitHub repositories or invoke provider models.
 
+## Design tokens and UI primitives
+
+`src/tokens.css` (imported first) holds the redesign tokens: neutrals, the 12–28px type scale, a 4px spacing scale, radii (6 controls, 8 panels, 999 chips), control heights (28/32/40), focus and layers. It deliberately does not redefine variables the older styles use (`--background`, `--surface`, `--text`, `--primary`, `--radius`, `--motion`), so screens that have not been migrated render exactly as before; those names move to the new values as each screen is migrated. Accent roles `--accent-text`, `--accent-fill` and `--accent-on-fill` come from `src/appearance.ts`, which derives a fill whose label reaches 4.5:1 for every accent in both themes (`src/tokens.test.ts`).
+
+Primitives live in `src/ui/` (`Button`, `Field`, `Tabs`, `StatusRow`, `Banner`, `Chip`, `Disclosure`, `Dialog`, `useToasts`/`ToastRegion`) with styles in `src/ui/ui.css`. A `Button` given a `reason` uses `aria-disabled` and `aria-describedby` instead of `disabled`, so it stays focusable and explains itself. In development only, `/?kitchen-sink` (with `npm run dev`) shows every primitive in both themes and every accent; the page is removed from production builds. `tests/ui-kit.spec.ts` checks the primitives against it.
+
+`npm run lint:styles` (part of `npm run check`) fails for new files only (`src/ui/**` and `tokens.css`): no `font-size` below 12px, radii only 6/8/999, no raw colours outside `tokens.css`. Elsewhere it reports counts; `npm run audit:styles` prints the full audit. The visual baseline is described in [redesign-baseline.md](redesign-baseline.md).
+
 ## CI coverage and caching
 
 The required check names remain `version`, `windows`, `macOS Apple-Silicon` and `macOS Intel`. No branch-protection changes are needed. Each mode validates the exact checked-out commit; post-merge checks still run native tests on all three platforms rather than relying on a previous PR result.

@@ -15,3 +15,11 @@ test('the audit reads the source tree without failing', () => {
   assert.ok(result.distinctFontSizes > 0);
   assert.ok(Array.isArray(result.violations));
 });
+
+test('only the new primitives and tokens are gated', async () => {
+  const { gated } = await import('./audit-styles.mjs');
+  assert.equal(gated('src/ui/Button.tsx'), true);
+  assert.equal(gated('src/tokens.css'), true);
+  assert.equal(gated('src/styles.css'), false);
+  assert.equal(gated('src/workspace.css'), false);
+});

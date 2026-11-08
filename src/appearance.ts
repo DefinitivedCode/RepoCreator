@@ -66,6 +66,29 @@ function readableShade(color: string, backgrounds: string[], dark: boolean, mini
   return mix(color, endpoint, high);
 }
 
+const LIGHT_LABEL = '#FFFFFF';
+const DARK_LABEL = '#151515';
+/**
+ * A button fill and its label. The label is white or near-black, whichever reads
+ * better on the accent; when neither reaches `minimum` the fill (never the label)
+ * is moved toward the opposite end until it does.
+ */
+export function accentFill(color: string, minimum = 4.5): { fill: string; onFill: string } {
+  const raw = normalizeHex(color) ?? '#4FA69B';
+  const onFill =
+    contrastRatio(raw, LIGHT_LABEL) >= contrastRatio(raw, DARK_LABEL) ? LIGHT_LABEL : DARK_LABEL;
+  if (contrastRatio(raw, onFill) >= minimum) return { fill: raw, onFill };
+  const endpoint = onFill === LIGHT_LABEL ? '#000000' : '#FFFFFF';
+  let low = 0,
+    high = 1;
+  for (let step = 0; step < 24; step++) {
+    const middle = (low + high) / 2;
+    if (contrastRatio(mix(raw, endpoint, middle), onFill) >= minimum) high = middle;
+    else low = middle;
+  }
+  return { fill: mix(raw, endpoint, high), onFill };
+}
+
 /** Text, selected states, button fills and focus outlines share a hue, not a raw colour. */
 export function appearanceTokens(color: string, dark: boolean): Record<string, string> {
   const raw = normalizeHex(color) ?? '#4FA69B';
@@ -79,8 +102,11 @@ export function appearanceTokens(color: string, dark: boolean): Record<string, s
   const foreground =
     contrastRatio(text, '#FFFFFF') >= contrastRatio(text, '#151515') ? '#FFFFFF' : '#151515';
   const hover = mix(text, dark ? '#FFFFFF' : '#000000', 0.09);
+  const { fill, onFill } = accentFill(raw);
   return {
     '--accent-raw': raw,
+    '--accent-fill': fill,
+    '--accent-on-fill': onFill,
     '--accent': text,
     '--accent-text': text,
     '--accent-border': border,

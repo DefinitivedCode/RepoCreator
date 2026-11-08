@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
     "build": "tsc --noEmit && vite build",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && npm run lint:styles",
     "test": "vitest run",
     "test:ui": "playwright test",
     "lint:styles": "node scripts/audit-styles.mjs --lint",

@@ -1,0 +1,321 @@
+/* Styles for the primitives in src/ui. Colours, sizes and radii come from tokens.css. */
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-default);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font: 500 var(--fs-secondary) / var(--lh-secondary) var(--font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--motion);
+}
+.ui-button[data-size='compact'] {
+  min-height: var(--control-compact);
+  padding: 0 var(--space-2);
+}
+.ui-button[data-size='large'] {
+  min-height: var(--control-large);
+  padding: 0 var(--space-4);
+  font-size: var(--fs-body);
+}
+.ui-button:hover:not([aria-disabled='true']):not(:disabled) {
+  background: var(--sunken);
+}
+.ui-button[data-variant='primary'] {
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
+  color: var(--accent-on-fill);
+}
+.ui-button[data-variant='primary']:hover:not([aria-disabled='true']):not(:disabled) {
+  background: var(--accent-fill);
+  filter: brightness(0.92);
+}
+.ui-button[data-variant='tertiary'] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent-text);
+}
+.ui-button[data-variant='danger'] {
+  border-color: var(--error);
+  color: var(--error);
+}
+.ui-button[aria-disabled='true'],
+.ui-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.ui-button:focus-visible,
+.ui-tab:focus-visible,
+.ui-disclosure-trigger:focus-visible,
+.ui-field :where(input, select, textarea):focus-visible {
+  outline: var(--focus-width) solid var(--accent-text);
+  outline-offset: var(--focus-offset);
+}
+.ui-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.ui-field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.ui-field-label {
+  font: 500 var(--fs-body) / var(--lh-body) var(--font-ui);
+}
+.ui-field-optional {
+  margin-left: var(--space-1);
+  color: var(--text-2);
+  font-weight: 400;
+}
+.ui-field :where(input, select, textarea) {
+  min-height: var(--control-default);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font: 400 var(--fs-body) / var(--lh-body) var(--font-ui);
+}
+.ui-field :where(input, select, textarea)[aria-invalid='true'] {
+  border-color: var(--error);
+}
+.ui-field-helper {
+  color: var(--text-2);
+  font: 400 var(--fs-secondary) / var(--lh-secondary) var(--font-ui);
+}
+.ui-field-error {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-start;
+  color: var(--error);
+  font: 400 var(--fs-secondary) / var(--lh-secondary) var(--font-ui);
+}
+
+.ui-tabs-list {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--hairline);
+}
+.ui-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-large);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-2);
+  font: 500 var(--fs-secondary) / var(--lh-secondary) var(--font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ui-tab[aria-selected='true'] {
+  border-bottom-color: var(--accent-text);
+  color: var(--text);
+  font-weight: 600;
+}
+.ui-tab:hover:not([aria-selected='true']) {
+  background: var(--sunken);
+}
+.ui-tab-count {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--sunken);
+  font: 500 var(--fs-caption) / var(--lh-caption) var(--font-ui);
+}
+.ui-tabpanel {
+  padding-top: var(--space-4);
+}
+
+.ui-status-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 48px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.ui-status-icon {
+  display: inline-flex;
+  color: var(--text-2);
+}
+.ui-status-row[data-state='ok'] .ui-status-icon {
+  color: var(--success);
+}
+.ui-status-row[data-state='warning'] .ui-status-icon {
+  color: var(--warning);
+}
+.ui-status-row[data-state='error'] .ui-status-icon {
+  color: var(--error);
+}
+.ui-status-title {
+  font: 600 var(--fs-body) / var(--lh-body) var(--font-ui);
+}
+.ui-status-detail {
+  color: var(--text-2);
+  font: 400 var(--fs-secondary) / var(--lh-secondary) var(--font-ui);
+}
+
+.ui-disclosure-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-default);
+  padding: var(--space-1) 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text);
+  font: 500 var(--fs-body) / var(--lh-body) var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.ui-disclosure-chevron {
+  display: inline-flex;
+  transition: transform var(--motion);
+  transform: rotate(-90deg);
+}
+.ui-disclosure-trigger[aria-expanded='true'] .ui-disclosure-chevron {
+  transform: rotate(0deg);
+}
+.ui-disclosure-summary {
+  margin-left: auto;
+  color: var(--text-2);
+  font-weight: 400;
+}
+.ui-disclosure-body {
+  padding: var(--space-2) 0 var(--space-3) var(--space-5);
+}
+
+.ui-dialog {
+  width: min(560px, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100vh - 2 * var(--space-5));
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-popover);
+}
+.ui-dialog::backdrop {
+  background: var(--scrim);
+}
+.ui-dialog-body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: inherit;
+}
+.ui-dialog-title {
+  margin: 0;
+  padding: var(--space-4) var(--space-5) var(--space-2);
+  font: 600 var(--fs-section) / var(--lh-section) var(--font-ui);
+}
+.ui-dialog-content {
+  overflow: auto;
+  padding: 0 var(--space-5) var(--space-4);
+  font: 400 var(--fs-body) / var(--lh-body) var(--font-ui);
+}
+.ui-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--hairline);
+}
+
+.ui-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+  background: var(--sunken);
+  font: 400 var(--fs-secondary) / var(--lh-secondary) var(--font-ui);
+}
+.ui-banner[data-tone='error'] {
+  border-color: var(--error);
+  background: var(--error-bg);
+}
+.ui-banner[data-tone='warning'] {
+  border-color: var(--warning);
+  background: var(--warning-bg);
+}
+.ui-banner[data-tone='success'] {
+  border-color: var(--success);
+  background: var(--success-bg);
+}
+.ui-banner-title {
+  display: block;
+  font-weight: 600;
+}
+
+.ui-toast-region {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: var(--z-toast);
+  display: grid;
+  gap: var(--space-2);
+  max-width: 360px;
+}
+.ui-toast {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  font: 400 var(--fs-secondary) / var(--lh-secondary) var(--font-ui);
+}
+
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--sunken);
+  color: var(--text);
+  font: 500 var(--fs-caption) / var(--lh-caption) var(--font-ui);
+  white-space: nowrap;
+}
+.ui-chip[data-tone='ok'] {
+  color: var(--success);
+}
+.ui-chip[data-tone='warning'] {
+  color: var(--warning);
+}
+.ui-chip[data-tone='error'] {
+  color: var(--error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-button,
+  .ui-disclosure-chevron {
+    transition: none;
+  }
+}
