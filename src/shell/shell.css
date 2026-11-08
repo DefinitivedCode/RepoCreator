@@ -239,3 +239,10 @@
     margin: 0;
   }
 }
+.preset-card h4 {
+  margin: 0 0 var(--space-1);
+  font: 600 var(--fs-body) / var(--lh-body) var(--font-ui);
+}
+.library-page section + section {
+  margin-top: var(--space-5);
+}

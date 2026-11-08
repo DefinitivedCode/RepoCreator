@@ -8,10 +8,10 @@ import { GeneratedFilesDialog } from './GeneratedFilesDialog';
 import { AgentStudio, type AgentSection } from './AgentStudio';
 import { HandoffPanel } from './HandoffPanel';
 import { WorkspaceDialog } from './WorkspaceDialog';
+import { PresetLibrary } from './presets/PresetLibrary';
 import { BlockerPopover, ConfirmPublish } from './create/CreateFlow';
 import { Projects } from './ProjectWorkspace';
 import type { ProjectCommand } from './workspaceTypes';
-import { technologySummary } from './technologies';
 import { RepositoryState } from './RepositoryState';
 import { Overview, ProjectSummary, SetupPanel, Context } from './WorkspaceFields';
 import { Sidebar } from './shell/Sidebar';
@@ -235,53 +235,16 @@ export default function App() {
             }}
           />
         ) : page === 'presets' ? (
-          <main className="library-page" aria-label="Project presets">
-            <div className="page-heading">
-              <div>
-                <p className="eyebrow">REUSABLE STARTING POINTS</p>
-                <h2>Presets</h2>
-                <p className="help">
-                  Keep your preferred files, technologies, assistants and commands together.
-                </p>
-              </div>
-              <button type="button" className="primary" onClick={() => setPresetsOpen(true)}>
-                Manage presets
-              </button>
-            </div>
-            <div className="preset-library">
-              {allPresets.map((item) => (
-                <article key={item.id} className="workspace-card preset-card">
-                  <span className="eyebrow">
-                    {item.id.startsWith('custom-') ? 'CUSTOM' : 'BUILT-IN'}
-                  </span>
-                  <h3>{item.name}</h3>
-                  <p className="help">{item.description || 'A reusable project configuration.'}</p>
-                  <p className="preset-details">
-                    {technologySummary(
-                      item.configuration.options.technologies ?? { ids: [], custom: [] },
-                    )}
-                    <span>
-                      {item.configuration.options.commands?.length ?? 0} commands ·{' '}
-                      {item.configuration.options.ai.enabled
-                        ? item.configuration.options.ai.agents.length
-                        : 0}{' '}
-                      assistants
-                    </span>
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      apply(item.configuration, item.id);
-                      navigateTo({ type: 'go', page: 'new' });
-                      navigate('overview');
-                    }}
-                  >
-                    Use preset <Icon name="arrow" size={14} />
-                  </button>
-                </article>
-              ))}
-            </div>
-          </main>
+          <PresetLibrary
+            creator={creator}
+            presets={allPresets}
+            onManage={() => setPresetsOpen(true)}
+            onUse={(configuration, id) => {
+              apply(configuration, id);
+              navigateTo({ type: 'go', page: 'new' });
+              navigate('overview');
+            }}
+          />
         ) : page === 'settings' ? (
           <main className="library-page settings-page" aria-label="Application settings">
             <div className="page-heading">

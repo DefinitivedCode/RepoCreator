@@ -47,7 +47,7 @@ async function setTheme(appearance, section) {
     .click();
   await page
     .getByRole('main', { name: 'Project workspace' })
-    .getByRole('button', { name: section, exact: true })
+    .getByRole('tab', { name: section, exact: true })
     .click();
   if (section === 'Commands')
     await expect(page.getByLabel('long output', { exact: true })).toContainText('stream-start');
@@ -128,6 +128,7 @@ try {
     path.join(data, 'preferences.json'),
     JSON.stringify({
       schemaVersion: 5,
+      accent: 'teal',
       onboarding: { completedAt: '1792000000', githubSkipped: false, version: 1 },
     }),
   );
@@ -400,7 +401,7 @@ try {
     );
   const beforeIde = antigravityProcesses();
   const detected = await invoke('get_project_tools', { id: added.id, refresh: true });
-  await workspacePage.getByRole('button', { name: 'Open', exact: true }).click();
+  await workspacePage.getByRole('tab', { name: 'Open', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Refresh tool detection', exact: true }),
   ).toBeVisible();
@@ -447,7 +448,7 @@ try {
   checks.push(
     'Passive executable marker stays absent; explicit IDE launch receives exact folder arguments',
   );
-  await workspacePage.getByRole('button', { name: 'Overview', exact: true }).click();
+  await workspacePage.getByRole('tab', { name: 'Overview', exact: true }).click();
   for (const appearance of ['light', 'dark']) {
     await setTheme(appearance, 'Overview');
     await page.screenshot({
@@ -455,7 +456,7 @@ try {
       animations: 'disabled',
     });
   }
-  await workspacePage.getByRole('button', { name: 'Commands', exact: true }).click();
+  await workspacePage.getByRole('tab', { name: 'Commands', exact: true }).click();
   await expect(page.getByLabel('long output', { exact: true })).toContainText('stream-start');
   for (const appearance of ['light', 'dark']) {
     await setTheme(appearance, 'Commands');
@@ -464,7 +465,7 @@ try {
       animations: 'disabled',
     });
   }
-  await workspacePage.getByRole('button', { name: 'Project Settings', exact: true }).click();
+  await workspacePage.getByRole('tab', { name: 'Project Settings', exact: true }).click();
   for (const appearance of ['light', 'dark']) {
     await setTheme(appearance, 'Project Settings');
     await page.screenshot({
