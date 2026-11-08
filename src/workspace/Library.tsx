@@ -1,3 +1,5 @@
+import { UiIcon } from '../ui/UiIcon';
+import { Button, Dialog } from '../ui';
 import type { ProjectPreset } from '../types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -5,7 +7,7 @@ import { Icon } from '../icons';
 import { displayPath } from '../validation';
 import { technologySummary } from '../technologies';
 import { type ProjectCommand, type RecentProject } from '../workspaceTypes';
-import { date, message, normalize } from './shared';
+import { date, message, normalize, middleTruncate } from './shared';
 import { ProjectWorkspace } from './Workspace';
 import '../project-workspace.css';
 
@@ -15,12 +17,14 @@ export function Projects({
   copy,
   commandPresets,
   onSaveCommandPreset,
+  onNew,
 }: {
   initialProjectId?: string;
   onSelect: (id?: string) => void;
   copy: (text: string) => Promise<void>;
   commandPresets: ProjectPreset[];
   onSaveCommandPreset: (commands: ProjectCommand[]) => void;
+  onNew?: () => void;
 }) {
   const [projects, setProjects] = useState<RecentProject[]>([]);
   const [query, setQuery] = useState('');
@@ -28,6 +32,7 @@ export function Projects({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
+  const [removing, setRemoving] = useState<RecentProject | null>(null);
   const loadRevision = useRef(0);
   const libraryRequest = useRef<Promise<RecentProject[]> | null>(null);
   const load = useCallback(async (fresh = false) => {
@@ -88,6 +93,7 @@ export function Projects({
     }
   }
   async function remove(project: RecentProject) {
+    setRemoving(null);
     try {
       const result = await invoke<RecentProject[]>('remove_recent_project', { id: project.id });
       setProjects(result.map(normalize));
@@ -128,9 +134,16 @@ export function Projects({
           <h2>Projects</h2>
           <p className="help">Your repositories, tools and saved commands.</p>
         </div>
-        <button type="button" className="primary" onClick={() => void add()} disabled={pending}>
-          {pending ? 'Choosing folder…' : 'Add existing project'} <Icon name="folder" size={15} />
-        </button>
+        <div className="inline-actions">
+          {onNew && (
+            <button type="button" onClick={onNew}>
+              New project
+            </button>
+          )}
+          <button type="button" className="primary" onClick={() => void add()} disabled={pending}>
+            {pending ? 'Choosing folder…' : 'Add existing project'} <Icon name="folder" size={15} />
+          </button>
+        </div>
       </div>
       <div className="library-toolbar">
         <label className="library-search">
@@ -176,7 +189,20 @@ export function Projects({
           </p>
         </div>
       ) : (
-        <div className="project-library">
+        <div
+          className="project-library"
+          onKeyDown={(event) => {
+            // Arrow keys move between project names, so the list is one tab stop's worth of work.
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+            const names = [...event.currentTarget.querySelectorAll<HTMLElement>('.project-name')];
+            const at = names.indexOf(document.activeElement as HTMLElement);
+            if (at < 0) return;
+            event.preventDefault();
+            names[
+              Math.min(names.length - 1, Math.max(0, at + (event.key === 'ArrowDown' ? 1 : -1)))
+            ].focus();
+          }}
+        >
           {visible.map((project) => (
             <article className="project-card" key={project.id}>
               <div className="project-card-heading">
@@ -192,7 +218,17 @@ export function Projects({
                     {project.context.projectName}
                     <Icon name="arrow" size={15} />
                   </button>
-                  <p className="path">{displayPath(project.context.localPath)}</p>
+                  <p className="path" title={displayPath(project.context.localPath)}>
+                    {middleTruncate(displayPath(project.context.localPath))}
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={`Copy path of ${project.context.projectName}`}
+                      onClick={() => void copy(displayPath(project.context.localPath))}
+                    >
+                      <Icon name="copy" size={13} />
+                    </button>
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -201,14 +237,23 @@ export function Projects({
                   aria-pressed={project.pinned}
                   onClick={() => void pin(project)}
                 >
-                  {project.pinned ? '★' : '☆'}
+                  <UiIcon
+                    name="pin"
+                    size={16}
+                    style={project.pinned ? { fill: 'currentColor' } : undefined}
+                  />
                 </button>
               </div>
               <p className="help project-tech">
                 {technologySummary(project.technologies) || 'No technologies selected'}
               </p>
               <div className="project-card-footer">
-                <span className="help">Last opened {date(project.lastOpenedAt)}</span>
+                <span className="help">
+                  Last opened {date(project.lastOpenedAt)}
+                  {project.context.branch && (
+                    <span className="project-branch"> · {project.context.branch}</span>
+                  )}
+                </span>
                 <div className="inline-actions">
                   <button type="button" onClick={() => onSelect(project.id)}>
                     Open workspace
@@ -216,7 +261,7 @@ export function Projects({
                   <button
                     type="button"
                     className="text-button"
-                    onClick={() => void remove(project)}
+                    onClick={() => setRemoving(project)}
                   >
                     Remove from history
                   </button>
@@ -225,6 +270,25 @@ export function Projects({
             </article>
           ))}
         </div>
+      )}
+      {removing && (
+        <Dialog
+          title="Remove from history?"
+          onClose={() => setRemoving(null)}
+          footer={
+            <>
+              <Button onClick={() => setRemoving(null)}>Cancel</Button>
+              <Button variant="primary" onClick={() => void remove(removing)}>
+                Remove from history
+              </Button>
+            </>
+          }
+        >
+          <p>
+            <strong>{removing.context.projectName}</strong> will leave this list. The folder on disk
+            is kept.
+          </p>
+        </Dialog>
       )}
       <p className="library-note help">
         Project preferences stay on this computer. Removing history keeps the source folder.

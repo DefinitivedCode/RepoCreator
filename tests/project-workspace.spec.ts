@@ -988,6 +988,10 @@ test('project library searches, pins, imports, removes history and locates missi
     .filter({ hasText: 'added-repository' })
     .getByRole('button', { name: 'Remove from history' })
     .click();
+  // Removal asks first, and says the folder on disk is kept.
+  const confirm = page.getByRole('dialog', { name: 'Remove from history?' });
+  await expect(confirm).toContainText('The folder on disk is kept.');
+  await confirm.getByRole('button', { name: 'Remove from history' }).click();
   await expect(page.locator('.project-card')).toHaveCount(1);
   const calls = await page.evaluate(() => (window as any).testCalls);
   expect(calls.some((call: any) => /delete.*project|remove.*folder/.test(call.command))).toBe(
@@ -1673,4 +1677,53 @@ test('a cancel that arrives after the backend finished reports the real outcome'
   await expect(
     page.locator('.readiness-check').filter({ hasText: 'Node.js version' }),
   ).toContainText('Full check');
+});
+
+test('the library uses a pin icon, copies a path, and removal can be cancelled', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  const pin = page.getByRole('button', { name: 'Pin river-workbench', exact: true });
+  // An icon, not the star glyphs.
+  await expect(pin.locator('svg')).toHaveCount(1);
+  await expect(pin).not.toContainText(/[★☆]/);
+  await expect(pin).toHaveAttribute('aria-pressed', 'false');
+  await pin.click();
+  await expect(
+    page.getByRole('button', { name: 'Unpin river-workbench', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Copy path of river-workbench' }).click();
+  expect(await page.evaluate(() => (window as any).testCopied)).toBe(
+    'C:\\Projects\\River Workbench',
+  );
+  await expect(page.locator('.project-card .path')).toHaveAttribute(
+    'title',
+    'C:\\Projects\\River Workbench',
+  );
+  await expect(page.locator('.project-branch')).toHaveText(' · main');
+  // Cancel keeps the project and nothing is removed.
+  await page.getByRole('button', { name: 'Remove from history' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Remove from history?' });
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('.project-card')).toHaveCount(1);
+  expect(await calls(page, 'remove_recent_project')).toHaveLength(0);
+});
+
+test('arrow keys move between projects and New project starts a new one', async ({ page }) => {
+  await workspaceFixture(page);
+  await page.getByRole('button', { name: 'Add existing project', exact: true }).click();
+  await page.getByRole('button', { name: 'All projects', exact: true }).click();
+  const names = page.locator('.project-card .project-name');
+  await expect(names).toHaveCount(2);
+  await names.nth(0).focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(names.nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(names.nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(names.nth(0)).toBeFocused();
+  await page.getByRole('button', { name: 'New project', exact: true }).click();
+  await expect(page.getByLabel('Project name')).toBeVisible();
 });

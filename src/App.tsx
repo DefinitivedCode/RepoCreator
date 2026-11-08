@@ -225,6 +225,7 @@ export default function App() {
             onSelect={(id) => navigateTo({ type: 'select-project', id })}
             copy={creator.copy}
             commandPresets={allPresets}
+            onNew={() => navigateTo({ type: 'go', page: 'new' })}
             onSaveCommandPreset={(commands: ProjectCommand[]) => {
               setPresetOverride({
                 ...configurationOf(form),

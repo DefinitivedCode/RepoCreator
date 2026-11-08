@@ -54,3 +54,11 @@ export function normalize(project: RecentProject): RecentProject {
     launcher: project.launcher ?? emptyLauncher,
   };
 }
+
+/** Keeps both ends of a long path readable; the full value stays in the title. */
+export function middleTruncate(value: string, limit = 56): string {
+  if (value.length <= limit) return value;
+  const head = Math.ceil((limit - 1) / 2);
+  const tail = limit - 1 - head;
+  return `${value.slice(0, head)}…${value.slice(value.length - tail)}`;
+}
