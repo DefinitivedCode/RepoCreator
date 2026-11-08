@@ -11,7 +11,7 @@ test('the result pane summarises the first commit and who will author it', async
   await expect(commit).toContainText('Initial commit');
   await expect(commit).toContainText('Test Author <test@example.invalid>');
   // A GitHub project is recorded with the account's private address, never the real email.
-  await page.getByRole('button', { name: 'Computer and GitHub', exact: true }).click();
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click();
   await expect(commit).toContainText('Test Author <your GitHub private address>');
 });
 

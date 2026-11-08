@@ -32,7 +32,7 @@ test('stack switching preserves manual choices through picker remounts, undo and
   await picker.getByRole('button', { name: 'Done', exact: true }).click();
   await navigate(page, 'Project Files');
   await navigate(page, 'Overview');
-  await page.getByLabel('Project preset').selectOption('python');
+  await page.getByLabel('Starting point').selectOption('python');
   await page.getByRole('button', { name: 'Undo preset change' }).click();
   await browse.click();
   await stack.selectOption('tauri');
@@ -218,7 +218,7 @@ test('creation and bounded technology picker remain readable at default minimum 
 }, info) => {
   await prepare(page, false, 'simple');
   await page.getByLabel('Project name').fill('field-notes');
-  await page.getByLabel('What are you making?').fill('A local tool for useful project notes');
+  await page.getByLabel('Description').fill('A local tool for useful project notes');
   await page
     .getByRole('combobox', { name: 'Technologies', exact: true })
     .selectOption('typescript');

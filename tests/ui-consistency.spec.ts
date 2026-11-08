@@ -17,7 +17,7 @@ test('creation status bar contains and aligns Git readiness, summary, validation
   ).toHaveCount(0);
   await expect(footer.getByRole('status')).toHaveText('Enter a project name.');
   await page.getByLabel('Project name', { exact: true }).fill('field-notes');
-  await page.getByRole('button', { name: 'Computer and GitHub', exact: true }).click();
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click();
   await expect(footer.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
   await expect(footer).toContainText('Private GitHub repository');
   for (const size of [

@@ -181,7 +181,7 @@ try {
   await page.getByLabel('Project name', { exact: true }).fill('field-notes');
   await page.getByLabel('Starting point', { exact: true }).selectOption('website');
   await page
-    .getByLabel('What are you making?', { exact: false })
+    .getByLabel('Description', { exact: false })
     .fill('Collect notes and small discoveries.');
   await page.getByLabel('AI coding assistant', { exact: true }).selectOption('codex');
   await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 // Configure the production UI; generation and creation remain in native Rust.
 export async function configureNativeStudio({ page, invoke, verifyOverview }) {
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();
-  await page.getByLabel('Project preset', { exact: true }).selectOption('tauri');
+  await page.getByLabel('Starting point', { exact: true }).selectOption('tauri');
   await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('native-advanced');
   const description = 'Production workspace verification with six optional assistants.';
   await page.getByRole('textbox', { name: 'Description', exact: false }).fill(description);

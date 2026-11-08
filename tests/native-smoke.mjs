@@ -520,7 +520,7 @@ try {
   await page.getByLabel('Starting point', { exact: true }).selectOption('experiment');
   await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('native-experiment');
   const description = 'Explore a small local idea with a realistic first version.';
-  await page.getByRole('textbox', { name: 'What are you making?', exact: false }).fill(description);
+  await page.getByRole('textbox', { name: 'Description', exact: false }).fill(description);
   await page.getByLabel('AI coding assistant', { exact: true }).selectOption('claude');
   const experiment = await createAndVerify({
     name: 'native-experiment',

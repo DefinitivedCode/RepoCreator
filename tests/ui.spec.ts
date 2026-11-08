@@ -15,7 +15,7 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
     page.getByRole('navigation').getByRole('button', { name: 'Project Files' }),
   ).toHaveCount(0);
   await page.getByLabel('Project name').fill('learning-lab');
-  await page.getByLabel('What are you making?').fill('Try a useful local tool');
+  await page.getByLabel('Description').fill('Try a useful local tool');
   await page.getByLabel('Starting point').selectOption('experiment');
   await page.getByRole('combobox', { name: 'Technologies', exact: true }).selectOption('python');
   await page.getByLabel('AI coding assistant').selectOption('claude');
@@ -75,7 +75,7 @@ test('workspace uses available width and retains one pane scroller at supported 
   test.setTimeout(90_000);
   await prepare(page);
   await page.getByLabel('Project name').fill('workspace-layout');
-  await page.getByLabel('Project preset').selectOption('tauri');
+  await page.getByLabel('Starting point').selectOption('tauri');
   await fileTab(page, 'README');
   await page.getByRole('combobox', { name: 'README', exact: true }).selectOption('custom');
   for (const name of ['Features', 'Installation', 'Contributing'])
@@ -134,7 +134,7 @@ test('ignore rules, license, extra files and Git options reach one creation comm
 }) => {
   await prepare(page);
   await page.getByLabel('Project name').fill('fresh-start');
-  await page.getByLabel('Project preset').selectOption('tauri');
+  await page.getByLabel('Starting point').selectOption('tauri');
   await fileTab(page, 'Gitignore');
   await page.getByLabel('Search ignore presets').fill('rust');
   await expect(page.getByLabel('Rust', { exact: true })).toBeChecked();
@@ -218,14 +218,14 @@ test('Preset Studio saves, edits, duplicates, previews imports, rejects malforme
   await expect(custom).toBeVisible();
   await custom.getByRole('button', { name: 'Load', exact: true }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(page.getByLabel('Project preset')).toHaveValue('custom-1');
+  await expect(page.getByLabel('Starting point')).toHaveValue('custom-1');
   await fileTab(page, 'Gitignore');
   await expect(page.getByLabel('Operating system files', { exact: true })).not.toBeChecked();
   await expect(page.getByLabel('Environment & local secrets', { exact: true })).not.toBeChecked();
   await navigate(page, 'Overview');
-  await page.getByLabel('Project preset').selectOption('tauri');
+  await page.getByLabel('Starting point').selectOption('tauri');
   await page.getByRole('button', { name: 'Undo preset change' }).click();
-  await expect(page.getByLabel('Project preset')).toHaveValue('custom-1');
+  await expect(page.getByLabel('Starting point')).toHaveValue('custom-1');
   await page.getByRole('button', { name: 'Manage…' }).click();
   await custom.getByRole('button', { name: 'Delete', exact: true }).click();
   await dialog.getByRole('button', { name: 'Delete preset', exact: true }).click();
@@ -254,7 +254,7 @@ test('appearance and partial publication retain the local repository and metadat
   await page.getByLabel('Homepage').fill('invalid-url');
   await expect(page.getByRole('button', { name: 'Review project' })).toBeDisabled();
   await navigate(page, 'Overview');
-  await page.getByRole('button', { name: 'Local only', exact: true }).click();
+  await page.getByRole('button', { name: 'On this computer', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Review project' })).toBeEnabled();
   await page.getByRole('button', { name: 'GitHub', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Owner', exact: true })).toHaveValue(
@@ -295,7 +295,7 @@ test('optional tools and disconnected GitHub never block a local project or hand
   await navigate(page, 'AI Handoff');
   await expect(page.getByLabel('AI prompt')).toHaveValue(/offline-project/);
   await navigate(page, 'Overview');
-  await page.getByRole('button', { name: 'Computer and GitHub', exact: true }).click();
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'On this computer', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
@@ -309,7 +309,7 @@ test('local handoff templates render, preserve prompt edits, copy and persist cu
   });
   await prepare(page, false, 'simple');
   await page.getByLabel('Project name').fill('prompt-project');
-  await page.getByLabel('What are you making?').fill('A private learning experiment');
+  await page.getByLabel('Description').fill('A private learning experiment');
   await navigate(page, 'AI Handoff');
   const prompt = page.getByLabel('AI prompt');
   await expect(page.getByText(/Recommended template.*is unavailable/)).toBeVisible();
@@ -390,14 +390,7 @@ test('ordinary Overview fits the default window across display ratios and enlarg
         .getByRole('button', { name: mode === 'simple' ? 'Simple' : 'Advanced', exact: true })
         .click();
       for (const destination of ['local', 'github']) {
-        const name =
-          destination === 'local'
-            ? mode === 'simple'
-              ? 'On this computer'
-              : 'Local only'
-            : mode === 'simple'
-              ? 'Computer and GitHub'
-              : 'GitHub';
+        const name = destination === 'local' ? 'On this computer' : 'GitHub';
         await page.getByRole('button', { name, exact: true }).click();
         await expect(
           page.getByRole('button', { name: 'Review project', exact: true }),
@@ -520,7 +513,7 @@ test('operational settings persist without redundant previews and stale checks c
       ]),
   );
   await page.getByRole('button', { name: 'GitHub', exact: true }).click();
-  await page.getByRole('button', { name: 'Local only', exact: true }).click();
+  await page.getByRole('button', { name: 'On this computer', exact: true }).click();
   await page.getByRole('button', { name: 'GitHub', exact: true }).click();
   await page.getByRole('radio', { name: 'Public', exact: true }).check();
   await page.getByRole('combobox', { name: 'Owner', exact: true }).selectOption('sample-org');

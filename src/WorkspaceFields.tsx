@@ -74,8 +74,7 @@ export function Overview({
         </label>
         <label className="field">
           <span className="control-label">
-            {simple ? 'What are you making?' : 'Description'}{' '}
-            <span className="optional">optional</span>
+            Description <span className="optional">optional</span>
           </span>
           <textarea
             className="short-description"
@@ -88,7 +87,7 @@ export function Overview({
         </label>
       </div>
       <div className="field overview-preset">
-        <label htmlFor="project-preset">{simple ? 'Starting point' : 'Project preset'}</label>
+        <label htmlFor="project-preset">Starting point</label>
         <div className="inline-actions">
           <select
             id="project-preset"
@@ -127,7 +126,7 @@ export function Overview({
       </div>
       <div className="creation-location-group">
         <Location creator={creator} />
-        <Destination creator={creator} simple={simple} />
+        <Destination creator={creator} />
       </div>
       <div className="overview-tools">
         <details className="brief-details">
@@ -275,15 +274,13 @@ function Location({ creator }: { creator: Creator }) {
     </div>
   );
 }
-function Destination({ creator, simple }: { creator: Creator; simple: boolean }) {
+function Destination({ creator }: { creator: Creator }) {
   const form = creator.form!,
     env = creator.environment;
   return (
     <div className="overview-destination" data-github={form.destination === 'github'}>
       <div className="field">
-        <label id="destination-label">
-          {simple ? 'Where should the project live?' : 'Destination'}
-        </label>
+        <label id="destination-label">Destination</label>
         <div
           className="segmented destination-options"
           role="group"
@@ -294,14 +291,14 @@ function Destination({ creator, simple }: { creator: Creator; simple: boolean })
             aria-pressed={form.destination === 'local'}
             onClick={() => void creator.destination('local')}
           >
-            {simple ? 'On this computer' : 'Local only'}
+            On this computer
           </button>
           <button
             type="button"
             aria-pressed={form.destination === 'github'}
             onClick={() => void creator.destination('github')}
           >
-            {simple ? 'Computer and GitHub' : 'GitHub'}
+            GitHub
           </button>
         </div>
       </div>
