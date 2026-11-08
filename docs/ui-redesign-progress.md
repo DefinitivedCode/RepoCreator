@@ -9,7 +9,7 @@ Resumable log for the autonomous redesign run ([prompt](ui-redesign-autonomous-p
 | 1 Setup correctness            | `fix/setup-correctness` (kept; the prompt's suggested `redesign/phase-1-setup-correctness` was not used because work was already open here) | `main`                      | [#21](https://github.com/DefinitivedCode/RepoCreator/pull/21) | Verified, PR open, unmerged |
 | 0 Baseline                     | `redesign/phase-0-baseline`                                                                                                                 | `fix/setup-correctness`     | [#22](https://github.com/DefinitivedCode/RepoCreator/pull/22) | Verified, PR open, unmerged |
 | 2 Tokens and primitives        | `redesign/phase-2-tokens`                                                                                                                   | `redesign/phase-0-baseline` | [#23](https://github.com/DefinitivedCode/RepoCreator/pull/23) | Verified, PR open, unmerged |
-| 3 Shell and navigation         | `redesign/phase-3-shell`                                                                                                                    | `redesign/phase-2-tokens`   | PR3_PLACEHOLDER                                               | Verified, PR open, unmerged |
+| 3 Shell and navigation         | `redesign/phase-3-shell`                                                                                                                    | `redesign/phase-2-tokens`   | [#24](https://github.com/DefinitivedCode/RepoCreator/pull/24) | Verified, PR open, unmerged |
 | 4 Onboarding                   | `redesign/phase-4-onboarding`                                                                                                               | phase 3                     | —                                                             | Not started                 |
 | 5 New Project                  | `redesign/phase-5-new-project`                                                                                                              | phase 4                     | —                                                             | Not started                 |
 | 6 Projects, workspace, presets | `redesign/phase-6-workspace`                                                                                                                | phase 5                     | —                                                             | Not started                 |
@@ -68,4 +68,12 @@ None open.
 
 ## Next step
 
-Phase 4: create `redesign/phase-4-onboarding` from `redesign/phase-3-shell`.
+Run stopped cleanly after Phase 3 because of working-budget limits, not a blocker. Resume by re-sending the autonomous prompt.
+
+1. `git checkout redesign/phase-3-shell && git checkout -b redesign/phase-4-onboarding`.
+2. Phase 4 per [phases spec](ui-redesign-phases-spec.md): start with the Rust `onboarding` preference (additive `serde(default)`, loaded field by field in `Preferences::load` like `identityOverride`) and its four commands; then `src/setup/SetupChecklist.tsx` built on `StatusRow`/`Disclosure` reusing Phase 1's `GitSettings`/`GithubSettings` logic in `src/SetupSections.tsx`; then first-run gating in `App.tsx` using `list_recent_projects`.
+3. Phases 5–8 follow. Useful facts for them: the baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; the native smoke needs a debug build (`npm run desktop:build -- --ci --debug --no-bundle`) and an empty `HOME` (not `USERPROFILE`) for isolation; shell heredocs with many quotes fail in this environment, so write multi-line scripts with the file tool; the browser suite has occasional load flakes in `project-workspace.spec.ts`.
+
+## Final deliverables still owed after Phase 8
+
+`docs/redesign-summary.md` (criteria 1–25 with evidence or an honest untested/unmet) and the final report.
