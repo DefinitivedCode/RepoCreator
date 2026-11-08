@@ -18,13 +18,7 @@ export type IconName =
   | 'settings'
   | 'refresh'
   | 'pending'
-  | 'question'
-  | 'minus'
-  | 'plus'
-  | 'more'
-  | 'pin'
-  | 'play'
-  | 'stop';
+  | 'question';
 const paths: Record<IconName, React.ReactNode> = {
   copy: (
     <>
@@ -73,18 +67,6 @@ const paths: Record<IconName, React.ReactNode> = {
     </>
   ),
   check: <path d="m5 12 4 4L19 6" />,
-  minus: <path d="M5 12h14" />,
-  plus: <path d="M12 5v14M5 12h14" />,
-  more: (
-    <>
-      <circle cx="5" cy="12" r="1" />
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="19" cy="12" r="1" />
-    </>
-  ),
-  pin: <path d="m9 4 6 0 1 6 3 3H5l3-3Zm3 9v8" />,
-  play: <path d="m7 4 13 8-13 8Z" />,
-  stop: <rect x="6" y="6" width="12" height="12" rx="1" />,
   lock: (
     <>
       <rect x="5" y="10" width="14" height="11" rx="2" />
