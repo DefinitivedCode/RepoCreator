@@ -20,13 +20,13 @@ On macOS, Finder-launched apps may have a different executable search path from 
 
 ## Commit identity is missing
 
-Enter the project's commit name and email in **Settings**, or configure Git using its [first-time setup guide](https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup). Project fields affect only the new repository. Choose an email you are comfortable recording in commits; GitHub documents [private no-reply addresses](https://docs.github.com/en/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address).
+Git needs a name and email to record commits. Open **Settings → Git & identity**, which shows what Git has now and what is missing, or configure Git using its [first-time setup guide](https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup). Saving **Use only for Repo Creator projects** affects only new Repo Creator projects. **Set as my Git default** edits your global Git configuration and only runs after you select **Save to my Git configuration**. Choose an email you are comfortable recording in commits; GitHub documents [private no-reply addresses](https://docs.github.com/en/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address).
 
-For a GitHub project, Repo Creator verifies the authenticated account and uses its no-reply email for the initial commit. It does not change global Git identity.
+For a GitHub project, Repo Creator verifies the authenticated account and uses its no-reply email for the initial commit. Repo Creator never changes your global Git identity automatically.
 
 ## Review or Create is disabled
 
-Check the explanation beside the primary action. Complete the project name, save location, required setup and invalid configuration. Wait for preview updates or an open native dialog to finish. Existing project names, invalid branch names and incomplete license/identity fields must be corrected.
+Check the explanation beside the primary action: it names the first thing to fix and offers a button for it. When several things need fixing, the footer says how many and the list sits under the page heading. Complete the project name, save location, required setup and invalid configuration. Wait for preview updates or an open native dialog to finish. Existing project names, invalid branch names and incomplete license/identity fields must be corrected.
 
 If a settings or tool check failed, use the retry action. Advanced settings remain active when switching to Simple Mode; return to Advanced if a hidden setting needs correction.
 
@@ -38,7 +38,7 @@ Choose a new name or another parent folder. Repo Creator refuses to overwrite ex
 
 First open the displayed local folder and confirm what was created. A failure during remote creation, metadata updates, pushing or verification does not remove completed local files and commits.
 
-- Recheck GitHub CLI sign-in, account, owner permissions and network connection.
+- Recheck GitHub CLI sign-in, account, owner permissions and network connection. "Couldn't reach GitHub to check your sign-in" means the check itself did not finish (network, rate limit or timeout); it does not mean you are signed out. Select **Retry**, or use **Use a local project instead**.
 - Use **Retry publishing** when offered. It reuses the confirmed remote and verifies the original account, branch, commit and location.
 - If remote creation was interrupted before confirmation, inspect GitHub and the local folder before proceeding. Repo Creator will not silently adopt a repository with the same name.
 - Retry state belongs to the current app session. After restarting, finish publication manually from the preserved repository using Git/GitHub CLI or your usual Git client.

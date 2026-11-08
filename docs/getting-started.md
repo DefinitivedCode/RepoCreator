@@ -23,11 +23,14 @@ The repository and published downloads are public. For development test builds, 
 ## Check Git
 
 1. Open Repo Creator and select **Settings**.
-2. If Git is missing, use **Open Git installation instructions** and install it from the official source.
+2. If Git is missing or older than 2.28, use **Install Git** (or **Update Git**) and install it from the official source.
 3. Return to the app and select **Recheck**. If it is still unavailable, reopen the app and see [Troubleshooting](troubleshooting.md).
-4. If a commit identity is missing, enter a name and email in the project identity fields. This applies only to the new project. Use an email you are comfortable recording in Git history; GitHub offers a [private no-reply address](https://docs.github.com/en/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address).
+4. Settings shows the name and email Git already has, and where each came from. If either is missing, enter them under **Commit identity**. Git records them with every commit, so use an email you are comfortable recording in Git history; GitHub offers a [private no-reply address](https://docs.github.com/en/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address).
+5. Choose where the identity applies:
+   - **Use only for Repo Creator projects** (the default) saves it in Repo Creator and applies it inside each new project. Your global Git settings are not changed.
+   - **Set as my Git default** shows the exact `git config --global` commands, the file they edit and any value they replace. Nothing changes until you select **Save to my Git configuration**.
 
-Local creation requires Git and a commit identity. The application does not change your global Git identity.
+Local creation requires Git and a commit identity. While something is missing, the footer names it and offers a fix without losing what you have entered.
 
 ## Create your first local project
 
@@ -42,7 +45,7 @@ The project gets a new child folder. Repo Creator refuses to overwrite an existi
 
 ## Publish to GitHub
 
-Install [GitHub CLI](https://cli.github.com/) first. In **Settings**, select **Connect to GitHub** and complete GitHub CLI's official sign-in in the terminal/browser it opens. Return to Repo Creator and check the connection.
+Install [GitHub CLI](https://cli.github.com/) first. In **Settings → GitHub**, select **Connect to GitHub**. A terminal window opens and shows a one-time code; enter it on github.com, then return to Repo Creator. The app checks again when you return to its window, or you can select **Check GitHub connection**. Repo Creator never asks for a password or token. If it cannot reach GitHub to check your sign-in, it says so and offers **Retry** instead of reporting that you are signed out.
 
 In Overview, select **Computer and GitHub**, choose an owner, and review **Private** or **Public** visibility. GitHub enforces account and organisation permissions. Creation still makes a local repository, then publishes its initial commit. GitHub projects use the verified account's no-reply commit email for that initial commit.
 
