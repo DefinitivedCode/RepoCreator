@@ -1,9 +1,9 @@
-import { Icon, type IconName } from '../icons';
+import { UiIcon, type UiIconName } from '../ui/UiIcon';
 import '../ui/ui.css';
 
 export type Page = 'new' | 'projects' | 'presets' | 'settings';
 
-const destinations: { id: Page; name: string; icon: IconName }[] = [
+const destinations: { id: Page; name: string; icon: UiIconName }[] = [
   { id: 'new', name: 'New Project', icon: 'plus' },
   { id: 'projects', name: 'Projects', icon: 'folder' },
   { id: 'presets', name: 'Presets', icon: 'repo' },
@@ -31,7 +31,7 @@ export function Sidebar({
   onNavigate: (page: Page) => void;
   onReviewUpdate: () => void;
 }) {
-  const item = (id: Page, name: string, icon: IconName, dot = false) => (
+  const item = (id: Page, name: string, icon: UiIconName, dot = false) => (
     <button
       key={id}
       type="button"
@@ -43,7 +43,7 @@ export function Sidebar({
       disabled={disabled}
       onClick={() => onNavigate(id)}
     >
-      <Icon name={icon} size={16} />
+      <UiIcon name={icon} size={16} />
       <span className="sidebar-label">{name}</span>
       {dot && <span className="sidebar-dot" aria-hidden="true" />}
     </button>
@@ -65,7 +65,7 @@ export function Sidebar({
             title="Update available"
             onClick={onReviewUpdate}
           >
-            <Icon name="refresh" size={16} />
+            <UiIcon name="refresh" size={16} />
             <span className="sidebar-label">Update available</span>
           </button>
         )}
