@@ -135,6 +135,41 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+.context-first-commit dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--fs-secondary);
+}
+.context-first-commit dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.context-handoff {
+  justify-self: start;
+}
+/* The Result pane sits beside the form from a 1250px window; below that it is a bottom drawer. */
+.preview-drawer-trigger {
+  display: none;
+}
+@container app (max-width: 1050px) {
+  .preview-drawer-trigger {
+    display: inline-flex;
+  }
+}
+.result-drawer {
+  max-height: 45%;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--separator);
+  background: var(--surface);
+}
+@container app (min-width: 1051px) {
+  .result-drawer {
+    display: none;
+  }
+}
 .mode-switch-row {
   display: flex;
   justify-content: flex-end;

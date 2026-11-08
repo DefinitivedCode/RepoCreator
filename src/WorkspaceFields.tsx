@@ -417,12 +417,41 @@ export function ProjectSummary({ creator, presetName }: { creator: Creator; pres
     </dl>
   );
 }
+/** What the first commit will contain and who will be recorded as its author. */
+function FirstCommit({ creator }: { creator: Creator }) {
+  const form = creator.form!;
+  const env = creator.environment;
+  const projectName = form.options.commitAuthorName?.trim();
+  const projectEmail = form.options.commitAuthorEmail?.trim();
+  const saved = creator.preferences?.identityOverride;
+  const detected = env ? detailOf(env).identity : null;
+  const name = projectName || saved?.name || detected?.name || null;
+  const email =
+    form.destination === 'github'
+      ? 'your GitHub private address'
+      : projectEmail || saved?.email || detected?.email || null;
+  return (
+    <div className="context-first-commit">
+      <h4>First commit</h4>
+      <dl>
+        <dt>Branch</dt>
+        <dd>{form.options.initialBranch}</dd>
+        <dt>Message</dt>
+        <dd>{form.options.commitMessage}</dd>
+        <dt>Author</dt>
+        <dd>{name && email ? `${name} <${email}>` : 'Not set yet'}</dd>
+      </dl>
+    </div>
+  );
+}
+
 export function Context({
   creator,
   section,
   presetName,
   fileSection,
   onPreview,
+  onHandoff,
 }: {
   creator: Creator;
   section: Section;
@@ -430,6 +459,7 @@ export function Context({
   presetDescription?: string;
   fileSection?: string;
   onPreview: (path: string) => void;
+  onHandoff?: () => void;
 }) {
   const form = creator.form!;
   const files = creator.files;
@@ -524,6 +554,12 @@ export function Context({
           <h4>Technology context</h4>
           <p>{technologySummary(technologiesFor(form))}</p>
         </div>
+      )}
+      <FirstCommit creator={creator} />
+      {onHandoff && (
+        <button type="button" className="text-button context-handoff" onClick={onHandoff}>
+          Handoff prompt
+        </button>
       )}
       <div className="context-footnote">
         <span>{presetName}</span>
