@@ -35,8 +35,10 @@ export async function prepare(
     }
     builtIns.find(p=>p.id==='claude-experiment').configuration.options.ai = {...structuredClone(options.ai),enabled:true,agents:['claude']};
     builtIns.find(p=>p.id==='website').configuration.handoffTemplate = 'architecture';
-    const preferences = { schemaVersion: 5, experienceMode:'${mode}', parentPath: 'C:\\\\Projects', destination: 'local', appearance: 'system', accent:'teal',customAccent:'#4FA69B',defaults: configuration, customPresets: [], instructionPresets:[],specialistLibrary:[],recoveryNotice:null,recentLocations: [] };
+    const preferences = { schemaVersion: 5, experienceMode:'${mode}', parentPath: 'C:\\\\Projects', destination: 'local', appearance: 'system', accent:'teal',customAccent:'#4FA69B',defaults: configuration, customPresets: [], instructionPresets:[],specialistLibrary:[],recoveryNotice:null,recentLocations: [],onboarding:{completedAt:'1792000000',githubSkipped:false,version:1} };
     if(window.testRecentLocations) preferences.recentLocations=window.testRecentLocations;
+    // Existing specs start after first-run setup; first-run specs set window.testOnboarding to an empty object.
+    if(window.testOnboarding !== undefined) preferences.onboarding=window.testOnboarding;
     if(window.testPreferredTemplate) preferences.defaults={...structuredClone(configuration),handoffTemplate:window.testPreferredTemplate};
     if(window.testPersistPreferences && sessionStorage.getItem('testPreferences')) Object.assign(preferences,JSON.parse(sessionStorage.getItem('testPreferences')));
     let attempts = 0;
@@ -124,7 +126,11 @@ export async function prepare(
       if (command === 'set_experience_mode') { preferences.experienceMode=payload.mode; return structuredClone(preferences); }
       if (command === 'set_appearance') { preferences.appearance=payload.appearance; return; }
       if (command === 'set_accent') { preferences.accent=payload.accent; preferences.customAccent=payload.customAccent; return; }
-      if (command === 'list_recent_projects') return [];
+      if (command === 'list_recent_projects') return structuredClone(window.testRecentProjects || []);
+      if (command === 'get_onboarding_state') return structuredClone(preferences.onboarding || {});
+      if (command === 'complete_onboarding') { preferences.onboarding={...preferences.onboarding,completedAt:'1792000001',version:1}; return structuredClone(preferences); }
+      if (command === 'skip_github_setup') { preferences.onboarding={...preferences.onboarding,githubSkipped:true}; return structuredClone(preferences); }
+      if (command === 'reset_onboarding') { preferences.onboarding={...preferences.onboarding,completedAt:null}; return structuredClone(preferences); }
       if (command === 'export_project_preset' || command === 'export_handoff_text') return true;
       if (command === 'import_handoff_template') return window.testPromptImport || '{}';
       if (command === 'preview_project_preset_import') {

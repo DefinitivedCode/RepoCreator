@@ -418,6 +418,7 @@ try {
     path.join(settingsDirectory, 'preferences.json'),
     JSON.stringify({
       schemaVersion: 4,
+      onboarding: { completedAt: '1792000000', githubSkipped: false, version: 1 },
       experienceMode: 'simple',
       parentPath: parent,
       destination: 'local',

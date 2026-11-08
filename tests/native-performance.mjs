@@ -127,6 +127,7 @@ try {
     path.join(data, 'preferences.json'),
     JSON.stringify({
       schemaVersion: 5,
+      onboarding: { completedAt: '1792000000', githubSkipped: false, version: 1 },
       experienceMode: 'advanced',
       parentPath: temporary,
       destination: 'local',

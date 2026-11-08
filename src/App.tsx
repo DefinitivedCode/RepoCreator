@@ -1,4 +1,5 @@
-import { useReducer, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './icons';
 import { AdvancedPanel, FilePreview, IgnorePanel, type FileSection } from './ConfigurationPanels';
 import { PresetDialog } from './PresetDialog';
@@ -18,7 +19,9 @@ import './shell/shell.css';
 import { useCreator } from './useCreator';
 import { useUpdates } from './useUpdates';
 import { configurationOf } from './validation';
-import { isSetupBlocker, summarizeBlockers, type FixTarget } from './blockers';
+import { isSetupBlocker, requiredSetupMet, summarizeBlockers, type FixTarget } from './blockers';
+import { SetupChecklist } from './setup/SetupChecklist';
+import type { RecentProject } from './workspaceTypes';
 import type { Configuration, Readme } from './types';
 import { normalizeProjectName } from './projectName';
 
@@ -48,6 +51,48 @@ export default function App() {
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ configuration: Configuration; id: string } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  // First run: no completed setup and no projects yet. People upgrading with projects
+  // are never interrupted: setup completes silently when the required items pass.
+  const [hasProjects, setHasProjects] = useState<boolean | null>(null);
+  const onboardingDone = !!preferences?.onboarding?.completedAt;
+  useEffect(() => {
+    if (!preferences || onboardingDone || hasProjects !== null) return;
+    invoke<RecentProject[]>('list_recent_projects')
+      .then((projects) => setHasProjects(projects.length > 0))
+      .catch(() => setHasProjects(true));
+  }, [preferences, onboardingDone, hasProjects]);
+  const firstRun = !!preferences && !onboardingDone && hasProjects === false;
+  useEffect(() => {
+    if (
+      preferences &&
+      !onboardingDone &&
+      hasProjects === true &&
+      creator.environment &&
+      !creator.checking &&
+      requiredSetupMet(creator.blockers)
+    )
+      void creator.completeOnboarding().catch(() => undefined);
+  }, [
+    preferences,
+    onboardingDone,
+    hasProjects,
+    creator.environment,
+    creator.checking,
+    creator.blockers,
+  ]);
+  // Recheck when the window regains focus while first-run setup is unresolved.
+  const lastFocusCheck = useRef(0);
+  useEffect(() => {
+    if (!firstRun) return;
+    const onFocus = () => {
+      const now = Date.now();
+      if (creator.checking || now - lastFocusCheck.current < 3000) return;
+      lastFocusCheck.current = now;
+      void creator.refresh(false);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [firstRun, creator.checking, creator.refresh]);
   const simple = preferences?.experienceMode !== 'advanced';
   const contextualFiles = section === 'files' || section === 'agents' || section === 'review';
   const showContext = contextOpen && !contextualFiles;
@@ -86,6 +131,34 @@ export default function App() {
       navigate('overview');
     }
   }
+  if (firstRun)
+    return (
+      <div className="app desktop-app first-run-app">
+        <main className="first-run" aria-label="Welcome">
+          <h1 className="first-run-title">Welcome to Repo Creator</h1>
+          <p className="help">
+            Create a Git repository with the right files in a few clicks. Everything runs on this
+            computer; GitHub is optional.
+          </p>
+          <SetupChecklist
+            creator={creator}
+            variant="first-run"
+            onCreate={() => {
+              void creator.completeOnboarding();
+            }}
+            onAddExisting={() => {
+              void (async () => {
+                await creator.completeOnboarding();
+                const added = await invoke<RecentProject | null>('add_existing_project').catch(
+                  () => null,
+                );
+                if (added) navigateTo({ type: 'open-project', id: added.id });
+              })();
+            }}
+          />
+        </main>
+      </div>
+    );
   return (
     <div className="app desktop-app" data-page={page} data-section={section}>
       <a className="skip-link" href="#main-content">

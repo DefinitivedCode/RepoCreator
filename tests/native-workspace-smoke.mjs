@@ -122,6 +122,15 @@ try {
       },
     }),
   );
+  // The app starts after first-run setup, as for a returning user.
+  await mkdir(data, { recursive: true });
+  await writeFile(
+    path.join(data, 'preferences.json'),
+    JSON.stringify({
+      schemaVersion: 5,
+      onboarding: { completedAt: '1792000000', githubSkipped: false, version: 1 },
+    }),
+  );
   application = spawn(executable, [], {
     cwd: root,
     windowsHide: true,

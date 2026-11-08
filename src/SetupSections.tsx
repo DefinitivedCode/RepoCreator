@@ -32,9 +32,11 @@ export function GitSettings({
   onDraft,
   mode,
   onMode,
+  hideGitRow = false,
 }: {
   creator: Creator;
   env: Environment;
+  hideGitRow?: boolean;
   draft: IdentityDraft;
   onDraft: (draft: IdentityDraft) => void;
   mode: IdentityMode;
@@ -124,33 +126,35 @@ export function GitSettings({
 
   return (
     <>
-      <div className="setup-status-row">
-        <div className="setup-tool-name">
-          <Icon name="repo" size={18} />
-          <div>
-            <strong>Git</strong>
-            <span>
-              Version control · required for new projects
-              {detail.gitVersion ? ` · version ${detail.gitVersion}` : ''}
-            </span>
+      {!hideGitRow && (
+        <div className="setup-status-row">
+          <div className="setup-tool-name">
+            <Icon name="repo" size={18} />
+            <div>
+              <strong>Git</strong>
+              <span>
+                Version control · required for new projects
+                {detail.gitVersion ? ` · version ${detail.gitVersion}` : ''}
+              </span>
+            </div>
           </div>
+          <span className="setup-status" data-ready={env.gitInstalled && detail.gitState === 'ok'}>
+            {!env.gitInstalled
+              ? 'Not detected'
+              : detail.gitState === 'too-old'
+                ? 'Too old'
+                : 'Installed'}
+          </span>
+          <button type="button" className="text-button" onClick={() => openGuide(creator, 'git')}>
+            {!env.gitInstalled
+              ? 'Install Git'
+              : detail.gitState === 'too-old'
+                ? 'Update Git'
+                : 'Official guide'}
+            <Icon name="external" size={12} />
+          </button>
         </div>
-        <span className="setup-status" data-ready={env.gitInstalled && detail.gitState === 'ok'}>
-          {!env.gitInstalled
-            ? 'Not detected'
-            : detail.gitState === 'too-old'
-              ? 'Too old'
-              : 'Installed'}
-        </span>
-        <button type="button" className="text-button" onClick={() => openGuide(creator, 'git')}>
-          {!env.gitInstalled
-            ? 'Install Git'
-            : detail.gitState === 'too-old'
-              ? 'Update Git'
-              : 'Official guide'}
-          <Icon name="external" size={12} />
-        </button>
-      </div>
+      )}
       <div className="setup-identity">
         <div className="setup-section-heading">
           <h3>Commit identity</h3>

@@ -55,6 +55,17 @@ const setupIds: readonly BlockerId[] = [
   'github-signin',
   'github-unverified',
 ];
+/** Git and a commit identity: what first-run setup requires (GitHub is optional). */
+const requiredIds: readonly BlockerId[] = [
+  'setup-check',
+  'git-missing',
+  'git-old',
+  'identity-name',
+  'identity-email',
+  'identity-invalid',
+];
+export const requiredSetupMet = (blockers: Blocker[]) =>
+  !blockers.some((blocker) => requiredIds.includes(blocker.id));
 export const isSetupBlocker = (blocker: Blocker) => setupIds.includes(blocker.id);
 
 /** A structural check only; the native side enforces the same rule for saved values. */
