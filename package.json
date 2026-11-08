@@ -9,6 +9,8 @@
     "check": "tsc --noEmit",
     "test": "vitest run",
     "test:ui": "playwright test",
+    "lint:styles": "node scripts/audit-styles.mjs --lint",
+    "audit:styles": "node scripts/audit-styles.mjs",
     "format": "prettier --write src tests scripts .github docs *.ts *.json *.md",
     "format:check": "prettier --check src tests scripts .github docs *.ts *.json *.md",
     "tauri": "tauri",

@@ -7,7 +7,7 @@ Resumable log for the autonomous redesign run ([prompt](ui-redesign-autonomous-p
 | Phase                          | Branch                                                                                                                                      | Base                    | PR                                                            | Status                      |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------- | --------------------------- |
 | 1 Setup correctness            | `fix/setup-correctness` (kept; the prompt's suggested `redesign/phase-1-setup-correctness` was not used because work was already open here) | `main`                  | [#21](https://github.com/DefinitivedCode/RepoCreator/pull/21) | Verified, PR open, unmerged |
-| 0 Baseline                     | `redesign/phase-0-baseline`                                                                                                                 | `fix/setup-correctness` | —                                                             | Next                        |
+| 0 Baseline                     | `redesign/phase-0-baseline`                                                                                                                 | `fix/setup-correctness` | PR_PLACEHOLDER                                                | Verified, PR open, unmerged |
 | 2 Tokens and primitives        | `redesign/phase-2-tokens`                                                                                                                   | phase 0                 | —                                                             | Not started                 |
 | 3 Shell and navigation         | `redesign/phase-3-shell`                                                                                                                    | phase 2                 | —                                                             | Not started                 |
 | 4 Onboarding                   | `redesign/phase-4-onboarding`                                                                                                               | phase 3                 | —                                                             | Not started                 |
@@ -42,10 +42,14 @@ All seven work items, tests and docs are implemented. Deliberate additions and d
 - `gh` exit code 4 means authentication required: <https://cli.github.com/manual/gh_help_exit-codes>. Not verified for `gh api user` when signed out (would need a real GitHub call); ambiguous failures stay `Unverified`.
 - `SETTINGS_VERSION` stays 5, following `updates` and `specialistLibrary`.
 
+## Phase 0 — verification (Windows 11 only)
+
+`check` pass; `format:check` pass; `npm test` 302 passed; `npm run test:ui` 144 passed, 2 skipped (the opt-in baseline spec); `cargo fmt`/`clippy -D warnings` pass; `cargo test --locked` 147 passed. Added `tests/baseline.spec.ts` (172 screenshots captured, gaps in [redesign-baseline.md](redesign-baseline.md)), `scripts/audit-styles.mjs` (+ node tests), `npm run lint:styles` (report-only) and `audit:styles`, and the baseline doc. No product change. Axe is not a dependency; recorded as a gap, not added.
+
 ## Blockers
 
 None open.
 
 ## Next step
 
-Phase 0: create `redesign/phase-0-baseline` from `fix/setup-correctness`.
+Phase 2: create `redesign/phase-2-tokens` from `redesign/phase-0-baseline`.
