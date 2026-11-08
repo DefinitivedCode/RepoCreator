@@ -280,12 +280,11 @@ async function identityIfNeeded() {
       .getByRole('navigation', { name: 'Main navigation' })
       .getByRole('button', { name: 'Settings', exact: true })
       .click();
-    await page
-      .getByLabel('Your name for this project', { exact: true })
-      .fill('Native Smoke Author');
-    await page
-      .getByLabel('Email for this project', { exact: true })
-      .fill('native-smoke@example.invalid');
+    // Saved in Repo Creator only (the default choice); global Git settings are not touched.
+    await page.getByLabel('Name', { exact: true }).fill('Native Smoke Author');
+    await page.getByLabel('Email', { exact: true }).fill('native-smoke@example.invalid');
+    await page.getByRole('button', { name: 'Save for Repo Creator projects', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
     await page.getByRole('button', { name: 'Return to project setup', exact: true }).click();
   }
 }

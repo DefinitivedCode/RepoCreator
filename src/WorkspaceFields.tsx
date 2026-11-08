@@ -10,6 +10,13 @@ import type { Agent } from './aiTypes';
 import type { Section } from './App';
 import { displayPath, nameError } from './validation';
 import { normalizeProjectName } from './projectName';
+import {
+  GitSettings,
+  GithubSettings,
+  type IdentityDraft,
+  type IdentityMode,
+} from './SetupSections';
+import { detailOf } from './blockers';
 import { TechnologySelector } from './TechnologySelector';
 import { technologiesFor, technologySummary } from './technologies';
 import './creation-fields.css';
@@ -340,7 +347,13 @@ function Destination({ creator, simple }: { creator: Creator; simple: boolean })
               </select>
               <div className="connection-actions">
                 <span className="help">
-                  {env?.githubUser ? `Signed in as ${env.githubUser}` : 'Not connected'}
+                  {env?.githubUser
+                    ? `Signed in as ${env.githubUser}`
+                    : env && detailOf(env).githubState === 'unverified'
+                      ? 'Couldn’t reach GitHub to check your sign-in'
+                      : env && !env.ghInstalled
+                        ? 'GitHub CLI isn’t installed'
+                        : 'Not connected'}
                 </span>
                 <button
                   type="button"
@@ -547,11 +560,25 @@ export function SetupPanel({
   useEffect(() => {
     if (updateRequest) setTab('updates');
   }, [updateRequest]);
-  const option = (key: 'commitAuthorName' | 'commitAuthorEmail', value: string) =>
-    creator.update('options', { ...form.options, [key]: value });
-  const hasProjectIdentity = !!(
-    form.options.commitAuthorName?.trim() && form.options.commitAuthorEmail?.trim()
-  );
+  // Drafts live here so they survive switching between the settings tabs.
+  const [identityDraft, setIdentityDraft] = useState<IdentityDraft>({
+    name: creator.preferences?.identityOverride?.name ?? '',
+    email: creator.preferences?.identityOverride?.email ?? '',
+  });
+  const [identityMode, setIdentityMode] = useState<IdentityMode>('project');
+  // Git and identity are ready when no Git or identity blocker is outstanding.
+  const gitReady =
+    !!creator.environment &&
+    !creator.blockers.some((blocker) =>
+      [
+        'setup-check',
+        'git-missing',
+        'git-old',
+        'identity-name',
+        'identity-email',
+        'identity-invalid',
+      ].includes(blocker.id),
+    );
   return (
     <div className="setup-settings">
       <div className="setup-summary">
@@ -574,7 +601,7 @@ export function SetupPanel({
                     ? creator.checking
                       ? 'Checking your computer…'
                       : 'Computer checks are unavailable.'
-                    : env.gitInstalled && (env.identityReady || hasProjectIdentity)
+                    : gitReady
                       ? 'Ready for local projects'
                       : 'Complete Git setup to create a project'}
             </span>
@@ -646,125 +673,17 @@ export function SetupPanel({
           </p>
         )}
         {tab === 'git' && !!creator.environment && (
-          <>
-            <div className="setup-status-row">
-              <div className="setup-tool-name">
-                <Icon name="repo" size={18} />
-                <div>
-                  <strong>Git</strong>
-                  <span>Version control · required for new projects</span>
-                </div>
-              </div>
-              <span className="setup-status" data-ready={env.gitInstalled}>
-                {env.gitInstalled ? 'Installed' : 'Not detected'}
-              </span>
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => void creator.action('open_setup_resource', { resource: 'git' })}
-              >
-                {env.gitInstalled ? 'Official guide' : 'Install Git'}
-                <Icon name="external" size={12} />
-              </button>
-            </div>
-            <div className="setup-identity">
-              <div className="setup-section-heading">
-                <h3>Commit identity</h3>
-                <span className="setup-status" data-ready={env.identityReady || hasProjectIdentity}>
-                  {env.identityReady
-                    ? 'Git identity ready'
-                    : hasProjectIdentity
-                      ? 'Project identity set'
-                      : 'Needs a name & email'}
-                </span>
-              </div>
-              <p className="help">
-                {env.identityReady
-                  ? `${env.identityName || 'Your Git identity'} is used by default. A project override is optional.`
-                  : 'Set the author recorded in this project’s Git history.'}
-              </p>
-              <div className="two-columns">
-                <label className="field">
-                  <span>Your name for this project</span>
-                  <input
-                    value={form.options.commitAuthorName ?? ''}
-                    placeholder={env.identityName || 'Commit author name'}
-                    onChange={(event) => option('commitAuthorName', event.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  <span>Email for this project</span>
-                  <input
-                    type="email"
-                    value={form.options.commitAuthorEmail ?? ''}
-                    placeholder="author@example.com"
-                    onChange={(event) => option('commitAuthorEmail', event.target.value)}
-                  />
-                </label>
-              </div>
-              <div className="setup-identity-note">
-                <span>Overrides apply only to the new repository.</span>
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() =>
-                    void creator.action('open_setup_resource', { resource: 'git-identity' })
-                  }
-                >
-                  Git identity help
-                  <Icon name="external" size={12} />
-                </button>
-              </div>
-            </div>
-          </>
+          <GitSettings
+            creator={creator}
+            env={env}
+            draft={identityDraft}
+            onDraft={setIdentityDraft}
+            mode={identityMode}
+            onMode={setIdentityMode}
+          />
         )}
         {tab === 'github' && !!creator.environment && (
-          <>
-            <div className="setup-status-row">
-              <div className="setup-tool-name">
-                <Icon name="github" size={18} />
-                <div>
-                  <strong>GitHub CLI</strong>
-                  <span>Optional · publish repositories to GitHub</span>
-                </div>
-              </div>
-              <span className="setup-status" data-ready={env.ghInstalled}>
-                {env.ghInstalled ? 'Installed' : 'Not detected'}
-              </span>
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => void creator.action('open_setup_resource', { resource: 'gh' })}
-              >
-                {env.ghInstalled ? 'Official guide' : 'Install GitHub CLI'}
-                <Icon name="external" size={12} />
-              </button>
-            </div>
-            <div className="setup-account">
-              <h3>GitHub account</h3>
-              <p>
-                {env.githubUser
-                  ? `Connected as ${env.githubUser}`
-                  : form.destination === 'github'
-                    ? 'Connect an account to publish your project.'
-                    : 'Not checked for this local project.'}
-              </p>
-              <div className="inline-actions">
-                {env.ghInstalled && (
-                  <button type="button" className="primary" onClick={() => void creator.connect()}>
-                    {env.githubUser ? 'Connect another account' : 'Connect to GitHub'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={creator.checking}
-                  onClick={() => void creator.refresh(true)}
-                >
-                  Check GitHub connection
-                </button>
-              </div>
-            </div>
-          </>
+          <GithubSettings creator={creator} env={env} />
         )}
         {tab === 'tools' && !!creator.environment && (
           <>

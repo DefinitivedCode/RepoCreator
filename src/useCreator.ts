@@ -347,8 +347,10 @@ export function useCreator() {
     try {
       await invoke('connect_github');
       setNotice('Complete sign-in in the terminal and browser, then select Check connection.');
+      return true;
     } catch (value) {
       setError(appError(value));
+      return false;
     }
   }
   async function managePreset(
