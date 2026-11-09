@@ -134,6 +134,14 @@ Changed existing tests: none. Added: `tests/polish.spec.ts` (no stripe via compu
 
 Not done: refreshed screenshots under `docs/images/redesign/` and the README/getting-started/troubleshooting updates; keyboard shortcuts; WebView2/WKWebView forced-colors verification; axe (not a dependency).
 
+## Follow-up PR (phase 9 remainder) — verification (Windows 11 only)
+
+Delivered: Updates download/install progress as a `StatusRow`; Readiness grouped as Needs attention / Passing / Not run; workspace header **Open in…** menu (shares one tool detection with the Open tab, which stays); a shared `Menu` primitive and a per-command **More actions** menu (Edit, Move up/down, Delete…) with a delete confirmation (Cancel first); colour literals gated repo-wide outside custom properties (18 usages moved to tokens or `--thumb-*` variables); optional Ctrl/Cmd+N and Ctrl/Cmd+, shortcuts; docs updated.
+
+Changed existing tests: the readiness headings assertion (now status sections); the command-editor test opens the More actions menu to move and edit.
+
+Still not done: Phase 5b single scrolling page with sticky index; Handoff workspace tab; Overview definition list with technology evidence; run-history list; Presets Edit opening a specific preset; legacy alias variables; G9 loading skeletons and inline error placement; button-variant audit; refreshed screenshots and README rewrite (native release build, release step).
+
 ## Decisions for the maintainer
 
 - Should the Simple/Advanced wording differences be unified before 5b? Unifying them removes the largest source of test churn but changes visible text for Simple users.

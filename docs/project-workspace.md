@@ -5,11 +5,18 @@ repository creation. Choose **New Project** to create a repository, **Projects**
 to return to one, **Presets** for reusable configurations, or **Settings** to
 check the computer's setup.
 
+## Open the project
+
+The **Open in…** button in the workspace header lists detected tools and launches
+the one you choose; nothing starts until you do. **All tools and setup** opens the
+**Open** tab with every tool, its status and its guide.
+
 ## Choose a technology stack
 
 Select several technologies together. Search by name, filter by category, use a
 stack preset, or add a custom label. Remove individual chips or clear the
-selection. Simple Mode keeps common choices compact; expand its selector for the
+selection. By default the selector keeps common choices compact; turn on
+**Settings → General → Show advanced options by default** to open it with the
 full catalogue.
 
 Choosing another stack replaces the technologies contributed by the previous
@@ -113,7 +120,8 @@ credentials in your normal operating-system environment or the tool's credential
 store. Obvious credential-like environment names are rejected; no naming check
 can determine whether an arbitrary value is a secret.
 
-Edit, disable, delete or reorder saved commands. Opening **Commands** performs a
+Each saved command has one **Run** button and a **More actions** menu with Edit,
+Move up, Move down and Delete. Deleting asks first and never runs anything. Opening **Commands** performs a
 bounded, read-only inspection of recognised project manifests, such as
 `package.json` scripts or a valid Cargo manifest. **Suggested commands** shows the
 number of unique suggestions that are not already saved, including saved commands
@@ -206,7 +214,8 @@ arguments, descriptions or shell text.
 result is **Ready**, **Needs attention**, **Not checked** or **Could not check**,
 with a short explanation and, where possible, a suggested fix to copy. Repo
 Creator never applies a suggested fix. **Inferred** results rely on files being
-present rather than a verified state.
+present rather than a verified state. Results are grouped by what to do next:
+**Needs attention**, **Passing** and **Not run**, with each result naming its area.
 
 The automatic inspection runs when the workspace opens and on **Refresh**. It
 reads a fixed set of files in the project root with the same 1 MiB limit as command
