@@ -24,6 +24,8 @@
   --accent-on-fill: #ffffff;
   --scrim: rgb(20 20 22 / 45%);
   --shadow-popover: 0 8px 24px rgb(20 20 22 / 18%), 0 1px 3px rgb(20 20 22 / 12%);
+  --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 12%);
+  --shadow-subtle: 0 1px 2px rgb(0 0 0 / 4%);
 
   /* Type scale: size / line height (no size below 12px; weights 400, 500, 600) */
   --font-ui:

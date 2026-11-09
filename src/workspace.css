@@ -847,7 +847,7 @@
   color: var(--text);
 }
 .workspace-dialog::backdrop {
-  background: rgb(0 0 0 / 45%);
+  background: var(--scrim);
 }
 .dialog-heading {
   display: flex;
