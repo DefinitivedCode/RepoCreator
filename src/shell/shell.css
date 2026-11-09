@@ -169,6 +169,38 @@
     display: none;
   }
 }
+
+/* The focused editor keeps the creation bar and uses the section index's space. */
+.workspace[data-editor].workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.workspace[data-editor] > .navigation-rail,
+.workspace[data-editor] .workspace-heading,
+.workspace[data-editor] .blocker-list,
+.workspace[data-editor='files'] .setup-section:not([data-section='files']),
+.workspace[data-editor='agents'] .setup-section:not([data-section='agents']),
+.workspace[data-editor] .setup-summary-list,
+.workspace[data-editor] .setup-section > .ui-disclosure > .ui-disclosure-trigger {
+  display: none;
+}
+.workspace[data-editor] .setup-section {
+  border-top: 0;
+  padding-top: 0;
+}
+.workspace[data-editor] .setup-section > h1 {
+  margin: 0;
+  font: 600 var(--fs-title) / var(--lh-title) var(--font-ui);
+}
+.focused-editor-back {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--background);
+  padding-block: var(--space-1);
+}
+.workspace[data-editor] .setup-section > .ui-disclosure > .ui-disclosure-body {
+  padding-inline-start: 0;
+}
 .blocker-popover {
   position: relative;
   align-self: flex-end;

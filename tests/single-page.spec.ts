@@ -46,6 +46,8 @@ test('the index scrolls to a section, focuses its heading and follows the scroll
 test('Customize regions start collapsed in simple mode and expanded in advanced mode', async ({
   page,
 }) => {
+  // Above 900px of content, Customize remains a disclosure within the recipe.
+  await page.setViewportSize({ width: 1440, height: 900 });
   await prepare(page, false, 'simple');
   const files = page.getByRole('button', { name: /^Customize files/ });
   const agents = page.getByRole('button', { name: /^Customize AI agents/ });

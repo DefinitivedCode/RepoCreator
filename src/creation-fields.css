@@ -58,13 +58,34 @@
   color: var(--muted);
 }
 .desktop-app .creation-context .context-files {
+  margin: 0;
+  padding: var(--space-1);
+  max-height: 140px;
+  overflow: auto;
+  display: block;
+}
+.context-search {
+  margin: 0;
+}
+.context-files ul {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 140px;
-  overflow: auto;
-  display: grid;
-  gap: 2px;
+}
+.context-files ul ul {
+  padding-inline-start: var(--space-3);
+}
+.context-files summary.tree-folder {
+  display: list-item;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.context-files summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  vertical-align: middle;
 }
 .desktop-app .creation-context .context-files li {
   min-width: 0;
@@ -84,8 +105,9 @@
 .desktop-app .creation-context .context-files button[aria-pressed='true'] {
   background: var(--secondary);
   border-color: var(--separator);
+  font-weight: 600;
 }
-.desktop-app .creation-context .context-files button code {
+.desktop-app .creation-context .context-files button span {
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 12px;

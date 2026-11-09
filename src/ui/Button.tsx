@@ -1,10 +1,10 @@
-import { useId, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useId, type ComponentPropsWithRef, type ReactNode } from 'react';
 import { Icon, type IconName } from '../icons';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'danger';
 export type ButtonSize = 'compact' | 'default' | 'large';
 
-export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+export interface ButtonProps extends Omit<ComponentPropsWithRef<'button'>, 'children'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: IconName;
