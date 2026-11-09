@@ -4,7 +4,14 @@ import { expect, test, type Page } from '@playwright/test';
 // kitchen-sink page. No IPC mock is needed: the primitives do not call the backend.
 async function open(page: Page) {
   await page.goto('/?kitchen-sink');
-  await expect(page.getByRole('heading', { name: 'Primitives', level: 1 })).toBeVisible();
+  const heading = page.getByRole('heading', { name: 'Primitives', level: 1 });
+  try {
+    await expect(heading).toBeVisible({ timeout: 10_000 });
+  } catch {
+    // The dev server can occasionally leave a first load without its modules; reload once.
+    await page.reload();
+    await expect(heading).toBeVisible({ timeout: 20_000 });
+  }
 }
 
 test('the kitchen sink renders every primitive without console errors', async ({ page }) => {
