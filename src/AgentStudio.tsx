@@ -165,7 +165,11 @@ export function AgentStudio({
           </label>
         )}
         {!studio.enabled ? (
-          <p className="help">No AI instructions or configuration files will be generated.</p>
+          embedded ? (
+            <p className="help">Turn on AI agent files above to edit these settings.</p>
+          ) : (
+            <p className="help">No AI instructions or configuration files will be generated.</p>
+          )
         ) : (
           <>
             {!(section !== 'assistants') && (
