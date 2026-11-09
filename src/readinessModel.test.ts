@@ -5,6 +5,7 @@ import {
   commandResult,
   gitCheck,
   groupChecks,
+  statusSections,
   isPlan,
   isReport,
   mergeChecks,
@@ -123,5 +124,38 @@ describe('readiness model', () => {
     expect(isReport({ checks: [] })).toBe(true);
     expect(isPlan({ probes: [] })).toBe(false);
     expect(isPlan({ token: 'plan-1', probes: [] })).toBe(true);
+  });
+});
+
+describe('statusSections', () => {
+  const make = (id: string, group: ReadinessCheck['group'], status: ReadinessCheck['status']) =>
+    ({
+      id,
+      group,
+      title: id,
+      status,
+      detail: '',
+      fix: null,
+      inferred: false,
+      network: false,
+    }) as ReadinessCheck;
+  it('orders by what needs doing and keeps the area order inside a section', () => {
+    const sections = statusSections([
+      make('a', 'git', 'ready'),
+      make('b', 'tools', 'attention'),
+      make('c', 'project', 'couldNotCheck'),
+      make('d', 'project', 'notChecked'),
+    ]);
+    expect(sections.map((section) => section.label)).toEqual([
+      'Needs attention',
+      'Passing',
+      'Not run',
+    ]);
+    expect(sections[0].checks.map((check) => check.id)).toEqual(['c', 'b']);
+  });
+  it('drops empty sections', () => {
+    expect(statusSections([make('a', 'git', 'ready')]).map((section) => section.id)).toEqual([
+      'passing',
+    ]);
   });
 });

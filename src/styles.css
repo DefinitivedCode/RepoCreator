@@ -889,11 +889,11 @@ pre,
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 12px 36px #0004;
+  box-shadow: var(--shadow-popover);
   overflow-y: auto;
 }
 .preset-dialog::backdrop {
-  background: #0007;
+  background: var(--scrim);
 }
 .dialog-header {
   display: flex;

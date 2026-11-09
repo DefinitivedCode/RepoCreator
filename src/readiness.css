@@ -334,3 +334,12 @@
     flex-direction: column;
   }
 }
+.readiness-group-name {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.readiness-section-count {
+  color: var(--muted);
+  font-weight: 400;
+}

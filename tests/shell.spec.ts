@@ -174,3 +174,21 @@ for (const mode of ['simple', 'advanced'] as const)
       .click();
     await expect(page.getByRole('tablist', { name: 'AI agent settings' })).toBeVisible();
   });
+
+test('Ctrl/Cmd+N and Ctrl/Cmd+, are shortcuts, never the only way', async ({ page }) => {
+  await prepare(page, false, 'simple');
+  const modifier = await page.evaluate(() => (/Mac/.test(navigator.platform) ? 'Meta' : 'Control'));
+  await page.keyboard.press(`${modifier}+,`);
+  await expect(nav(page).getByRole('button', { name: 'Settings', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await page.keyboard.press(`${modifier}+n`);
+  await expect(nav(page).getByRole('button', { name: 'New Project', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  // A plain N or comma in a field is typed, not intercepted.
+  await page.getByLabel('Project name').fill('n,n');
+  await expect(page.getByLabel('Project name')).toHaveValue('n,n');
+});

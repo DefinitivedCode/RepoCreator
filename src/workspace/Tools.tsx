@@ -19,7 +19,7 @@ export function toolStatus(tool: ProjectTool): string {
     )[toolState(tool)] ?? 'Not confirmed'
   );
 }
-export function useProjectTools(id: string) {
+export function useProjectTools(id: string, enabled = true) {
   const [tools, setTools] = useState<ProjectTool[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,11 +43,11 @@ export function useProjectTools(id: string) {
     }
   }
   useEffect(() => {
-    void detect();
+    if (enabled) void detect();
     return () => {
       request.current++;
     };
-  }, [id]);
+  }, [id, enabled]);
   return { tools, loading, error, refresh: () => void detect(true) };
 }
 
@@ -56,13 +56,17 @@ export function ToolLauncher({
   disabled = false,
   compact = false,
   onConfigure,
+  detection: shared,
 }: {
   id: string;
   disabled?: boolean;
   compact?: boolean;
   onConfigure?: () => void;
+  /** Detection shared with a parent, so one view makes one detection call. */
+  detection?: ReturnType<typeof useProjectTools>;
 }) {
-  const detection = useProjectTools(id);
+  const own = useProjectTools(id, !shared);
+  const detection = shared ?? own;
   const [error, setError] = useState('');
   const [pending, setPending] = useState('');
   const visible = detection.tools.filter(

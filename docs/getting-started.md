@@ -24,6 +24,10 @@ The repository and published downloads are public. For development test builds, 
 
 The first time you open Repo Creator with no projects, a welcome checklist replaces the main window. **Required** items are Git and your commit identity; **Optional** items are publishing to GitHub and editors. Each unfinished row has a button that fixes it in place, and **Create my first project** unlocks when the required items are ready. If you already have projects, Repo Creator checks quietly instead and never interrupts you. You can revisit it any time under **Settings → Setup**, where **Run setup again** shows the checklist on the next start without resetting anything else. Repo Creator never installs software: for Git or GitHub CLI it opens the official download page and shows a command you can copy.
 
+## Keyboard shortcuts
+
+Ctrl+N (Command+N on macOS) starts a new project and Ctrl+, (Command+,) opens Settings. Each also has a visible control in the sidebar.
+
 ## Check Git
 
 1. Open Repo Creator and select **Settings**.

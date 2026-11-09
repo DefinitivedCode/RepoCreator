@@ -130,6 +130,29 @@ export default function App() {
       document.querySelector('.workspace-main')?.scrollTo(0, 0);
     });
   }
+  // Optional shortcuts: Ctrl/Cmd+N starts a project and Ctrl/Cmd+, opens Settings. Every
+  // action also has a visible control, so these are never the only way.
+  const shortcutActions = useRef({ create: () => {}, settings: () => {} });
+  shortcutActions.current = {
+    create: () => {
+      navigateTo({ type: 'go', page: 'new' });
+      navigate('overview');
+    },
+    settings: () => openSettings(),
+  };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+      if (!(mac ? event.metaKey : event.ctrlKey) || event.altKey || event.shiftKey) return;
+      if (document.querySelector('dialog[open]')) return;
+      if (event.key === ',') shortcutActions.current.settings();
+      else if (event.key.toLowerCase() === 'n') shortcutActions.current.create();
+      else return;
+      event.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   function apply(configuration: Configuration, id: string) {
     if (form) setUndo({ configuration: structuredClone(configurationOf(form)), id: presetId });
     if (state.kind !== 'form') creator.reset();

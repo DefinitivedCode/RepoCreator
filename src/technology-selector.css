@@ -61,7 +61,7 @@ dialog.technology-dialog {
   border-radius: 6px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 16px 70px #0005;
+  box-shadow: var(--shadow-popover);
   overflow: hidden;
 }
 dialog.technology-dialog[open] {
@@ -70,7 +70,7 @@ dialog.technology-dialog[open] {
   gap: 0;
 }
 .technology-dialog::backdrop {
-  background: #10100f80;
+  background: var(--scrim);
 }
 .technology-dialog-header {
   display: flex;

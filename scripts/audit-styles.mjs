@@ -29,13 +29,11 @@ export function pixels(value) {
 }
 
 /**
- * Phase 7: the font-size, radius, selection-stripe, all-caps and pressed-navigation rules hold
- * for every stylesheet and component. Raw colours stay confined to the new primitives and
- * tokens.css (the legacy stylesheets still carry colour literals; migrating them is recorded
- * in the progress log).
+ * The font-size, radius, selection-stripe, all-caps, pressed-navigation and colour rules hold for
+ * every stylesheet and component. Colour literals may only appear as custom-property values
+ * (for example `--thumb-dark: #292b2c`), never inside an ordinary declaration.
  */
 export const gated = (relative) => /^src\/(ui\/|tokens\.css$)/.test(relative);
-const colourGated = gated;
 const SELECTED_SELECTOR =
   /(\.active|\.selected|aria-current|aria-selected|aria-pressed|data-selected|data-active|\.is-selected)/;
 const TOKEN_RADII = new Set([6, 8, 999]);
@@ -124,8 +122,10 @@ export function audit(files = walk(root)) {
           /#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)/g,
         )) {
           tally(colours, colour.toLowerCase().replaceAll(/\s+/g, ''));
-          if (colourGated(relative) && !relative.endsWith('tokens.css'))
-            gateViolations.push(`${relative}:${index + 1} raw colour ${colour} outside tokens.css`);
+          if (!relative.endsWith('tokens.css') && !/^\s*--[\w-]+\s*:/.test(line))
+            gateViolations.push(
+              `${relative}:${index + 1} raw colour ${colour} outside a custom property`,
+            );
         }
       });
       gateViolations.push(...ruleViolations(relative, text));

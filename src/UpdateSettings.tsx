@@ -1,5 +1,6 @@
 import type { Updates } from './useUpdates';
 import { lazy, Suspense } from 'react';
+import { StatusRow } from './ui';
 import './updates.css';
 
 const ReleaseNotes = lazy(() => import('./ReleaseNotes'));
@@ -71,25 +72,41 @@ export function UpdateSettings({ updates }: { updates: Updates }) {
           </Suspense>
           {phase === 'downloading' && (
             <div role="status">
-              <p>
-                Downloading update…{' '}
-                {percent === undefined
-                  ? `${(progress.downloaded / 1048576).toFixed(1)} MiB`
-                  : `${percent}%`}
-              </p>
+              <StatusRow
+                state="neutral"
+                stateLabel="In progress"
+                title="Downloading update"
+                detail={
+                  percent === undefined
+                    ? `${(progress.downloaded / 1048576).toFixed(1)} MiB`
+                    : `${percent}%`
+                }
+                action={
+                  <button type="button" onClick={() => void updates.cancel()}>
+                    Cancel download
+                  </button>
+                }
+              />
               <progress aria-label="Update download" max={100} value={percent} />
-              <button type="button" onClick={() => void updates.cancel()}>
-                Cancel download
-              </button>
             </div>
           )}
           {phase === 'ready' && (
-            <p className="help">
-              Save your work before continuing. Updating will close Repo Creator and stop its
-              running commands.
-            </p>
+            <StatusRow
+              state="ok"
+              stateLabel="Downloaded"
+              title="Update downloaded"
+              detail="Save your work before continuing. Updating will close Repo Creator and stop its running commands."
+            />
           )}
-          {phase === 'installing' && <p role="status">Installing update and restarting…</p>}
+          {phase === 'installing' && (
+            <div role="status">
+              <StatusRow
+                state="neutral"
+                stateLabel="In progress"
+                title="Installing update and restarting…"
+              />
+            </div>
+          )}
           <div className="inline-actions">
             {phase === 'available' && (
               <button

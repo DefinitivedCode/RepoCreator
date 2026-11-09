@@ -17,7 +17,8 @@ import {
   countLabel,
   errorText,
   gitCheck,
-  groupChecks,
+  groupLabels,
+  statusSections,
   isPlan,
   isReport,
   mergeChecks,
@@ -408,13 +409,15 @@ export function Readiness({
           {readiness.error || notice}
         </p>
       )}
-      {groupChecks(checks).map((section) => (
+      {statusSections(checks).map((section) => (
         <section
           className="readiness-group"
-          key={section.group}
-          aria-labelledby={`readiness-${section.group}`}
+          key={section.id}
+          aria-labelledby={`readiness-${section.id}`}
         >
-          <h4 id={`readiness-${section.group}`}>{section.label}</h4>
+          <h4 id={`readiness-${section.id}`}>
+            {section.label} <span className="readiness-section-count">{section.checks.length}</span>
+          </h4>
           <ul className="readiness-list">
             {section.checks.map((check) => (
               <li className={`readiness-check status-${check.status}`} key={check.id}>
@@ -424,6 +427,7 @@ export function Readiness({
                 <div className="readiness-body">
                   <div className="readiness-title">
                     <strong>{check.title}</strong>
+                    <span className="readiness-group-name">{groupLabels[check.group]}</span>
                     <span className="readiness-state">{statusLabels[check.status]}</span>
                     {check.inferred && (
                       <span className="readiness-tag" title="Based on files being present">
