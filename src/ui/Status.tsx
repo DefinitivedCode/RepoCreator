@@ -21,11 +21,14 @@ export function StatusRow({
   title,
   detail,
   action,
+  stateLabel,
 }: {
   state: StatusState;
   title: string;
   detail?: string;
   action?: ReactNode;
+  /** Overrides the spoken state word, for example "In progress". */
+  stateLabel?: string;
 }) {
   return (
     <div className="ui-status-row" data-state={state}>
@@ -35,7 +38,7 @@ export function StatusRow({
       <div>
         <div className="ui-status-title">
           {title}
-          <span className="ui-visually-hidden">: {words[state]}</span>
+          <span className="ui-visually-hidden">: {stateLabel ?? words[state]}</span>
         </div>
         {detail && <div className="ui-status-detail">{detail}</div>}
       </div>
