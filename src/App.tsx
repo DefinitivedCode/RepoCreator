@@ -27,7 +27,7 @@ import { configurationOf } from './validation';
 import { requiredSetupMet, summarizeBlockers, type FixTarget } from './blockers';
 import { SetupChecklist } from './setup/SetupChecklist';
 import type { RecentProject } from './workspaceTypes';
-import type { Configuration, Readme } from './types';
+import type { Configuration, ProjectPreset, Readme } from './types';
 import { normalizeProjectName } from './projectName';
 
 export type Section = 'overview' | 'files' | 'agents';
@@ -59,7 +59,7 @@ export default function App() {
   const [focusedEditor, setFocusedEditor] = useState<EditorSection | null>(null);
   const [visitedEditors, setVisitedEditors] = useState<Partial<Record<EditorSection, true>>>({});
   const [presetId, setPresetId] = useState('');
-  const [presetsOpen, setPresetsOpen] = useState<'manage' | 'save' | null>(null);
+  const [presetsOpen, setPresetsOpen] = useState<'manage' | 'save' | ProjectPreset | null>(null);
   const [contextOpen, setContextOpen] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
@@ -321,6 +321,7 @@ export default function App() {
             creator={creator}
             presets={allPresets}
             onManage={() => setPresetsOpen('manage')}
+            onEdit={setPresetsOpen}
             onUse={(configuration, id) => {
               apply(configuration, id);
               navigateTo({ type: 'go', page: 'new' });
@@ -829,6 +830,7 @@ export default function App() {
             creator={creator}
             configurationOverride={presetOverride}
             saveAs={presetsOpen === 'save'}
+            initialPreset={typeof presetsOpen === 'object' ? presetsOpen : undefined}
             onClose={() => {
               setPresetsOpen(null);
               setPresetOverride(undefined);

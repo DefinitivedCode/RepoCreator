@@ -412,6 +412,78 @@ async function section(page: Page, name: string) {
     .click();
 }
 
+const workspaceSizes = [
+  { width: 820, height: 580 },
+  { width: 1100, height: 740 },
+  { width: 1440, height: 900 },
+];
+
+async function captureWorkspace(page: Page, view: string) {
+  if (process.env.REPO_CREATOR_BASELINE !== '1') return;
+  await page.screenshot({
+    path: `artifacts/redesign-group2/${test.info().project.name}/${page.viewportSize()!.width}-${view}.png`,
+    animations: 'disabled',
+  });
+}
+
+test('Overview preserves project facts and shows detection evidence on request', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await openWorkspace(page);
+  const facts = page.locator('dl.workspace-facts');
+  await expect(facts.getByRole('term')).toHaveText([
+    'Git status',
+    'Branch',
+    'Technologies',
+    'Created',
+    'Last opened',
+    'Repository',
+  ]);
+  await expect(facts.getByRole('definition').nth(1)).toHaveText('main');
+  expect(await calls(page, 'detect_project_technologies')).toHaveLength(0);
+  const disclosure = facts.locator('summary').filter({ hasText: 'Why detected' });
+  await disclosure.press('Enter');
+  const evidence = facts.getByRole('list', { name: 'Detected technologies and evidence' });
+  await expect(evidence.getByText('Declared react in dependencies.')).toBeVisible();
+  await expect(evidence.getByText('apps/web/package.json', { exact: true })).toHaveCount(2);
+  expect(await calls(page, 'detect_project_technologies')).toHaveLength(1);
+  expect(await calls(page, 'save_project_settings')).toHaveLength(0);
+  for (const size of workspaceSizes) {
+    await page.setViewportSize(size);
+    await captureWorkspace(page, 'overview');
+  }
+  await disclosure.press('Space');
+  await expect(evidence).toBeHidden();
+});
+
+test('Plan with AI opens the Handoff tab and copies the editable prompt', async ({ page }) => {
+  await workspaceFixture(page);
+  await openWorkspace(page);
+  const handoff = page.getByRole('tab', { name: 'Handoff', exact: true });
+  await page.getByRole('button', { name: 'Plan with AI', exact: true }).click();
+  await expect(handoff).toBeFocused();
+  await expect(handoff).toHaveAttribute('aria-selected', 'true');
+  const panel = page.getByRole('tabpanel', { name: 'Handoff', exact: true });
+  const prompt = panel.getByRole('textbox', { name: /^AI prompt/ });
+  await expect(prompt).toHaveValue(/river-workbench/);
+  await prompt.fill('Keep the workspace prompt draft.');
+  await section(page, 'Overview');
+  await section(page, 'Handoff');
+  await expect(prompt).toHaveValue('Keep the workspace prompt draft.');
+  const copy = panel.getByRole('button', { name: 'Copy AI Prompt', exact: true });
+  await expect(copy).toHaveAttribute('data-variant', 'primary');
+  await copy.click();
+  expect(await page.evaluate(() => (window as any).testCopied)).toBe(
+    'Keep the workspace prompt draft.',
+  );
+  for (const size of workspaceSizes) {
+    await page.setViewportSize(size);
+    await copy.scrollIntoViewIfNeeded();
+    await captureWorkspace(page, 'handoff');
+  }
+});
+
 test('workspace navigation avoids hidden library reads and refreshes history on return', async ({
   page,
 }) => {
@@ -758,12 +830,81 @@ test('console preserves long lines and reading position, follows the bottom and 
       output: 'previous output\n',
     });
   });
-  await page.getByLabel('Select command run').selectOption('older-run');
+  const history = page.getByRole('list', { name: 'Run history' });
+  await history.getByRole('button', { name: /^Previous build/ }).click();
   await expect(page.getByLabel('Previous build output')).toHaveText('previous output\n');
   await expect(page.locator('.run-status')).toHaveText('succeeded');
-  await page.getByLabel('Select command run').selectOption('console-run');
+  await history.getByRole('button', { name: /^Vite preview/ }).click();
   await expect(output).toContainText('following again');
   expect(await calls(page, 'stop_project_command')).toHaveLength(0);
+});
+
+test('run history orders snapshots and opens long output without running a command', async ({
+  page,
+}) => {
+  await page.setViewportSize(workspaceSizes[0]);
+  await workspaceFixture(page);
+  const longName = `Failed build ${'of-a-fictional-project-'.repeat(10)}`;
+  const longLine = 'artifact-path/'.repeat(250);
+  await page.evaluate(
+    ({ longName, longLine }) => {
+      const state = (window as any).workspaceState;
+      const base = { projectId: state.projects[0].id, commandId: 'test', startedAt: 1792000000000 };
+      state.runs = [
+        {
+          ...base,
+          id: 'older',
+          name: 'First run',
+          status: 'stopped',
+          exitCode: null,
+          finishedAt: base.startedAt + 3000,
+          output: 'Stopped earlier.',
+        },
+        {
+          ...base,
+          id: 'newest',
+          name: 'Latest build',
+          status: 'succeeded',
+          exitCode: 0,
+          startedAt: base.startedAt + 10000,
+          finishedAt: base.startedAt + 12000,
+          output: 'Latest output.',
+        },
+        {
+          ...base,
+          id: 'failed',
+          name: longName,
+          status: 'failed',
+          exitCode: 17,
+          startedAt: base.startedAt + 4000,
+          finishedAt: base.startedAt + 8000,
+          output: `Build failed\n${longLine}`,
+        },
+      ];
+    },
+    { longName, longLine },
+  );
+  await openWorkspace(page);
+  await section(page, 'Commands');
+  const history = page.getByRole('list', { name: 'Run history' });
+  const rows = history.getByRole('button');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toHaveAccessibleName('Latest build succeeded · 2s · exit 0');
+  await expect(rows.nth(1)).toHaveAccessibleName(`${longName} failed · 4s · exit 17`);
+  await expect(rows.nth(2)).toHaveAccessibleName('First run stopped · 3s');
+  await expect(rows.first()).toHaveAttribute('aria-pressed', 'true');
+  await rows.nth(1).press('Enter');
+  await expect(rows.nth(1)).toHaveAttribute('aria-pressed', 'true');
+  const output = page.getByLabel(`${longName} output`, { exact: true });
+  await expect(output).toHaveText(`Build failed\n${longLine}`);
+  expect(await output.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(820);
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  for (const size of workspaceSizes) {
+    await page.setViewportSize(size);
+    await history.scrollIntoViewIfNeeded();
+    await captureWorkspace(page, 'run-history');
+  }
 });
 
 test('suggestions count unique unsaved invocations and never run automatically or rescan on polls', async ({

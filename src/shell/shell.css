@@ -274,6 +274,9 @@
   margin: 0 0 var(--space-1);
   font: 600 var(--fs-body) / var(--lh-body) var(--font-ui);
 }
+.preset-actions {
+  flex-wrap: wrap;
+}
 .library-page section + section {
   margin-top: var(--space-5);
 }

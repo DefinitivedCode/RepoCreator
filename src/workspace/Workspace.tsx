@@ -7,6 +7,7 @@ import { Readiness, readinessChecks, useReadiness } from '../Readiness';
 import { countLabel, summarize } from '../readinessModel';
 import { displayPath } from '../validation';
 import { PromptWorkspace } from '../HandoffPanel';
+import { ProjectTechnologyEvidence } from '../DetectedTechnologies';
 import { technologySummary } from '../technologies';
 import { type ProjectCommand, type ProjectWorkspaceState } from '../workspaceTypes';
 import { date, gitLabel, message, normalize } from './shared';
@@ -30,7 +31,6 @@ export function ProjectWorkspace({
   const [workspace, setWorkspace] = useState<ProjectWorkspaceState | null>(null);
   const [tab, setTab] = useState('overview');
   const [error, setError] = useState('');
-  const [handoff, setHandoff] = useState(false);
   const workspaceRevision = useRef(0);
   const workspaceRequest = useRef<Promise<ProjectWorkspaceState> | null>(null);
   const refresh = useCallback(async () => {
@@ -120,10 +120,7 @@ export function ProjectWorkspace({
             className="workspace-tabs"
             label="Project workspace sections"
             value={tab}
-            onChange={(value) => {
-              setTab(value);
-              setHandoff(false);
-            }}
+            onChange={setTab}
             items={[
               { id: 'overview', label: 'Overview' },
               { id: 'open', label: 'Open' },
@@ -135,6 +132,7 @@ export function ProjectWorkspace({
                 accessibleName:
                   attention > 0 ? `Readiness, ${countLabel('attention', attention)}` : undefined,
               },
+              { id: 'handoff', label: 'Handoff' },
               { id: 'settings', label: 'Project Settings' },
             ]}
           />
@@ -164,8 +162,18 @@ export function ProjectWorkspace({
                     <dl className="workspace-facts">
                       <dt>Git status</dt>
                       <dd>{gitLabel(workspace.gitStatus)}</dd>
+                      <dt>Branch</dt>
+                      <dd>{workspace.branch || 'No branch'}</dd>
                       <dt>Technologies</dt>
-                      <dd>{technologySummary(project.technologies) || 'Not selected'}</dd>
+                      <dd>
+                        {technologySummary(project.technologies) || 'Not selected'}
+                        {workspace.exists && (
+                          <ProjectTechnologyEvidence
+                            key={project.context.localPath}
+                            projectId={id}
+                          />
+                        )}
+                      </dd>
                       <dt>Created</dt>
                       <dd>{date(project.createdAt)}</dd>
                       <dt>Last opened</dt>
@@ -229,7 +237,13 @@ export function ProjectWorkspace({
                           : 'Configure commands'}
                         <Icon name="arrow" size={14} />
                       </button>
-                      <button type="button" onClick={() => setHandoff(!handoff)}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTab('handoff');
+                          document.getElementById(tabId('project-workspace', 'handoff'))?.focus();
+                        }}
+                      >
                         <Icon name="file" size={16} />
                         Plan with AI
                         <Icon name="arrow" size={14} />
@@ -237,13 +251,6 @@ export function ProjectWorkspace({
                     </div>
                   </section>
                 </div>
-                {handoff && (
-                  <PromptWorkspace
-                    context={project.context}
-                    recommendedTemplate={project.handoffTemplate}
-                    copy={copy}
-                  />
-                )}
               </>
             )}
             {tab === 'open' && (
@@ -281,6 +288,13 @@ export function ProjectWorkspace({
                 readiness={readiness}
                 copy={copy}
                 onOpenCommands={() => setTab('commands')}
+              />
+            )}
+            {tab === 'handoff' && (
+              <PromptWorkspace
+                context={project.context}
+                recommendedTemplate={project.handoffTemplate}
+                copy={copy}
               />
             )}
             {tab === 'settings' && (

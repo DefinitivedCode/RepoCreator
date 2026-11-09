@@ -34,6 +34,7 @@ export function PresetDialog({
   creator,
   configurationOverride,
   saveAs = false,
+  initialPreset,
   onClose,
   onSaved,
   onApply,
@@ -41,24 +42,34 @@ export function PresetDialog({
   creator: Creator;
   configurationOverride?: Configuration;
   saveAs?: boolean;
+  initialPreset?: ProjectPreset;
   onClose: () => void;
   onSaved: (id: string) => void;
   onApply: (configuration: Configuration, id: string) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const nameInput = useRef<HTMLInputElement>(null);
   const saveFormId = useId();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [editing, setEditing] = useState<string | null>(null);
-  const [source, setSource] = useState<Configuration | null>(null);
-  const [sourceName, setSourceName] = useState('Current project settings');
+  const [name, setName] = useState(initialPreset?.name ?? '');
+  const [description, setDescription] = useState(initialPreset?.description ?? '');
+  const [editing, setEditing] = useState<string | null>(initialPreset?.id ?? null);
+  const [source, setSource] = useState<Configuration | null>(initialPreset?.configuration ?? null);
+  const [sourceName, setSourceName] = useState(initialPreset?.name ?? 'Current project settings');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [imported, setImported] = useState<Exchange | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [pending, setPending] = useState(false);
   useEffect(() => {
-    dialog.current?.showModal();
+    const element = dialog.current;
+    if (!element) return;
+    const previous = document.activeElement;
+    element.showModal();
+    if (initialPreset) nameInput.current?.focus();
+    return () => {
+      element.close();
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
   }, []);
 
   async function run(operation: () => Promise<void>) {
@@ -272,6 +283,7 @@ export function PresetDialog({
           </label>
           <input
             id="preset-name"
+            ref={nameInput}
             value={name}
             maxLength={60}
             autoFocus
