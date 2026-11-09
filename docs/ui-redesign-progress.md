@@ -142,6 +142,16 @@ Changed existing tests: the readiness headings assertion (now status sections); 
 
 Still not done: Phase 5b single scrolling page with sticky index; Handoff workspace tab; Overview definition list with technology evidence; run-history list; Presets Edit opening a specific preset; legacy alias variables; G9 loading skeletons and inline error placement; button-variant audit; refreshed screenshots and README rewrite (native release build, release step).
 
+## Phase 5b (rest) — verification (Windows 11 only)
+
+`check` pass; `format:check` pass; `npm test` 333; `npm run test:ui` 280 passed, 2 skipped (opt-in baseline) incl. 5 new `single-page.spec.ts` tests (both themes). Native scripts were updated but **not run** locally (no native build); CI's Windows native job is the check.
+
+Delivered: New Project is one scrolling page of three sections (Overview, Project Files, AI Agents), each with an h2, under a page h1. The rail is now a sticky index: buttons scroll to a section and focus its heading, and it follows scroll position (`aria-current="location"`). Project Files and AI Agents show a compact summary or the assistants first, with **Customize** regions (lazy; collapsed in simple mode, expanded when "Show advanced options by default" is on) holding the existing tab strips and editors. The Review step and the AI Handoff rail entry are gone: **Create project** is the single constant label, creates a local project at once, and still asks first for GitHub; the result pane (drawer below 1250px) is the review and the Handoff prompt opens from it. `AgentStudio` has an `embedded` mode so its master switch exists once; inactive subsections are unmounted instead of hidden.
+
+Changed existing tests (all intentional): `Review project`/`Create Project` → `Create project`; `navigate` helpers now scroll, `fileTab`/`agentTab` open Customize first (Assistants is the always-visible content); `openHandoff` and `resultPreview` replace the Handoff and Review sections; zero-scroll assertions measure the Overview section (`overviewOverflow`/`overviewHeight`) because the page scrolls; the technology-picker growth allowance went 40→80px because it now measures real section height; two-column file editors are asserted only while the result pane is hidden; "Review step offers the first setup fix" became "Create offers the first setup fix" (popover); duplicate-label queries are scoped. `Find generated files` search remains in the expanded files dialog but is no longer on the page.
+
+Not done: per-section "Save as preset" next to Starting point, a file tree in the result pane, and the ≤900px focused editor view with Back (editors open in place at every width).
+
 ## Decisions for the maintainer
 
 - Should the Simple/Advanced wording differences be unified before 5b? Unifying them removes the largest source of test churn but changes visible text for Simple users.

@@ -221,25 +221,52 @@ export async function navigate(page: Page, name: string) {
   ).toBeFocused();
 }
 
+async function openCustomize(page: Page, title: RegExp) {
+  const trigger = page.getByRole('button', { name: title });
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+}
+
 export async function fileTab(page: Page, name: string) {
   await navigate(page, 'Project Files');
+  await openCustomize(page, /^Customize files/);
   await page
     .getByRole('tablist', { name: 'Project file settings' })
     .getByRole('tab', { name, exact: true })
     .click();
 }
 
+/** "Assistants" is the section's always-visible content; the rest sit under Customize. */
 export async function agentTab(page: Page, name: string) {
   await navigate(page, 'AI Agents');
+  if (name === 'Assistants') return;
+  await openCustomize(page, /^Customize AI agents/);
   await page
     .getByRole('tablist', { name: 'AI agent settings' })
     .getByRole('tab', { name, exact: true })
     .click();
 }
 
+/** The Handoff prompt lives in the result pane (or its drawer on narrow windows). */
+export async function openHandoff(page: Page) {
+  const button = page.getByRole('button', { name: 'Handoff prompt', exact: true });
+  if (!(await button.isVisible()))
+    await page.getByRole('button', { name: /^Preview files \(\d+\)$/ }).click();
+  await button.click();
+  return page.getByRole('dialog', { name: 'Handoff prompt' });
+}
+
+/** Opens the result pane (or its drawer on narrow windows) and selects a generated file. */
+export async function resultPreview(page: Page, path: string) {
+  const trigger = page.getByRole('button', { name: /^Preview files \(\d+\)$/ });
+  if ((await trigger.isVisible()) && (await trigger.getAttribute('aria-expanded')) !== 'true')
+    await trigger.click();
+  const pane = page.locator('.creation-context:visible').first();
+  await pane.getByRole('button', { name: path, exact: true }).click();
+  return pane;
+}
+
 export async function createProject(page: Page) {
-  await navigate(page, 'Review');
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   // Publishing to GitHub asks for confirmation first; a local project never does.
   const confirm = page.getByRole('button', { name: 'Create on GitHub', exact: true });
   await confirm
@@ -258,4 +285,17 @@ export async function setMode(page: Page, mode: 'simple' | 'advanced') {
     .getByRole('checkbox', { name: 'Show advanced options by default' })
     .setChecked(mode === 'advanced');
   await main.getByRole('button', { name: 'New Project', exact: true }).click();
+}
+
+/** The page scrolls now; these measure the Overview section, which must still fit the window. */
+export async function overviewOverflow(page: Page) {
+  return page.locator('.workspace-main').evaluate((main) => {
+    const section = main.querySelector('[data-section="overview"]')!;
+    return section.getBoundingClientRect().bottom - main.getBoundingClientRect().bottom;
+  });
+}
+export async function overviewHeight(page: Page) {
+  return page
+    .locator('.workspace-main [data-section="overview"]')
+    .evaluate((element) => element.getBoundingClientRect().height);
 }

@@ -1,4 +1,4 @@
-import { prepare, navigate, fileTab, createProject, setMode } from './fixtures';
+import { prepare, navigate, fileTab, createProject, setMode, openHandoff } from './fixtures';
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { verifyExpandedScrolling } from './scrolling.mjs';
@@ -13,13 +13,13 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
     page.getByRole('navigation').getByRole('button', { name: 'Project Files' }),
   ).toHaveCount(1);
   await page.getByLabel('Project name').fill('learning-lab');
-  await page.getByLabel('Description').fill('Try a useful local tool');
+  await page.getByLabel('Description optional').fill('Try a useful local tool');
   await page.getByLabel('Starting point').selectOption('experiment');
   await page.getByRole('combobox', { name: 'Technologies', exact: true }).selectOption('python');
   await page.getByLabel('AI coding assistant').selectOption('claude');
   await page.locator('.brief-details > summary').click();
   await page.getByLabel('What are you building?').fill('é'.repeat(2100));
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeDisabled();
   // Changing a file-generating field while the brief is invalid must not poison
   // the cached preview; correcting metadata should make creation available again.
   await page.getByLabel('Project name').fill('learning-lab-draft');
@@ -33,7 +33,7 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
     )
     .toBe('learning-lab-draft');
   await page.getByLabel('What are you building?').fill('A small local learning tool');
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeEnabled();
   await page.getByLabel('Starting point').selectOption('website');
   await expect(page.getByLabel('What are you building?')).toHaveValue(
     'A small local learning tool',
@@ -46,16 +46,16 @@ test('Simple mode reviews an Experiment and preserves settings across mode and s
   await page.getByLabel('Initial branch').fill('experiment/start');
   await navigate(page, 'Overview');
   await expect(page.getByLabel('Project name')).toHaveValue('learning-lab');
-  await expect(page.getByLabel('Description')).toHaveValue('Try a useful local tool');
+  await expect(page.getByLabel('Description optional')).toHaveValue('Try a useful local tool');
   await setMode(page, 'simple');
   await expect(page.getByRole('button', { name: 'Remove Python', exact: true })).toBeVisible();
   await expect(page.getByLabel('AI coding assistant')).toHaveValue('claude');
-  await page.getByRole('button', { name: 'Review project', exact: true }).click();
-  await expect(page.locator('.project-summary')).toContainText('learning-lab');
-  await expect(page.locator('.project-summary')).toContainText('On this computer');
-  await expect(page.locator('.project-summary')).toContainText('Experiment');
-  await expect(page.locator('.project-summary')).toContainText('experiment/start');
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  // The result pane is the review: it shows the destination and the first commit.
+  await page.getByRole('button', { name: /^Preview files \(\d+\)$/ }).click();
+  const pane = page.locator('#result-drawer');
+  await expect(pane).toContainText('Local Git repository');
+  await expect(pane).toContainText('experiment/start');
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
   await page.locator('.completion-handoff > summary').click();
   await expect(page.getByLabel('AI prompt')).toHaveValue(/learning-lab/);
@@ -80,7 +80,7 @@ test('workspace uses available width and retains one pane scroller at supported 
     await page.getByRole('checkbox', { name, exact: true }).check();
   await verifyExpandedScrolling(page);
   mkdirSync('artifacts', { recursive: true });
-  for (const section of ['Overview', 'Project Files', 'AI Agents', 'Review', 'AI Handoff']) {
+  for (const section of ['Overview', 'Project Files', 'AI Agents']) {
     await navigate(page, section);
     await verifyExpandedScrolling(page);
     await page.setViewportSize({ width: 1100, height: 740 });
@@ -109,7 +109,7 @@ test('workspace uses available width and retains one pane scroller at supported 
 
 test('validation blocks unsafe names and keeps review action accessible', async ({ page }) => {
   await prepare(page);
-  const review = page.getByRole('button', { name: 'Review project', exact: true });
+  const review = page.getByRole('button', { name: 'Create project', exact: true });
   await expect(review).toBeDisabled();
   await page.getByLabel('Project name').fill('../escape');
   await expect(
@@ -124,7 +124,7 @@ test('validation blocks unsafe names and keeps review action accessible', async 
   await page.setViewportSize({ width: 820, height: 580 });
   await expect(review).toBeInViewport({ ratio: 1 });
   await review.click();
-  await expect(page.getByRole('button', { name: 'Create Project', exact: true })).toBeEnabled();
+  await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
 });
 
 test('ignore rules, license, extra files and Git options reach one creation command', async ({
@@ -179,7 +179,7 @@ test('Preset Studio saves, edits, duplicates, previews imports, rejects malforme
   await page.getByRole('button', { name: 'Manage…' }).click();
   const dialog = page.getByRole('dialog');
   await page.getByLabel('Save a new custom preset').fill('My tools');
-  await page.getByLabel('Description', { exact: true }).fill('Team workflow');
+  await dialog.getByLabel('Description').fill('Team workflow');
   await dialog.getByRole('button', { name: 'Save preset', exact: true }).click();
   await expect(dialog.getByText('Saved “My tools”.')).toBeVisible();
   await dialog.getByRole('button', { name: 'Edit / rename', exact: true }).click();
@@ -250,10 +250,10 @@ test('appearance and partial publication retain the local repository and metadat
   await page.getByRole('combobox', { name: 'Owner', exact: true }).selectOption('sample-org');
   await fileTab(page, 'Git Settings');
   await page.getByLabel('Homepage').fill('invalid-url');
-  await expect(page.getByRole('button', { name: 'Review project' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Create project' })).toBeDisabled();
   await navigate(page, 'Overview');
   await page.getByRole('button', { name: 'On this computer', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Review project' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create project' })).toBeEnabled();
   await page.getByRole('button', { name: 'GitHub', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Owner', exact: true })).toHaveValue(
     'sample-org',
@@ -289,14 +289,15 @@ test('optional tools and disconnected GitHub never block a local project or hand
   await page.getByRole('tab', { name: 'Development tools', exact: true }).click();
   await expect(page.getByText('Claude Code', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Return to project setup', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
-  await navigate(page, 'AI Handoff');
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeEnabled();
+  await openHandoff(page);
   await expect(page.getByLabel('AI prompt')).toHaveValue(/offline-project/);
+  await page.keyboard.press('Escape');
   await navigate(page, 'Overview');
   await page.getByRole('button', { name: 'GitHub', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'On this computer', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeEnabled();
 });
 
 test('local handoff templates render, preserve prompt edits, copy and persist custom text', async ({
@@ -307,8 +308,8 @@ test('local handoff templates render, preserve prompt edits, copy and persist cu
   });
   await prepare(page, false, 'simple');
   await page.getByLabel('Project name').fill('prompt-project');
-  await page.getByLabel('Description').fill('A private learning experiment');
-  await navigate(page, 'AI Handoff');
+  await page.getByLabel('Description optional').fill('A private learning experiment');
+  await openHandoff(page);
   const prompt = page.getByLabel('AI prompt');
   await expect(page.getByText(/Recommended template.*is unavailable/)).toBeVisible();
   await page.getByRole('button', { name: 'Custom templates', exact: true }).click();
@@ -329,9 +330,10 @@ test('local handoff templates render, preserve prompt edits, copy and persist cu
   await expect(
     page.getByText(/^Project Discovery selected\. Your edited prompt is kept/),
   ).toBeVisible();
+  await page.keyboard.press('Escape');
   await navigate(page, 'Overview');
   await page.getByLabel('Starting point').selectOption('website');
-  await navigate(page, 'AI Handoff');
+  await openHandoff(page);
   await expect(page.getByLabel('Prompt template')).toHaveValue('architecture');
   await expect(prompt).toHaveValue('My reviewed prompt text.');
   await page.getByRole('button', { name: 'Copy AI Prompt', exact: true }).click();
@@ -357,7 +359,7 @@ test('local handoff templates render, preserve prompt edits, copy and persist cu
     'Focused task',
   );
   await page.reload();
-  await navigate(page, 'AI Handoff');
+  await openHandoff(page);
   await expect(
     page.getByLabel('Prompt template').locator('option').filter({ hasText: 'Focused task' }),
   ).toHaveCount(1);
@@ -389,11 +391,13 @@ test('ordinary Overview fits the default window across display ratios and enlarg
         const name = destination === 'local' ? 'On this computer' : 'GitHub';
         await page.getByRole('button', { name, exact: true }).click();
         await expect(
-          page.getByRole('button', { name: 'Review project', exact: true }),
+          page.getByRole('button', { name: 'Create project', exact: true }),
         ).toBeEnabled();
-        const overflow = await page
-          .locator('.workspace-main')
-          .evaluate((el) => el.scrollHeight - el.clientHeight);
+        // The page scrolls now; the Overview section itself must still fit the window.
+        const overflow = await page.locator('.workspace-main').evaluate((el) => {
+          const section = el.querySelector('[data-section="overview"]')!;
+          return section.getBoundingClientRect().bottom - el.getBoundingClientRect().bottom;
+        });
         expect(overflow, `${mode}/${destination} at DPR ${scale}`).toBeLessThanOrEqual(1);
       }
     }
@@ -486,7 +490,7 @@ test('operational settings persist without redundant previews and stale checks c
   });
   await prepare(page);
   await page.getByLabel('Project name').fill('persistent-workflow');
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeEnabled();
   const count = await page.evaluate(
     () => (window as any).testCalls.filter((call: any) => call.command === 'preview_files').length,
   );
@@ -521,7 +525,7 @@ test('operational settings persist without redundant previews and stale checks c
       ),
     )
     .toBe('public');
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeEnabled();
   await expect(page.getByRole('combobox', { name: 'Owner', exact: true })).toHaveValue(
     'sample-org',
   );
@@ -549,7 +553,7 @@ test('creation waits for refreshed prerequisites and fails closed when inspectio
 }) => {
   await prepare(page, false, 'simple');
   await page.getByLabel('Project name').fill('fresh-prerequisites');
-  const review = page.getByRole('button', { name: 'Review project', exact: true });
+  const review = page.getByRole('button', { name: 'Create project', exact: true });
   await expect(review).toBeEnabled();
   await page.evaluate(() => {
     const original = (window as any).__TAURI_INTERNALS__.invoke;

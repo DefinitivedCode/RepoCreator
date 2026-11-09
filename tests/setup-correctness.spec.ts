@@ -31,7 +31,7 @@ test('a missing identity is named in the footer, described on the button, and fi
   await expect(reason).not.toContainText('Complete the required setup');
   await expect(page.locator('.creation-git-status')).toContainText('Setup incomplete');
   // The disabled button is described by the visible reason.
-  const review = page.getByRole('button', { name: 'Review project', exact: true });
+  const review = page.getByRole('button', { name: 'Create project', exact: true });
   await expect(review).toBeDisabled();
   await expect(review).toHaveAttribute('aria-describedby', 'creation-reason');
   // The inline fix opens the Settings tab that actually contains the fields.
@@ -46,15 +46,16 @@ test('a missing identity is named in the footer, described on the button, and fi
   ).toBeVisible();
 });
 
-test('the Review step offers the first setup fix, labelled by what is wrong', async ({ page }) => {
+test('Create offers the first setup fix, labelled by what is wrong', async ({ page }) => {
   await page.addInitScript((environment) => {
     (window as any).testEnvironment = environment;
   }, noIdentity);
   await prepare(page, false, 'simple', false);
   await page.getByLabel('Project name').fill('fresh-start');
-  await navigate(page, 'Review');
+  await page.getByRole('button', { name: 'Create project', exact: true }).click({ force: true });
   await page
-    .getByRole('button', { name: 'Git needs your name and email to record commits' })
+    .getByRole('dialog', { name: 'To create this project' })
+    .getByRole('button', { name: 'Add name and email' })
     .click();
   await expect(page.getByRole('tab', { name: 'Git & identity' })).toHaveAttribute(
     'aria-selected',
@@ -303,8 +304,7 @@ test('setup screens never ask for a password or token', async ({ page }) => {
 test('creating a local project makes no GitHub call', async ({ page }) => {
   await prepare(page, false, 'simple');
   await page.getByLabel('Project name').fill('local-only');
-  await navigate(page, 'Review');
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await expect(page.getByText('local-only').first()).toBeVisible();
   const all = await calls(page);
   expect(all.some((call) => call.command === 'create_repository')).toBe(true);

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { prepare, navigate, agentTab, createProject } from './fixtures';
+import { prepare, navigate, agentTab, createProject, resultPreview } from './fixtures';
 import { verifyExpandedScrolling } from './scrolling.mjs';
 import { mkdirSync } from 'node:fs';
 
@@ -44,23 +44,17 @@ test('agent selection, rules, specialists, scoped configuration and previews rea
     .getByLabel('Scoped rule instructions')
     .fill('Preserve established component contracts.');
   await page.getByRole('button', { name: 'Add scoped rule', exact: true }).click();
-  await navigate(page, 'Review');
-  await page
-    .getByRole('group', { name: 'Preview file' })
-    .getByRole('button', { name: 'AGENTS.md', exact: true })
-    .click();
-  await expect(page.getByLabel('AGENTS.md preview', { exact: true })).toContainText(
+  const pane = await resultPreview(page, 'AGENTS.md');
+  await expect(pane.getByLabel('AGENTS.md preview', { exact: true })).toContainText(
     'Keep café 🦀 exact.',
   );
-  await expect(page.getByLabel('AGENTS.md preview', { exact: true }).locator('script')).toHaveCount(
+  await expect(pane.getByLabel('AGENTS.md preview', { exact: true }).locator('script')).toHaveCount(
     0,
   );
   expect(await page.evaluate(() => (window as any).injected)).toBeUndefined();
-  await page.getByLabel('Find generated files').fill('agents/code-reviewer');
   await expect(
-    page.getByRole('button', { name: '.codex/agents/code-reviewer.toml', exact: true }),
+    pane.getByRole('button', { name: '.codex/agents/code-reviewer.toml', exact: true }),
   ).toBeVisible();
-  await page.getByLabel('Find generated files').fill('');
   await navigate(page, 'Overview');
   const assistant = page.getByLabel('AI coding assistant');
   await expect(assistant).toHaveValue('multiple');
@@ -168,9 +162,9 @@ test('instruction presets, Markdown imports and reusable specialist definitions 
   await expect(page.getByLabel('Team Reviewer', { exact: true })).toBeChecked();
   await agentTab(page, 'Assistants');
   await page.getByLabel('OpenAI Codex', { exact: true }).uncheck();
-  await expect(page.getByRole('button', { name: 'Review project' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Create project' })).toBeDisabled();
   await page.getByLabel('Generate AI agent files').uncheck();
-  await expect(page.getByRole('button', { name: 'Review project' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create project' })).toBeEnabled();
 });
 
 test('complex Studio subsections keep controls and footer inside supported frames', async ({

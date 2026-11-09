@@ -185,7 +185,7 @@ try {
     .getByLabel('Description', { exact: false })
     .fill('Collect notes and small discoveries.');
   await page.getByLabel('AI coding assistant', { exact: true }).selectOption('codex');
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeEnabled();
   for (const appearance of ['light', 'dark']) {
     await theme(appearance);
     await page.getByRole('radio', { name: 'Muted Teal', exact: true }).check();
