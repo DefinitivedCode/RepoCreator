@@ -153,7 +153,12 @@ export async function prepare(
       if(command === 'import_instructions') return 'Imported instructions 🦀.\\n';
       if(command === 'export_instruction_preset') return true;
       if(command === 'import_instruction_preset') {preferences.instructionPresets.push({id:'instructions-imported',name:'Imported preset',profile:{...structuredClone(options.ai.instructions),customText:'Imported preset text.'}});return structuredClone(preferences);}
-      if (command === 'save_custom_preset') { preferences.customPresets.push({id:'custom-'+(preferences.customPresets.length+1),name:payload.name,description:payload.description||'',configuration:payload.configuration}); return structuredClone(preferences.customPresets); }
+      if (command === 'save_custom_preset') {
+        const name = payload.name.trim();
+        if(preferences.customPresets.some(p=>p.name.toLowerCase()===name.toLowerCase())) throw {message:'A custom preset with this name already exists.',guidance:'Choose a different name.'};
+        preferences.customPresets.push({id:'custom-'+(preferences.customPresets.length+1),name,description:payload.description||'',configuration:payload.configuration});
+        return structuredClone(preferences.customPresets);
+      }
       if (command === 'rename_custom_preset') { preferences.customPresets.find(p=>p.id===payload.id).name=payload.name; return structuredClone(preferences.customPresets); }
       if (command === 'delete_custom_preset') { preferences.customPresets=preferences.customPresets.filter(p=>p.id!==payload.id); return structuredClone(preferences.customPresets); }
       if (command === 'create_repository' || command === 'retry_publish') {

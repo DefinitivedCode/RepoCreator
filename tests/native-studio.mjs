@@ -11,8 +11,16 @@ export async function configureNativeStudio({ page, invoke, verifyOverview }) {
   await page.getByRole('textbox', { name: 'Description', exact: false }).fill(description);
   await verifyOverview?.('advanced');
   const nav = page.getByRole('navigation', { name: 'Project setup' });
+  const customize = async (name) => {
+    const trigger = page.getByRole('button', { name });
+    if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  };
+  const back = page
+    .locator('.workspace[data-editor]')
+    .getByRole('button', { name: 'Back', exact: true });
   const fileTabs = page.getByRole('tablist', { name: 'Project file settings' });
   await nav.getByRole('button', { name: 'Project Files', exact: true }).click();
+  await customize(/^Customize files/);
   await page.getByRole('combobox', { name: /^README/ }).selectOption('custom');
   await page
     .getByLabel('Overview content', { exact: true })
@@ -28,6 +36,7 @@ export async function configureNativeStudio({ page, invoke, verifyOverview }) {
     await page.getByLabel('Custom patterns', { exact: true }).fill(pattern);
     await page.getByRole('button', { name: 'Add', exact: true }).click();
   }
+  if (await back.isVisible()) await back.click();
   await nav.getByRole('button', { name: 'AI Agents', exact: true }).click();
   await page.getByLabel('Generate AI agent files', { exact: true }).check();
   const { studio: catalog } = await invoke('get_catalog');
@@ -35,6 +44,7 @@ export async function configureNativeStudio({ page, invoke, verifyOverview }) {
   assert.equal(assistants.length, 6);
   for (const name of assistants) await page.getByRole('checkbox', { name, exact: true }).check();
   const tabs = page.getByRole('tablist', { name: 'AI agent settings' });
+  await customize(/^Customize AI agents/);
   await tabs.getByRole('tab', { name: 'Instructions', exact: true }).click();
   await page.getByLabel('Instruction preset', { exact: true }).selectOption('autonomous');
   const custom = 'Preserve café and 日本語 🦀.\n<script>window.injected = true</script>\n';

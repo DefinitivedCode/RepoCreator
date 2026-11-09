@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { Disclosure } from './ui';
+import { Button, Disclosure } from './ui';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './icons';
 import { AdvancedPanel, IgnorePanel, type FileSection } from './ConfigurationPanels';
@@ -31,6 +31,7 @@ import type { Configuration, Readme } from './types';
 import { normalizeProjectName } from './projectName';
 
 export type Section = 'overview' | 'files' | 'agents';
+type EditorSection = Exclude<Section, 'overview'>;
 const labels: Record<Section, string> = {
   overview: 'Overview',
   files: 'Project Files',
@@ -50,8 +51,15 @@ export default function App() {
   const [agentSection, setAgentSection] = useState<AgentSection>('instructions');
   const [filesOpen, setFilesOpen] = useState<boolean | undefined>();
   const [agentsOpen, setAgentsOpen] = useState<boolean | undefined>();
+  const content = useRef<HTMLDivElement>(null);
+  const filesCustomize = useRef<HTMLButtonElement>(null);
+  const agentsCustomize = useRef<HTMLButtonElement>(null);
+  const editorBack = useRef<HTMLButtonElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  const [focusedEditor, setFocusedEditor] = useState<EditorSection | null>(null);
+  const [visitedEditors, setVisitedEditors] = useState<Partial<Record<EditorSection, true>>>({});
   const [presetId, setPresetId] = useState('');
-  const [presetsOpen, setPresetsOpen] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState<'manage' | 'save' | null>(null);
   const [contextOpen, setContextOpen] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
@@ -71,6 +79,14 @@ export default function App() {
       .catch(() => setHasProjects(true));
   }, [preferences, onboardingDone, hasProjects]);
   const firstRun = !!preferences && !onboardingDone && hasProjects === false;
+  useEffect(() => {
+    const element = content.current;
+    if (!element) return;
+    setNarrow(element.clientWidth <= 900);
+    const observer = new ResizeObserver(([entry]) => setNarrow(entry.contentRect.width <= 900));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [firstRun]);
   useEffect(() => {
     if (
       preferences &&
@@ -125,7 +141,21 @@ export default function App() {
   const sectionRefs = useRef<Partial<Record<Section, HTMLElement | null>>>({});
   const headingRefs = useRef<Partial<Record<Section, HTMLHeadingElement | null>>>({});
   const scrollLock = useRef(0);
+  const activeEditor = narrow ? focusedEditor : null;
+  const EditorHeading = activeEditor ? 'h1' : 'h2';
+  function openEditor(editor: EditorSection) {
+    setVisitedEditors((previous) => ({ ...previous, [editor]: true }));
+    setFocusedEditor(editor);
+    setSection(editor);
+    requestAnimationFrame(() => editorBack.current?.focus());
+  }
+  function closeEditor(editor: EditorSection) {
+    setFocusedEditor(null);
+    const trigger = editor === 'files' ? filesCustomize : agentsCustomize;
+    requestAnimationFrame(() => trigger.current?.focus());
+  }
   function navigate(next: Section) {
+    setFocusedEditor(null);
     setSection(next);
     scrollLock.current = Date.now();
     requestAnimationFrame(() => {
@@ -137,8 +167,11 @@ export default function App() {
   // The index follows the scroll position (scroll spy), except right after choosing an item.
   const onNewProject = page === 'new' && state.kind === 'form' && !!form;
   useEffect(() => {
+    if (!onNewProject) setFocusedEditor(null);
+  }, [onNewProject]);
+  useEffect(() => {
     const root = document.querySelector<HTMLElement>('.workspace-main');
-    if (!onNewProject || !root) return;
+    if (!onNewProject || activeEditor || !root) return;
     const onScroll = () => {
       if (Date.now() - scrollLock.current < 500) return;
       const order: Section[] = ['overview', 'files', 'agents'];
@@ -153,7 +186,7 @@ export default function App() {
     };
     root.addEventListener('scroll', onScroll, { passive: true });
     return () => root.removeEventListener('scroll', onScroll);
-  }, [onNewProject]);
+  }, [onNewProject, activeEditor]);
   // Optional shortcuts: Ctrl/Cmd+N starts a project and Ctrl/Cmd+, opens Settings. Every
   // action also has a visible control, so these are never the only way.
   const shortcutActions = useRef({ create: () => {}, settings: () => {} });
@@ -227,9 +260,9 @@ export default function App() {
         setupNeedsAttention={!!creator.environment && !creator.checking && !creator.setupReady}
         updateAvailable={!!updates.offer}
         onNavigate={(id) => {
-          if (id === 'new' && state.kind !== 'form') {
-            creator.reset();
-            navigate('overview');
+          if (id === 'new') {
+            if (state.kind !== 'form') creator.reset();
+            if (state.kind !== 'form' || focusedEditor) navigate('overview');
           }
           navigateTo({ type: 'go', page: id });
         }}
@@ -238,7 +271,7 @@ export default function App() {
           navigateTo({ type: 'settings' });
         }}
       />
-      <div className="app-content" id="main-content" tabIndex={-1}>
+      <div className="app-content" id="main-content" ref={content} tabIndex={-1}>
         {updates.offer && !updates.dismissed && page !== 'settings' && (
           <aside className="update-notification" aria-label="Software update">
             <span>Repo Creator {updates.offer.version} is available.</span>
@@ -280,14 +313,14 @@ export default function App() {
                 ...configurationOf(form),
                 options: { ...form.options, commands },
               });
-              setPresetsOpen(true);
+              setPresetsOpen('manage');
             }}
           />
         ) : page === 'presets' ? (
           <PresetLibrary
             creator={creator}
             presets={allPresets}
-            onManage={() => setPresetsOpen(true)}
+            onManage={() => setPresetsOpen('manage')}
             onUse={(configuration, id) => {
               apply(configuration, id);
               navigateTo({ type: 'go', page: 'new' });
@@ -361,7 +394,10 @@ export default function App() {
               else void creator.execute(false, presetName);
             }}
           >
-            <div className={`workspace ${showContext ? 'with-context' : ''}`}>
+            <div
+              className={`workspace ${showContext ? 'with-context' : ''}`}
+              data-editor={activeEditor ?? undefined}
+            >
               <nav className="navigation-rail" aria-label="Project setup">
                 <span className="nav-caption">Project setup</span>
                 {(Object.keys(labels) as Section[]).map((s) => (
@@ -461,7 +497,8 @@ export default function App() {
                       simple={simple}
                       presetId={presetId}
                       onApply={apply}
-                      onManage={() => setPresetsOpen(true)}
+                      onManage={() => setPresetsOpen('manage')}
+                      onSavePreset={() => setPresetsOpen('save')}
                       onAgents={() => navigate('agents')}
                       canUndo={!!undo}
                       onUndo={() => {
@@ -480,7 +517,14 @@ export default function App() {
                       sectionRefs.current.files = element;
                     }}
                   >
-                    <h2
+                    {activeEditor === 'files' && (
+                      <div className="focused-editor-back">
+                        <Button ref={editorBack} onClick={() => closeEditor('files')}>
+                          Back
+                        </Button>
+                      </div>
+                    )}
+                    <EditorHeading
                       id="setup-heading-files"
                       ref={(element) => {
                         headingRefs.current.files = element;
@@ -488,7 +532,7 @@ export default function App() {
                       tabIndex={-1}
                     >
                       {labels.files}
-                    </h2>
+                    </EditorHeading>
                     <dl className="setup-summary-list">
                       <dt>README</dt>
                       <dd>{form.readme[0].toUpperCase() + form.readme.slice(1)}</dd>
@@ -501,10 +545,11 @@ export default function App() {
                     </dl>
                     <Disclosure
                       title="Customize files"
-                      lazy
+                      triggerRef={filesCustomize}
+                      lazy={!narrow || !visitedEditors.files}
                       summary="README, .gitignore, license, extra files, Git settings"
-                      open={filesOpen ?? !simple}
-                      onToggle={setFilesOpen}
+                      open={narrow ? activeEditor === 'files' : (filesOpen ?? !simple)}
+                      onToggle={narrow ? () => openEditor('files') : setFilesOpen}
                     >
                       <Subnav
                         base="file-settings"
@@ -591,7 +636,14 @@ export default function App() {
                       sectionRefs.current.agents = element;
                     }}
                   >
-                    <h2
+                    {activeEditor === 'agents' && (
+                      <div className="focused-editor-back">
+                        <Button ref={editorBack} onClick={() => closeEditor('agents')}>
+                          Back
+                        </Button>
+                      </div>
+                    )}
+                    <EditorHeading
                       id="setup-heading-agents"
                       ref={(element) => {
                         headingRefs.current.agents = element;
@@ -599,14 +651,15 @@ export default function App() {
                       tabIndex={-1}
                     >
                       {labels.agents}
-                    </h2>
+                    </EditorHeading>
                     <AgentStudio creator={creator} section="assistants" />
                     <Disclosure
                       title="Customize AI agents"
-                      lazy
+                      triggerRef={agentsCustomize}
+                      lazy={!narrow || !visitedEditors.agents}
                       summary="Instructions, specialists and skills, advanced"
-                      open={agentsOpen ?? !simple}
-                      onToggle={setAgentsOpen}
+                      open={narrow ? activeEditor === 'agents' : (agentsOpen ?? !simple)}
+                      onToggle={narrow ? () => openEditor('agents') : setAgentsOpen}
                     >
                       <Subnav
                         base="agent-settings"
@@ -775,8 +828,9 @@ export default function App() {
           <PresetDialog
             creator={creator}
             configurationOverride={presetOverride}
+            saveAs={presetsOpen === 'save'}
             onClose={() => {
-              setPresetsOpen(false);
+              setPresetsOpen(null);
               setPresetOverride(undefined);
             }}
             onSaved={(id) => {

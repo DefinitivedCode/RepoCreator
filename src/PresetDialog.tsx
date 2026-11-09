@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './icons';
+import { Button, Dialog } from './ui';
 import { appError, configurationOf } from './validation';
 import type { Configuration, ProjectPreset } from './types';
 import type { Creator } from './useCreator';
@@ -32,17 +33,20 @@ function included(configuration: Configuration): string {
 export function PresetDialog({
   creator,
   configurationOverride,
+  saveAs = false,
   onClose,
   onSaved,
   onApply,
 }: {
   creator: Creator;
   configurationOverride?: Configuration;
+  saveAs?: boolean;
   onClose: () => void;
   onSaved: (id: string) => void;
   onApply: (configuration: Configuration, id: string) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const saveFormId = useId();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
@@ -97,6 +101,10 @@ export function PresetDialog({
               preset: { schemaVersion: 1, name, description, configuration },
             })
           : await creator.managePreset('save_custom_preset', { name, description, configuration });
+        if (saveAs) {
+          onClose();
+          return;
+        }
         setMessage(`Saved “${presets[presets.length - 1].name}”.`);
       }
       clearEditor();
@@ -163,6 +171,51 @@ export function PresetDialog({
         setSourceName('Imported preset preview');
       }
     });
+  }
+
+  if (saveAs) {
+    return (
+      <Dialog
+        title="Save as preset"
+        onClose={onClose}
+        footer={
+          <>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button
+              variant="primary"
+              type="submit"
+              form={saveFormId}
+              disabled={!name.trim() || pending}
+            >
+              Save preset
+            </Button>
+          </>
+        }
+      >
+        <form
+          id={saveFormId}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (name.trim()) void save();
+          }}
+        >
+          <label className="field">
+            Preset name
+            <input
+              value={name}
+              maxLength={60}
+              autoFocus
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+          {error && (
+            <p className="inline-error" role="alert">
+              {error}
+            </p>
+          )}
+        </form>
+      </Dialog>
+    );
   }
 
   return (

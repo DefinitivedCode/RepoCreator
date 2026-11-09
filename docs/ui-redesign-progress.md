@@ -154,22 +154,24 @@ Not done: per-section "Save as preset" next to Starting point, a file tree in th
 
 ## Decisions for the maintainer
 
-- Should the Simple/Advanced wording differences be unified before 5b? Unifying them removes the largest source of test churn but changes visible text for Simple users.
+Release decisions and manual verification stay with the maintainer. The Simple/Advanced wording decision was resolved in Phase 5b.
+
+## Group 1 — New Project leftovers
+
+[PR #37](https://github.com/DefinitivedCode/RepoCreator/pull/37), branch `redesign/new-project-leftovers`, based on `main` after PRs #35 and #36 merged. Merge Group 1 before its dependent groups.
+
+- Starting point saves the current configuration with the existing preset command. Duplicate-name errors stay beside the name field, and saving leaves the active configuration alone.
+- The result pane shows a keyboard-operable nested file list with its total count and path filter. The expanded dialog keeps its search. Both viewers show the generator's file contents.
+- **[Q] Editor width.** The existing 820×580 screenshots showed an editor about 522 px wide beside the section index. The focused view gives it about 720 px. Both editors open with Back at content widths of 900 px and below, including the 1100×740 window with its 200 px sidebar. Back preserves edits and returns focus to Customize. The advanced-default preference still expands the inline editors above 900 px.
+- `npm run check` and `npm run format:check` passed. `npm test` passed 333 tests. `node --test scripts/audit-styles.test.mjs` passed 6. The full Playwright suite passed 294 and skipped 2 opt-in baseline tests, with both themes on Windows using cached Playwright Chromium. The Edge launch failed before tests ran because its remote debugging process could not resolve the data directory under this session's Windows token. The local fallback kept the suite and its assertions and changed only the browser executable via an ignored config.
+- Reviewed browser screenshots of preset saving, the result pane and both editors at 820×580, 1100×740 and 1440×900 in both themes. The unsigned `npm run desktop:build -- --ci --debug --no-bundle` build passed. The current native preview-to-disk smoke could not attach to WebView2, so the last passing native preview-to-disk evidence remains from Phase 6. No Rust files changed.
 
 ## Blockers
 
-None open.
+- **Windows native WebView2 verification.** `node tests/native-smoke.mjs` on the current debug build, with a temporary profile, Git shim and offline `gh` stub, stopped at `Production WebView2 must start` before it could attach to the debugging endpoint. Options are to rerun it in an interactive Windows session with the same Git isolation or inspect the WebView2 launch there. Use the interactive rerun to confirm the native preview-to-disk assertions. Browser fixture verification can proceed independently.
 
 ## Next step
 
-Run stopped cleanly after Phase 6 (partial) because of working-budget limits, not a blocker. Resume by re-sending the autonomous prompt.
-
-1. Optional remainder of Phase 6 (list above), on `git checkout redesign/phase-6-workspace && git checkout -b redesign/phase-6b-workspace-details`. Start with the Readiness grouping (pure presentation in `src/Readiness.tsx`), then the Commands primary-action menu and run history (`list_command_runs`), then the header Open-in menu. Re-verify [Q] items before touching `commandOutputModel.ts` (raw ANSI) and launcher state.
-2. Phase 7 (settings, appearance, updates, polish; repo-wide `lint:styles` gate) on `git checkout redesign/phase-6-workspace && git checkout -b redesign/phase-7-settings`.
-3. Phase 8 (accessibility, forced colours, checklist doc, `docs/redesign-summary.md`).
+Follow [the remainder prompt](ui-redesign-codex-remainder.md) in group order. Start Group 2 on `redesign/workspace-remainder` from Group 1 while PR #37 is open. Start by inspecting the Handoff panel, the existing technology evidence and `list_command_runs`. Continue with the specific preset Edit path.
 
 Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smokes need a debug build (`npm run desktop:build -- --ci --debug --no-bundle`) and an empty `HOME`; write multi-line scripts with the file tool; the browser suite has occasional load flakes; `aria-disabled` buttons need `click({ force: true })`; use `setMode` for mode; CI runs `scripts/third-party-notices.mjs --check`, so never edit `src/icons.tsx` (use `src/ui/UiIcon.tsx`); merge, never rebase, to propagate fixes up the stack.
-
-## Final deliverables still owed after Phase 8
-
-`docs/redesign-summary.md` (criteria 1–25 with evidence or an honest untested/unmet) and the final report.

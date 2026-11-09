@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Icon } from './icons';
+import { GeneratedFileTree } from './GeneratedFileTree';
 import { SyntaxPreview, fileLanguage } from './SyntaxPreview';
 import type { Creator } from './useCreator';
 import { branchError } from './validation';
@@ -31,57 +32,6 @@ export function FilePreview({
   const [selected, setSelected] = useState(initialPath);
   const [search, setSearch] = useState('');
   const file = files.find((file) => file.path === selected) ?? files[0];
-  interface TreeNode {
-    path: string;
-    name: string;
-    file?: GeneratedFile;
-    children: TreeNode[];
-  }
-  const roots: TreeNode[] = [];
-  for (const item of files.filter((f) => f.path.toLowerCase().includes(search.toLowerCase()))) {
-    let nodes = roots;
-    let prefix = '';
-    const parts = item.path.split('/');
-    parts.forEach((part, index) => {
-      prefix += `${prefix ? '/' : ''}${part}`;
-      let node = nodes.find((n) => n.path === prefix);
-      if (!node) {
-        node = { path: prefix, name: part, children: [] };
-        nodes.push(node);
-      }
-      if (index === parts.length - 1) node.file = item;
-      nodes = node.children;
-    });
-  }
-  const renderNodes = (nodes: TreeNode[]): React.ReactNode => (
-    <ul>
-      {nodes.map((node) => (
-        <li key={node.path}>
-          {node.file ? (
-            <button
-              type="button"
-              className="tree-file"
-              aria-label={node.path}
-              title={node.path}
-              aria-pressed={file?.path === node.path}
-              onClick={() => setSelected(node.path)}
-            >
-              <Icon name="file" size={12} />
-              <span>{node.name}</span>
-            </button>
-          ) : (
-            <>
-              <span className="tree-folder">
-                <Icon name="folder" size={12} />
-                {node.name}/
-              </span>
-              {renderNodes(node.children)}
-            </>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
   return (
     <details
       className={`disclosure file-preview ${expanded ? 'workspace-panel' : ''}`}
@@ -122,7 +72,12 @@ export function FilePreview({
             </label>
             <div className="file-tabs file-tree" role="group" aria-label="Preview file">
               <div className="tree-root mono">{name}/</div>
-              {roots.length ? renderNodes(roots) : <p className="help">No matching files.</p>}
+              <GeneratedFileTree
+                files={files}
+                search={search}
+                selected={file.path}
+                onSelect={setSelected}
+              />
             </div>
             <div className="preview-caption">
               <code>{file.path}</code>

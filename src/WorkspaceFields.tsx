@@ -20,6 +20,8 @@ import { detailOf } from './blockers';
 import { SetupChecklist } from './setup/SetupChecklist';
 import { TechnologySelector } from './TechnologySelector';
 import { technologiesFor, technologySummary } from './technologies';
+import { Button } from './ui';
+import { GeneratedFileTree } from './GeneratedFileTree';
 import './creation-fields.css';
 export { TechnologySelector } from './TechnologySelector';
 
@@ -29,6 +31,7 @@ export function Overview({
   presetId,
   onApply,
   onManage,
+  onSavePreset,
   onAgents,
   canUndo,
   onUndo,
@@ -38,6 +41,7 @@ export function Overview({
   presetId: string;
   onApply: (c: Configuration, id: string) => void;
   onManage: () => void;
+  onSavePreset: () => void;
   onAgents: () => void;
   canUndo: boolean;
   onUndo: () => void;
@@ -118,6 +122,7 @@ export function Overview({
           <button type="button" onClick={onManage}>
             Manage…
           </button>
+          <Button onClick={onSavePreset}>Save as preset</Button>
         </div>
       </div>
       <div className="overview-assistants two-columns creation-development">
@@ -444,8 +449,10 @@ export function Context({
 }) {
   const form = creator.form!;
   const files = creator.files;
-  const [selectedFile, setSelectedFile] = useState('README.md');
-  const preferred =
+  const [search, setSearch] = useState('');
+  const [selection, setSelection] = useState<{ context: string; path: string }>();
+  const context = section === 'files' ? `${section}:${fileSection}` : section;
+  const suggested =
     section === 'agents'
       ? 'AGENTS.md'
       : section === 'files'
@@ -455,7 +462,8 @@ export function Context({
             additional: '.editorconfig',
             readme: 'README.md',
           }[fileSection ?? 'readme'] ?? 'README.md')
-        : selectedFile;
+        : 'README.md';
+  const preferred = selection?.context === context ? selection.path : suggested;
   const preview = files.find((file) => file.path === preferred) ?? files[0];
   return (
     <div className="creation-context">
@@ -480,21 +488,31 @@ export function Context({
           {creator.previewError}
         </p>
       )}
-      <ul className="context-files" tabIndex={0} aria-label="Planned generated files">
-        {files.map((file) => (
-          <li key={file.path}>
-            <button
-              type="button"
-              aria-pressed={preview?.path === file.path}
-              onClick={() => setSelectedFile(file.path)}
-              title={file.path}
-            >
-              <Icon name="file" size={13} />
-              <code>{file.path}</code>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {files.length > 0 && (
+        <>
+          <label className="field context-search">
+            <span className="control-label">Find generated files</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.preventDefault();
+              }}
+              placeholder="Filter file paths…"
+            />
+          </label>
+          <div className="context-files" tabIndex={0} role="group" aria-label="Generated file tree">
+            <GeneratedFileTree
+              files={files}
+              search={search}
+              selected={preview?.path}
+              onSelect={(path) => setSelection({ context, path })}
+              collapsible
+            />
+          </div>
+        </>
+      )}
       {!files.length && !creator.previewing && (
         <p className="help">Empty repository · the first commit will contain no files.</p>
       )}

@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode, type Ref } from 'react';
 import { Icon } from '../icons';
 
 /** A whole-row toggle (use for "Customize" regions). Controlled or uncontrolled. */
@@ -9,6 +9,7 @@ export function Disclosure({
   defaultOpen = false,
   onToggle,
   lazy = false,
+  triggerRef,
   children,
 }: {
   title: string;
@@ -18,6 +19,7 @@ export function Disclosure({
   onToggle?: (open: boolean) => void;
   /** Render the body only while open (for heavy or field-rich content). */
   lazy?: boolean;
+  triggerRef?: Ref<HTMLButtonElement>;
   children: ReactNode;
 }) {
   const [inner, setInner] = useState(defaultOpen);
@@ -27,6 +29,7 @@ export function Disclosure({
     <div className="ui-disclosure">
       <button
         type="button"
+        ref={triggerRef}
         className="ui-disclosure-trigger"
         aria-expanded={expanded}
         aria-controls={bodyId}
