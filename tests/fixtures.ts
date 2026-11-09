@@ -163,7 +163,11 @@ export async function prepare(
       if (command === 'delete_custom_preset') { preferences.customPresets=preferences.customPresets.filter(p=>p.id!==payload.id); return structuredClone(preferences.customPresets); }
       if (command === 'create_repository' || command === 'retry_publish') {
         attempts++; lastRequest=payload?.request || lastRequest;
-        await new Promise(resolve => setTimeout(resolve, 240));
+        if (command === 'create_repository' && window.testHoldCreation) {
+          await new Promise(resolve => { window.finishCreation = resolve; });
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 240));
+        }
         if (${failPublish} && attempts === 1) throw { message:'The GitHub repository exists, but the initial commit could not be pushed.',guidance:'Your local repository and commit are safe. Check your connection, then retry publishing.',localPath:'C:\\\\Projects\\\\fresh-start',localReady:true,canRetry:true,githubUrl:'https://github.com/octocat/fresh-start' };
         return { name:lastRequest.name,path:preferences.parentPath+String.fromCharCode(92)+lastRequest.name,githubUrl:lastRequest.destination==='github'?'https://github.com/octocat/'+lastRequest.name:null,commit:'a'.repeat(40),branch:lastRequest.options.initialBranch,commitMessage:lastRequest.options.commitMessage,files:preview(lastRequest).map(f=>f.path),warnings:[] };
       }
