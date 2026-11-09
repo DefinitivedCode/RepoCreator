@@ -40,6 +40,7 @@ export function useCreator() {
   const [environment, setEnvironment] = useState<Environment | null>(null);
   const [state, setState] = useState<CreationState>({ kind: 'form' });
   const [error, setError] = useState<AppError | null>(null);
+  const [locationError, setLocationError] = useState<AppError | null>(null);
   const [notice, setNotice] = useState('');
   const [checking, setChecking] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -50,6 +51,7 @@ export function useCreator() {
   const environmentRequest = useRef(0);
   const environmentFailure = useRef('');
   const accentSave = useRef<Promise<void>>(Promise.resolve());
+  const themeSave = useRef<Promise<void>>(Promise.resolve());
   const busy = state.kind === 'creating';
 
   const refresh = useCallback(async (includeGithub: boolean) => {
@@ -216,6 +218,7 @@ export function useCreator() {
   async function chooseFolder() {
     if (picking || busy) return;
     setPicking(true);
+    setLocationError(null);
     try {
       const path = await invoke<string | null>('choose_parent');
       if (path) {
@@ -223,30 +226,34 @@ export function useCreator() {
         void refresh(form?.destination === 'github');
       }
     } catch (value) {
-      setError(appError(value));
+      setLocationError(appError(value));
     } finally {
       setPicking(false);
     }
   }
   async function recentLocation(index: number) {
+    setLocationError(null);
     try {
       setPreferences(await invoke<Preferences>('select_recent_location', { index }));
       void refresh(form?.destination === 'github');
     } catch (value) {
-      setError(appError(value));
+      setLocationError(appError(value));
     }
   }
   async function appearance(appearance: Appearance) {
     setPreferences((preferences) => (preferences ? { ...preferences, appearance } : preferences));
+    const saving = themeSave.current.then(() => invoke<void>('set_appearance', { appearance }));
+    themeSave.current = saving.catch(() => {});
     try {
-      await invoke('set_appearance', { appearance });
+      await saving;
+      return null;
     } catch (value) {
-      setNotice(appError(value).message);
+      return appError(value);
     }
   }
   async function accent(accent: Accent, customAccent: string) {
     const normalized = normalizeHex(customAccent);
-    if (!normalized) return;
+    if (!normalized) return null;
     setPreferences((preferences) =>
       preferences ? { ...preferences, accent, customAccent: normalized } : preferences,
     );
@@ -258,8 +265,9 @@ export function useCreator() {
     accentSave.current = saving.catch(() => {});
     try {
       await saving;
+      return null;
     } catch (value) {
-      setNotice(appError(value).message);
+      return appError(value);
     }
   }
   /** Saves the identity applied (locally) to new Repo Creator projects. Global Git is untouched. */
@@ -297,8 +305,9 @@ export function useCreator() {
     );
     try {
       await invoke('set_experience_mode', { mode });
+      return null;
     } catch (value) {
-      setNotice(appError(value).message);
+      return appError(value);
     }
   }
   // Why creation is not possible yet, most important first. Empty means ready.
@@ -422,6 +431,7 @@ export function useCreator() {
     environment,
     state,
     error,
+    locationError,
     notice,
     checking,
     picking,

@@ -56,3 +56,26 @@ test('font sizes and radii are held repo-wide', () => {
   const result = audit();
   assert.deepEqual(result.gateViolations, []);
 });
+
+test('retired button classes cannot return in styles or JSX', async () => {
+  const { retiredButtonMarkup, ruleViolations } = await import('./audit-styles.mjs');
+  assert.equal(ruleViolations('src/x.css', '.run-button { min-height: 30px; }').length, 1);
+  assert.equal(
+    ruleViolations('src/x.css', '.ui-button[data-variant="primary"] { color: var(--body-text); }')
+      .length,
+    0,
+  );
+  assert.equal(
+    retiredButtonMarkup('src/x.tsx', '<button className="text-button">Edit</button>').length,
+    1,
+  );
+  assert.equal(
+    retiredButtonMarkup('src/x.tsx', "<button className={busy ? '' : 'primary'} />").length,
+    1,
+  );
+  assert.equal(
+    retiredButtonMarkup('src/x.tsx', '<Button variant="danger" className="workspace-remove" />')
+      .length,
+    0,
+  );
+});

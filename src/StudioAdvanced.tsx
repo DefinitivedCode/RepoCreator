@@ -1,3 +1,4 @@
+import { Button } from './ui';
 import { useState } from 'react';
 import type { AIStudio, ScopedRule, StudioCatalog } from './aiTypes';
 
@@ -289,9 +290,10 @@ export function StudioAdvanced({
                 </code>
               </span>
               <div className="inline-actions">
-                <button
+                <Button
                   type="button"
-                  className="text-button"
+                  variant="tertiary"
+                  size="compact"
                   aria-label={`Edit scoped rule ${rule.name}`}
                   onClick={() => {
                     setDraft(structuredClone(rule));
@@ -300,10 +302,11 @@ export function StudioAdvanced({
                   }}
                 >
                   Edit
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="text-button"
+                  variant="tertiary"
+                  size="compact"
                   aria-label={`Remove scoped rule ${rule.name}`}
                   onClick={() => {
                     update({
@@ -318,7 +321,7 @@ export function StudioAdvanced({
                   }}
                 >
                   Remove
-                </button>
+                </Button>
               </div>
             </div>
           ))}

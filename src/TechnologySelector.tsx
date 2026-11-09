@@ -1,3 +1,4 @@
+import { Button } from './ui';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './icons';
@@ -123,13 +124,14 @@ export function TechnologySelector({
       <div className="field-label-row">
         <label htmlFor={`${id}-quick`}>Technologies</label>
         {count > 0 && (
-          <button
+          <Button
             type="button"
-            className="text-button"
+            variant="tertiary"
+            size="compact"
             onClick={() => onChange({ ids: [], custom: [] })}
           >
             Clear all
-          </button>
+          </Button>
         )}
       </div>
       <div className="technology-compact-controls">
@@ -320,13 +322,14 @@ export function TechnologySelector({
             <span>{count} selected</span>
             {chips(true)}
             {count > 0 && (
-              <button
+              <Button
                 type="button"
-                className="text-button"
+                variant="tertiary"
+                size="compact"
                 onClick={() => onChange({ ids: [], custom: [] })}
               >
                 Clear all
-              </button>
+              </Button>
             )}
           </div>
           <div className="technology-custom-row">
@@ -361,18 +364,19 @@ export function TechnologySelector({
           <div className="technology-dialog-footer">
             <div>
               {onIgnorePresets && ignores.length > 0 && (
-                <button
+                <Button
                   type="button"
-                  className="text-button"
+                  variant="tertiary"
+                  size="compact"
                   onClick={() => onIgnorePresets([...new Set([...ignorePresets, ...ignores])])}
                 >
                   Add matching .gitignore presets ({ignores.length})
-                </button>
+                </Button>
               )}
             </div>
-            <button type="button" className="primary" onClick={close}>
+            <Button type="button" variant="primary" onClick={close}>
               Done
-            </button>
+            </Button>
           </div>
         </dialog>,
         document.body,

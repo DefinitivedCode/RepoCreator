@@ -1,5 +1,5 @@
 import { UiIcon } from '../ui/UiIcon';
-import { Button, Dialog } from '../ui';
+import { Button, Dialog, LoadingSkeleton } from '../ui';
 import type { ProjectPreset } from '../types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -30,6 +30,12 @@ export function Projects({
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('opened');
   const [error, setError] = useState('');
+  const [addError, setAddError] = useState('');
+  const [rowError, setRowError] = useState<{
+    id: string;
+    action: 'pin' | 'remove';
+    detail: string;
+  }>();
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [removing, setRemoving] = useState<RecentProject | null>(null);
@@ -65,6 +71,7 @@ export function Projects({
   }, [initialProjectId, load]);
   async function add() {
     setPending(true);
+    setAddError('');
     try {
       const result = await invoke<RecentProject | null>('add_existing_project');
       if (result) {
@@ -72,12 +79,13 @@ export function Projects({
         onSelect(result.id);
       }
     } catch (error) {
-      setError(message(error));
+      setAddError(message(error));
     } finally {
       setPending(false);
     }
   }
   async function pin(project: RecentProject) {
+    setRowError(undefined);
     try {
       const result = await invoke<RecentProject>('save_project_settings', {
         id: project.id,
@@ -89,16 +97,17 @@ export function Projects({
         items.map((item) => (item.id === result.id ? normalize(result) : item)),
       );
     } catch (error) {
-      setError(message(error));
+      setRowError({ id: project.id, action: 'pin', detail: message(error) });
     }
   }
   async function remove(project: RecentProject) {
     setRemoving(null);
+    setRowError(undefined);
     try {
       const result = await invoke<RecentProject[]>('remove_recent_project', { id: project.id });
       setProjects(result.map(normalize));
     } catch (error) {
-      setError(message(error));
+      setRowError({ id: project.id, action: 'remove', detail: message(error) });
     }
   }
   if (initialProjectId)
@@ -134,15 +143,19 @@ export function Projects({
           <h2>Projects</h2>
           <p className="help">Your repositories, tools and saved commands.</p>
         </div>
-        <div className="inline-actions">
-          {onNew && (
-            <button type="button" onClick={onNew}>
-              New project
-            </button>
+        <div>
+          <div className="inline-actions">
+            {onNew && <Button onClick={onNew}>New project</Button>}
+            <Button variant="primary" onClick={() => void add()} disabled={pending}>
+              {pending ? 'Choosing folder…' : 'Add existing project'}{' '}
+              <Icon name="folder" size={15} />
+            </Button>
+          </div>
+          {addError && (
+            <p className="inline-error" role="alert">
+              {addError}
+            </p>
           )}
-          <button type="button" className="primary" onClick={() => void add()} disabled={pending}>
-            {pending ? 'Choosing folder…' : 'Add existing project'} <Icon name="folder" size={15} />
-          </button>
         </div>
       </div>
       <div className="library-toolbar">
@@ -172,12 +185,15 @@ export function Projects({
         </span>
       </div>
       {error && (
-        <p className="error-banner" role="alert">
-          {error}
-        </p>
+        <div className="error-banner">
+          <p role="alert">{error}</p>
+          <Button size="compact" onClick={() => void load(true)}>
+            Retry loading projects
+          </Button>
+        </div>
       )}
       {loading ? (
-        <p role="status">Loading projects…</p>
+        <LoadingSkeleton label="Loading projects…" />
       ) : !visible.length ? (
         <div className="empty-workspace">
           <Icon name="folder" size={32} />
@@ -258,15 +274,31 @@ export function Projects({
                   <button type="button" onClick={() => onSelect(project.id)}>
                     Open workspace
                   </button>
-                  <button
+                  <Button
                     type="button"
-                    className="text-button"
+                    variant="tertiary"
+                    size="compact"
                     onClick={() => setRemoving(project)}
                   >
                     Remove from history
-                  </button>
+                  </Button>
                 </div>
               </div>
+              {rowError?.id === project.id && (
+                <div className="project-card-error">
+                  <p className="inline-error" role="alert">
+                    {rowError.detail}
+                  </p>
+                  <Button
+                    size="compact"
+                    onClick={() =>
+                      rowError.action === 'pin' ? void pin(project) : setRemoving(project)
+                    }
+                  >
+                    {rowError.action === 'pin' ? 'Retry pin change' : 'Review removal again'}
+                  </Button>
+                </div>
+              )}
             </article>
           ))}
         </div>
@@ -278,7 +310,7 @@ export function Projects({
           footer={
             <>
               <Button onClick={() => setRemoving(null)}>Cancel</Button>
-              <Button variant="primary" onClick={() => void remove(removing)}>
+              <Button variant="danger" onClick={() => void remove(removing)}>
                 Remove from history
               </Button>
             </>

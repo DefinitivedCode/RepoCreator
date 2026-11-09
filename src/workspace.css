@@ -658,9 +658,6 @@
 .command-card-actions .inline-actions {
   flex-wrap: wrap;
 }
-.run-button {
-  color: var(--accent-text);
-}
 .command-reorder {
   display: flex;
   gap: 3px;

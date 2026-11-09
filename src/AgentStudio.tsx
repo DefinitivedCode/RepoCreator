@@ -1,3 +1,4 @@
+import { Button } from './ui';
 import { useState } from 'react';
 import { Icon } from './icons';
 import { appError } from './validation';
@@ -251,22 +252,23 @@ export function AgentStudio({
                     Export preset…
                   </button>
                   {selectedSaved && (
-                    <button
+                    <Button
                       type="button"
-                      className="text-button danger"
+                      variant="danger"
+                      size="compact"
                       onClick={() => setDeleting(true)}
                     >
                       Delete saved preset
-                    </button>
+                    </Button>
                   )}
                 </div>
                 {deleting && (
                   <div className="delete-confirm">
                     <p>Delete “{selectedSaved?.name}”? Current instructions will be kept.</p>
                     <div className="inline-actions">
-                      <button type="button" className="danger" onClick={() => void deletePreset()}>
+                      <Button type="button" variant="danger" onClick={() => void deletePreset()}>
                         Delete instruction preset
-                      </button>
+                      </Button>
                       <button type="button" onClick={() => setDeleting(false)}>
                         Cancel
                       </button>

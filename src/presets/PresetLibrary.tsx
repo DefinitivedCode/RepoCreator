@@ -78,7 +78,6 @@ export function PresetLibrary({
       </p>
       <div className="inline-actions preset-actions">
         <Button
-          variant="primary"
           size="compact"
           onClick={() => onUse(preset.configuration, preset.id)}
           aria-label={`Use preset ${preset.name}`}
@@ -125,9 +124,9 @@ export function PresetLibrary({
             project from.
           </p>
         </div>
-        <button type="button" className="primary" onClick={onManage}>
+        <Button type="button" variant="primary" onClick={onManage}>
           Manage presets
-        </button>
+        </Button>
       </div>
       <section aria-labelledby="presets-yours">
         <h3 id="presets-yours">Yours</h3>

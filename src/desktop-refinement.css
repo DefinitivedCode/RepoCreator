@@ -58,26 +58,12 @@ summary > svg,
 .check-label > svg {
   display: block;
 }
-.desktop-app :where(button:not(.icon-button):not(.technology-chip):not(.text-button)) {
+.desktop-app :where(button:not(.icon-button):not(.technology-chip):not(.ui-button)) {
   min-height: var(--control-field);
 }
 .desktop-app input:not([type='checkbox']):not([type='radio']),
 .desktop-app select {
   min-height: var(--control-field);
-}
-.desktop-app .text-button {
-  min-height: var(--control-compact);
-  padding: 4px 6px;
-  color: var(--accent-text);
-}
-.text-button:hover:not(:disabled) {
-  background: var(--hover-bg);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.text-button.danger,
-button.danger {
-  color: var(--error);
 }
 .icon-button {
   min-width: 30px;
@@ -426,13 +412,6 @@ select {
 .assistant-option.selected {
   background: var(--selected-background);
   border-color: var(--selected-border);
-}
-.primary {
-  border-color: var(--action-fill);
-}
-.primary:hover:not(:disabled) {
-  background: var(--action-hover);
-  filter: none;
 }
 .segmented > button[aria-pressed='true'] {
   color: var(--selected-text);

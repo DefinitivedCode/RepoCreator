@@ -11,7 +11,7 @@ async function contained(page: Page) {
   }));
   expect(geometry.width).toBeLessThanOrEqual(geometry.viewport);
   expect(geometry.height).toBeLessThanOrEqual(geometry.viewportHeight + 1);
-  await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.action-bar [data-variant="primary"]')).toBeInViewport({ ratio: 1 });
 }
 
 test('file editors show exact shared previews and retain useful layouts across supported windows', async ({

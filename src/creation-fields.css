@@ -1,6 +1,9 @@
 .creation-overview {
   min-width: 0;
 }
+.creation-action-error {
+  grid-column: 1 / -1;
+}
 .desktop-app .creation-overview .overview-preset {
   border: 0;
   padding-bottom: 0;
@@ -147,7 +150,7 @@
 .context-live-preview h4 {
   flex-wrap: wrap;
 }
-.context-live-preview h4 .text-button {
+.context-live-preview h4 [data-variant='tertiary'] {
   font-size: 12px;
   font-weight: 400;
 }
@@ -291,7 +294,7 @@
   vertical-align: middle;
   color: var(--accent-text);
 }
-.setup-settings .text-button {
+.setup-settings [data-variant='tertiary'] {
   display: inline-flex;
   align-items: center;
   gap: 6px;

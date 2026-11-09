@@ -104,7 +104,7 @@ test('workspace uses available width and retains one pane scroller at supported 
   await setMode(page, 'simple');
   await page.setViewportSize({ width: 820, height: 580 });
   await page.screenshot({ path: `artifacts/v1.3-simple-${info.project.name}-minimum.png` });
-  await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.action-bar [data-variant="primary"]')).toBeInViewport({ ratio: 1 });
 });
 
 test('validation blocks unsafe names and keeps review action accessible', async ({ page }) => {
@@ -418,7 +418,9 @@ test('ordinary Overview fits the default window across display ratios and enlarg
       ).toBeLessThanOrEqual(1);
       await page.locator('.brief-details > summary').focus();
       await expect(page.locator('.brief-details > summary')).toBeInViewport({ ratio: 1 });
-      await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
+      await expect(page.locator('.action-bar [data-variant="primary"]')).toBeInViewport({
+        ratio: 1,
+      });
       const geometry = await page.evaluate(() => {
         const main = document.querySelector('.workspace-main')!.getBoundingClientRect();
         const nav = document.querySelector('.navigation-rail')!;
@@ -463,7 +465,9 @@ test('ordinary Overview fits the default window across display ratios and enlarg
           ).toBeLessThanOrEqual(1);
           await page.locator('.brief-details > summary').focus();
           await expect(page.locator('.brief-details > summary')).toBeInViewport({ ratio: 1 });
-          await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
+          await expect(page.locator('.action-bar [data-variant="primary"]')).toBeInViewport({
+            ratio: 1,
+          });
           expect(
             await page
               .locator('.navigation-rail')

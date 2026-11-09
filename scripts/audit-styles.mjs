@@ -40,6 +40,8 @@ const TOKEN_RADII = new Set([6, 8, 999]);
 
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 const NO_STRIPE = /^(0|none|transparent|initial|unset|inherit)?$/;
+const RETIRED_BUTTON_CLASS =
+  /(?<![\w-])(?:primary|text-button|danger|run-button|command-stop)(?![\w-])/;
 
 /** Rules a selected item must not use (maintainer decision 8) plus the no-all-caps copy rule. */
 export function ruleViolations(relative, source) {
@@ -51,6 +53,10 @@ export function ruleViolations(relative, source) {
     const selector = block[1].trim();
     const body = block[2];
     const line = lineOf(text, block.index + block[0].indexOf('{'));
+    for (const [, name] of selector.matchAll(/\.([\w-]+)/g)) {
+      if (RETIRED_BUTTON_CLASS.test(name))
+        found.push(`${relative}:${line} retired button class .${name}; use Button variants`);
+    }
     for (const [, value] of body.matchAll(/(?<![\w-])text-transform\s*:\s*([^;}]+)/g))
       if (value.trim() === 'uppercase')
         found.push(`${relative}:${line} all-caps text (sentence case only)`);
@@ -79,6 +85,15 @@ export function pressedNavigation(relative, text) {
       /className=\{?[`"'][^`"'\n]*(workspace-tabs|subnavigation|sidebar|nav-item|app-navigation)[^\n]*[\s\S]{0,400}?aria-pressed/g,
     ),
   ].map((m) => `${relative}:${lineOf(text, m.index)} aria-pressed used for navigation`);
+}
+
+export function retiredButtonMarkup(relative, text) {
+  return [...text.matchAll(/\bclassName\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]+)\})/g)]
+    .filter((match) => RETIRED_BUTTON_CLASS.test(match[1] ?? match[2] ?? match[3]))
+    .map(
+      (match) =>
+        `${relative}:${lineOf(text, match.index)} retired button class; use Button variants`,
+    );
 }
 
 export function audit(files = walk(root)) {
@@ -131,6 +146,7 @@ export function audit(files = walk(root)) {
       gateViolations.push(...ruleViolations(relative, text));
     } else {
       gateViolations.push(...pressedNavigation(relative, text));
+      gateViolations.push(...retiredButtonMarkup(relative, text));
       ariaPressed += (text.match(/aria-pressed/g) ?? []).length;
       roleTab += (text.match(/role="tab"|role='tab'/g) ?? []).length;
       // Navigation built from pressed-state buttons (aria-pressed inside a *tabs/nav* group).

@@ -68,6 +68,38 @@
   white-space: nowrap;
 }
 
+.ui-loading-skeleton {
+  margin-block: var(--space-3);
+  max-width: 480px;
+}
+.ui-loading-skeleton > div {
+  display: grid;
+  gap: var(--space-2);
+}
+.ui-loading-skeleton > div > span {
+  height: var(--space-4);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-control);
+  background: var(--raised-bg);
+}
+.ui-loading-skeleton > div > span:nth-child(2) {
+  width: 82%;
+}
+.ui-loading-skeleton > div > span:last-child {
+  width: 64%;
+}
+.ui-inline-problem {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  margin-block: var(--space-2);
+  color: var(--error);
+  overflow-wrap: anywhere;
+}
+.ui-inline-problem p {
+  margin: var(--space-1) 0 0;
+}
+
 .ui-field {
   display: grid;
   gap: var(--space-1);

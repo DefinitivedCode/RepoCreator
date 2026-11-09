@@ -268,9 +268,9 @@ function DetectionReview({
         <button type="button" onClick={onClose}>
           Cancel
         </button>
-        <button
+        <Button
           type="button"
-          className="primary"
+          variant="primary"
           disabled={loading || !additions.length}
           onClick={() => {
             onChange(addDetectedTechnologies(value, additions));
@@ -278,7 +278,7 @@ function DetectionReview({
           }}
         >
           Add selected{additions.length ? ` (${additions.length})` : ''}
-        </button>
+        </Button>
       </div>
     </WorkspaceDialog>
   );

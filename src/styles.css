@@ -236,7 +236,6 @@ pre,
   font-size: 12px;
   line-height: 1.5;
 }
-.text-button,
 .icon-button {
   border-color: transparent;
   background: transparent;
@@ -245,22 +244,6 @@ pre,
   color: var(--muted-text);
   font-size: 12px;
   border-radius: 6px;
-}
-.text-button:hover:not(:disabled) {
-  color: var(--body-text);
-}
-.primary {
-  background: var(--action-fill);
-  color: var(--action-label);
-  border-color: var(--action-fill);
-  font-weight: 600;
-}
-.primary:hover:not(:disabled) {
-  background: var(--action-fill);
-  filter: brightness(0.92);
-}
-.primary:disabled {
-  opacity: 0.35;
 }
 .inline-actions {
   display: flex;
@@ -893,9 +876,6 @@ pre,
   overflow-wrap: anywhere;
   min-width: 0;
 }
-.danger {
-  color: var(--error);
-}
 .delete-confirm {
   padding: 10px;
   margin-top: 8px;
@@ -978,7 +958,6 @@ pre,
   margin: 22px 0 10px;
 }
 .desktop-app .help,
-.desktop-app .text-button,
 .desktop-app .optional {
   font-size: 0.75rem;
 }
@@ -1552,7 +1531,7 @@ pre,
   display: flex;
   align-items: center;
 }
-.overview-assistants .field-label-row .text-button {
+.overview-assistants .field-label-row [data-variant='tertiary'] {
   min-height: 24px;
   padding: 0 3px;
 }
@@ -1610,7 +1589,7 @@ pre,
   gap: 6px;
   flex-wrap: wrap;
 }
-.connection-actions .text-button {
+.connection-actions [data-variant='tertiary'] {
   padding: 0;
   min-height: 28px;
 }
@@ -1655,7 +1634,7 @@ pre,
   padding-block: 6px;
   min-height: 32px;
 }
-.overview-tools > .text-button {
+.overview-tools > [data-variant='tertiary'] {
   min-height: 32px;
 }
 .context-description {

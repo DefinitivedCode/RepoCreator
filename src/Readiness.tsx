@@ -1,3 +1,4 @@
+import { Button, LoadingSkeleton } from './ui';
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon, type IconName } from './icons';
@@ -338,7 +339,7 @@ export function Readiness({
     window.setTimeout(() => setCopied((value) => (value === check.id ? '' : value)), 1600);
   }
   return (
-    <section className="readiness rc-readiness" aria-busy={readiness.loading || full.running}>
+    <section className="readiness rc-readiness" aria-busy={full.running}>
       <div className="view-heading">
         <div>
           <h3>Project readiness</h3>
@@ -348,25 +349,29 @@ export function Readiness({
           </p>
         </div>
         <div className="inline-actions">
-          <button
+          <Button
             type="button"
-            className="text-button"
+            variant="tertiary"
+            size="compact"
             disabled={readiness.loading || full.running}
             onClick={readiness.refresh}
           >
             <Icon name="refresh" size={14} />
             {readiness.loading ? 'Checking…' : 'Refresh'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="primary"
+            variant="primary"
             disabled={full.running || preparing || !readiness.report}
             onClick={() => void review()}
           >
             {preparing ? 'Preparing…' : 'Run full check'}
-          </button>
+          </Button>
         </div>
       </div>
+      {readiness.loading && !readiness.report && (
+        <LoadingSkeleton label="Checking project readiness…" />
+      )}
       <div className="readiness-summary" role="status" aria-live="polite">
         <div className="readiness-counts">
           {summaryOrder
@@ -447,22 +452,28 @@ export function Readiness({
                     <div className="readiness-fix">
                       <span>Suggested fix</span>
                       <code>{check.fix}</code>
-                      <button
+                      <Button
                         type="button"
-                        className="text-button"
+                        variant="tertiary"
+                        size="compact"
                         aria-label={`Copy suggested fix for ${check.title}`}
                         onClick={() => void copyFix(check)}
                       >
                         <Icon name={copied === check.id ? 'check' : 'copy'} size={13} />
                         {copied === check.id ? 'Copied' : 'Copy'}
-                      </button>
+                      </Button>
                     </div>
                   )}
                   {check.id.startsWith('run-') && check.status !== 'ready' && (
-                    <button type="button" className="text-button" onClick={onOpenCommands}>
+                    <Button
+                      type="button"
+                      variant="tertiary"
+                      size="compact"
+                      onClick={onOpenCommands}
+                    >
                       Open Commands
                       <Icon name="arrow" size={13} />
-                    </button>
+                    </Button>
                   )}
                 </div>
               </li>
@@ -541,13 +552,13 @@ export function Readiness({
             <button type="button" onClick={close}>
               Cancel
             </button>
-            <button
+            <Button
               type="button"
-              className="primary"
+              variant="primary"
               onClick={() => (chosen.length ? setStage('confirm') : void start())}
             >
               {chosen.length ? `Review ${commandCount}` : 'Run checks'}
-            </button>
+            </Button>
           </div>
         </WorkspaceDialog>
       )}
@@ -584,9 +595,9 @@ export function Readiness({
             <button type="button" onClick={() => setStage('plan')}>
               Back
             </button>
-            <button type="button" className="primary" onClick={() => void start()}>
+            <Button type="button" variant="primary" onClick={() => void start()}>
               Run {commandCount}
-            </button>
+            </Button>
           </div>
         </WorkspaceDialog>
       )}

@@ -166,7 +166,9 @@ test('disclosures, enlarged previews and accents remain accessible at desktop wi
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
       ).toBeLessThanOrEqual(0);
-      await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
+      await expect(page.locator('.action-bar [data-variant="primary"]')).toBeInViewport({
+        ratio: 1,
+      });
       await page.screenshot({
         path: `${directory}/accent-${accent.replaceAll(' ', '-')}-${width}.png`,
         animations: 'disabled',

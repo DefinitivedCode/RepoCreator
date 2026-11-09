@@ -279,7 +279,7 @@ dialog.technology-dialog[open] {
   background: var(--raised-bg);
   border-top: 1px solid var(--divider);
 }
-.technology-dialog-footer > .primary {
+.technology-dialog-footer > [data-variant='primary'] {
   min-width: 80px;
 }
 .technology-empty {

@@ -12,7 +12,7 @@
   color: var(--warning);
   background: var(--warning-bg);
 }
-.rc-readiness .view-heading .inline-actions > .text-button {
+.rc-readiness .view-heading .inline-actions > [data-variant='tertiary'] {
   font-size: 12px;
   min-height: 30px;
 }
@@ -197,7 +197,7 @@
   color: var(--muted-text);
   overflow-wrap: anywhere;
 }
-.rc-readiness .readiness-body > .text-button {
+.rc-readiness .readiness-body > [data-variant='tertiary'] {
   justify-self: start;
   font-size: 12px;
   min-height: 26px;
@@ -224,7 +224,7 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
-.rc-readiness .readiness-fix > .text-button {
+.rc-readiness .readiness-fix > [data-variant='tertiary'] {
   font-size: 12px;
   min-height: 26px;
   padding: 2px 4px;

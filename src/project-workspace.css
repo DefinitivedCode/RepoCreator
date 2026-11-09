@@ -217,7 +217,7 @@
   font-weight: 600;
   color: var(--muted-text);
 }
-.rc-tool-launcher .launcher-toolbar .text-button {
+.rc-tool-launcher .launcher-toolbar [data-variant='tertiary'] {
   font-size: 12px;
   min-height: 30px;
 }
@@ -517,13 +517,6 @@
   font-size: 12px;
   min-height: 30px;
   padding: 4px 10px;
-}
-.rc-project-workspace .command-card-actions button.run-button {
-  color: var(--action-label);
-}
-.rc-project-workspace button.command-stop {
-  border-color: var(--error);
-  color: var(--error);
 }
 .rc-project-workspace .command-output {
   top: 0;

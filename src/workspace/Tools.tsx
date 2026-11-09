@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../icons';
+import { Button, LoadingSkeleton } from '../ui';
 import { displayPath } from '../validation';
 import { type ProjectTool, type RecentProject } from '../workspaceTypes';
 import { message } from './shared';
@@ -111,16 +112,17 @@ export function ToolLauncher({
       {!compact && (
         <div className="launcher-toolbar">
           <span className="launcher-section-label">Available tools</span>
-          <button
+          <Button
             type="button"
-            className="text-button"
+            variant="tertiary"
+            size="compact"
             aria-label="Refresh tool detection"
             disabled={detection.loading}
             onClick={detection.refresh}
           >
             <Icon name="refresh" size={14} />
             {detection.loading ? 'Checking...' : 'Refresh'}
-          </button>
+          </Button>
         </div>
       )}
       <div className="available-tool-list">
@@ -156,9 +158,7 @@ export function ToolLauncher({
         ))}
       </div>
       {detection.loading && !detection.tools.length && (
-        <p className="help" role="status">
-          Checking development tools…
-        </p>
+        <LoadingSkeleton label="Checking development tools…" />
       )}
       {!detection.loading && !available.length && (
         <p className="help">
@@ -182,9 +182,9 @@ export function ToolLauncher({
                 <div className="other-tool-actions">
                   {documentation(tool)}
                   {onConfigure && (
-                    <button type="button" className="text-button" onClick={onConfigure}>
+                    <Button type="button" variant="tertiary" size="compact" onClick={onConfigure}>
                       Configure
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -235,9 +235,9 @@ export function CreatedProjectLauncher({
       <div className="view-heading">
         <h3>Start working</h3>
         {id && (
-          <button type="button" className="primary" onClick={() => onWorkspace(id)}>
+          <Button type="button" variant="primary" onClick={() => onWorkspace(id)}>
             Open project workspace <Icon name="arrow" size={14} />
-          </button>
+          </Button>
         )}
       </div>
       {id && <ToolLauncher id={id} compact />}

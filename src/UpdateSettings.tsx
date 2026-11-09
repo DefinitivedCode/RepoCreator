@@ -1,6 +1,6 @@
 import type { Updates } from './useUpdates';
 import { lazy, Suspense } from 'react';
-import { StatusRow } from './ui';
+import { Button, StatusRow } from './ui';
 import './updates.css';
 
 const ReleaseNotes = lazy(() => import('./ReleaseNotes'));
@@ -109,24 +109,24 @@ export function UpdateSettings({ updates }: { updates: Updates }) {
           )}
           <div className="inline-actions">
             {phase === 'available' && (
-              <button
+              <Button
                 type="button"
-                className="primary"
+                variant="primary"
                 disabled={busy}
                 onClick={() => void updates.download()}
               >
                 Download update
-              </button>
+              </Button>
             )}
             {phase === 'ready' && (
-              <button
+              <Button
                 type="button"
-                className="primary"
+                variant="primary"
                 disabled={busy}
                 onClick={() => void updates.install()}
               >
                 Update and Restart
-              </button>
+              </Button>
             )}
             <button type="button" disabled={busy} onClick={updates.later}>
               Later
