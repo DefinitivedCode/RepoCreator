@@ -169,9 +169,20 @@ Release decisions and manual verification stay with the maintainer. The Simple/A
 ## Blockers
 
 - **Windows native WebView2 verification.** `node tests/native-smoke.mjs` on the current debug build, with a temporary profile, Git shim and offline `gh` stub, stopped at `Production WebView2 must start` before it could attach to the debugging endpoint. Options are to rerun it in an interactive Windows session with the same Git isolation or inspect the WebView2 launch there. Use the interactive rerun to confirm the native preview-to-disk assertions. Browser fixture verification can proceed independently.
+- **Group 2 native workspace smoke.** The unsigned debug build passed again. `node tests/native-workspace-smoke.mjs` timed out waiting for its WebView2 debugging endpoint on port 9225 with the same temporary profile and shims. Rerun both native smokes in an interactive session to confirm real WebView2 command output and child-process handling. The workspace fixture never launches real commands or contacts GitHub.
+
+## Group 2 — Workspace remainder
+
+[PR #38](https://github.com/DefinitivedCode/RepoCreator/pull/38), branch `redesign/workspace-remainder`, based on Group 1. Merge after #37 and retarget to `main` for full CI once the base lands.
+
+- Plan with AI moves to the Handoff tab after Readiness. The existing prompt workspace keeps its draft, templates, exports and primary Copy action.
+- Overview adds Branch to the existing facts and requests the local detection report when Why detected opens. Project Settings still handles selection and saving. The Open tab and launcher overrides remain reachable.
+- Run history displays newest first with status, duration and available exit code. Selecting a run changes the console and does not execute it. Long names and output stay contained at 820×580. ANSI rendering, scrolling, copy, clear, stop and terminal actions still use the existing viewer.
+- Edit opens the selected custom preset in Project Preset Studio. Built-in presets stay read-only, and Use, Duplicate, Delete, import, export and the full manager remain available.
+- `npm run check` and `npm run format:check` passed. `npm test` passed 333 tests. `node --test scripts/audit-styles.test.mjs` passed 6. The full Playwright suite passed 304 tests with cached Chromium on Windows, including both opt-in baselines. Reviewed the workspace facts, Handoff, run history and preset editor at 820×580, 1100×740 and 1440×900 in both themes. The baseline manifest recorded 164 images and six missed captures from stale selectors. Group 3 should fix those selectors before comparing the token-only changes.
 
 ## Next step
 
-Follow [the remainder prompt](ui-redesign-codex-remainder.md) in group order. Start Group 2 on `redesign/workspace-remainder` from Group 1 while PR #37 is open. Start by inspecting the Handoff panel, the existing technology evidence and `list_command_runs`. Continue with the specific preset Edit path.
+Follow [the remainder prompt](ui-redesign-codex-remainder.md) in group order. Start Group 3 on `redesign/consistency-polish` from Group 2 while PR #38 is open. Fix the baseline's wide file-dialog trigger and Overview tab selectors, then capture a fresh baseline before changing tokens.
 
 Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smokes need a debug build (`npm run desktop:build -- --ci --debug --no-bundle`) and an empty `HOME`; write multi-line scripts with the file tool; the browser suite has occasional load flakes; `aria-disabled` buttons need `click({ force: true })`; use `setMode` for mode; CI runs `scripts/third-party-notices.mjs --check`, so never edit `src/icons.tsx` (use `src/ui/UiIcon.tsx`); merge, never rebase, to propagate fixes up the stack.
