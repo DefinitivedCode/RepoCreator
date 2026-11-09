@@ -265,7 +265,7 @@ function DetectionReview({
         <button type="button" disabled={loading} onClick={() => void scan()}>
           Rescan
         </button>
-        <button type="button" onClick={onClose}>
+        <button type="button" data-dialog-initial onClick={onClose}>
           Cancel
         </button>
         <Button

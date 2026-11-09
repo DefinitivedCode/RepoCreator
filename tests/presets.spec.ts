@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { prepare } from './fixtures';
+import { expectDialogKeys } from './dialog-keys';
 
 type Call = { command: string; payload?: any };
 const calls = (page: Page) => page.evaluate(() => (window as any).testCalls as Call[]);
@@ -46,8 +47,11 @@ test('Duplicate makes a custom copy that can be deleted only after confirming', 
   await page.getByRole('button', { name: 'Duplicate Standard', exact: true }).click();
   await expect(yours.getByRole('button', { name: 'Use preset Standard copy 2' })).toBeVisible();
   // Delete asks first; Cancel keeps it.
-  await yours.getByRole('button', { name: 'Delete Standard copy 2' }).click();
+  const deleteCopy = yours.getByRole('button', { name: 'Delete Standard copy 2' });
+  await deleteCopy.click();
   const dialog = page.getByRole('dialog', { name: 'Delete preset?' });
+  await expectDialogKeys(page, dialog, deleteCopy, dialog.getByRole('button', { name: 'Cancel' }));
+  await deleteCopy.click();
   await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   expect((await calls(page)).filter((c) => c.command === 'delete_custom_preset')).toHaveLength(0);

@@ -286,6 +286,7 @@ export function Readiness({
   const [preparing, setPreparing] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [copied, setCopied] = useState('');
+  const runButton = useRef<HTMLButtonElement>(null);
   if (!workspace.exists)
     return (
       <section className="readiness rc-readiness">
@@ -362,6 +363,7 @@ export function Readiness({
           <Button
             type="button"
             variant="primary"
+            ref={runButton}
             disabled={full.running || preparing || !readiness.report}
             onClick={() => void review()}
           >
@@ -482,7 +484,7 @@ export function Readiness({
         </section>
       ))}
       {stage === 'plan' && (
-        <WorkspaceDialog title="Run full check" onClose={close}>
+        <WorkspaceDialog title="Run full check" onClose={close} returnFocus={runButton}>
           {notice && (
             <p role="alert" className="field-error">
               {notice}
@@ -549,7 +551,7 @@ export function Readiness({
           )}
           <p className="help">Commands are never selected or run automatically.</p>
           <div className="dialog-actions">
-            <button type="button" onClick={close}>
+            <button type="button" data-dialog-initial onClick={close}>
               Cancel
             </button>
             <Button
@@ -563,7 +565,7 @@ export function Readiness({
         </WorkspaceDialog>
       )}
       {stage === 'confirm' && (
-        <WorkspaceDialog title="Run project commands?" onClose={close}>
+        <WorkspaceDialog title="Run project commands?" onClose={close} returnFocus={runButton}>
           <div className="readiness-warning" role="note">
             <Icon name="alert" size={18} />
             <div>
@@ -592,7 +594,7 @@ export function Readiness({
           </ol>
           <p className="help">The version and remote checks listed earlier run first.</p>
           <div className="dialog-actions">
-            <button type="button" onClick={() => setStage('plan')}>
+            <button type="button" data-dialog-initial onClick={() => setStage('plan')}>
               Back
             </button>
             <Button type="button" variant="primary" onClick={() => void start()}>

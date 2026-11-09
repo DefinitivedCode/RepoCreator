@@ -5,6 +5,7 @@ import { Button, Dialog } from './ui';
 import { appError, configurationOf } from './validation';
 import type { Configuration, ProjectPreset } from './types';
 import type { Creator } from './useCreator';
+import { keepDialogTab } from './ui/dialogKeys';
 
 interface Exchange {
   schemaVersion: number;
@@ -234,6 +235,7 @@ export function PresetDialog({
       ref={dialog}
       className="preset-dialog"
       aria-labelledby="preset-title"
+      onKeyDown={keepDialogTab}
       onCancel={(event) => {
         event.preventDefault();
         onClose();

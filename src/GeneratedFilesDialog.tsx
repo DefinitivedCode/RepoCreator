@@ -3,6 +3,7 @@ import { FilePreview } from './ConfigurationPanels';
 import { Icon } from './icons';
 import { normalizeProjectName } from './projectName';
 import type { Creator } from './useCreator';
+import { keepDialogTab } from './ui/dialogKeys';
 
 export function GeneratedFilesDialog({
   creator,
@@ -28,7 +29,11 @@ export function GeneratedFilesDialog({
       ref={dialog}
       className="generated-files-dialog"
       aria-labelledby="generated-files-title"
-      onCancel={onClose}
+      onKeyDown={keepDialogTab}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
     >
       <div className="dialog-header">
         <h2 id="generated-files-title">Generated files</h2>

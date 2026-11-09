@@ -27,10 +27,12 @@ export function OpenMenu({
   const [error, setError] = useState('');
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const available = tools.filter((tool) => toolState(tool) === 'available' && tool.available);
   useEffect(() => {
     if (!open) return;
+    panel.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
     const away = (event: MouseEvent) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -42,6 +44,7 @@ export function OpenMenu({
     try {
       await invoke('launch_project_tool', { id, tool });
       setError('');
+      if (root.current?.contains(document.activeElement)) trigger.current?.focus();
       setOpen(false);
     } catch (value) {
       setError(message(value));
@@ -53,9 +56,21 @@ export function OpenMenu({
     <div
       className="open-menu"
       ref={root}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && open) {
           event.stopPropagation();
+          setOpen(false);
+          trigger.current?.focus();
+        } else if (
+          open &&
+          event.key === 'Tab' &&
+          event.shiftKey &&
+          document.activeElement === panel.current?.querySelector('button:not(:disabled)')
+        ) {
+          event.preventDefault();
           setOpen(false);
           trigger.current?.focus();
         }
@@ -76,6 +91,7 @@ export function OpenMenu({
         <div
           className="open-menu-panel"
           id={panelId}
+          ref={panel}
           role="group"
           aria-label="Open this project in"
         >
@@ -84,9 +100,12 @@ export function OpenMenu({
               <button
                 type="button"
                 key={tool.id}
-                disabled={!!pending}
+                disabled={!!pending && pending !== tool.id}
+                aria-disabled={pending === tool.id || undefined}
                 aria-busy={pending === tool.id}
-                onClick={() => void launch(tool.id)}
+                onClick={() => {
+                  if (!pending) void launch(tool.id);
+                }}
               >
                 {pending === tool.id ? 'Opening…' : tool.name}
               </button>
@@ -104,6 +123,7 @@ export function OpenMenu({
             variant="tertiary"
             size="compact"
             onClick={() => {
+              trigger.current?.focus();
               setOpen(false);
               onMore();
             }}

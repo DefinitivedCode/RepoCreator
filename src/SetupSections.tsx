@@ -34,10 +34,12 @@ export function GitSettings({
   mode,
   onMode,
   hideGitRow = false,
+  primarySave = true,
 }: {
   creator: Creator;
   env: Environment;
   hideGitRow?: boolean;
+  primarySave?: boolean;
   draft: IdentityDraft;
   onDraft: (draft: IdentityDraft) => void;
   mode: IdentityMode;
@@ -277,7 +279,12 @@ export function GitSettings({
         </div>
         {mode === 'project' ? (
           <div className="inline-actions">
-            <Button type="button" variant="primary" disabled={!canSave} onClick={saveForProjects}>
+            <Button
+              type="button"
+              variant={primarySave ? 'primary' : 'secondary'}
+              disabled={!canSave}
+              onClick={saveForProjects}
+            >
               {saving ? 'Saving…' : 'Save for Repo Creator projects'}
             </Button>
             {saved && (
@@ -304,7 +311,12 @@ export function GitSettings({
                 ` It replaces ${[globalName, globalEmail && `<${globalEmail}>`].filter(Boolean).join(' ')}.`}
             </p>
             <div className="inline-actions">
-              <Button type="button" variant="primary" disabled={!canSave} onClick={saveGlobally}>
+              <Button
+                type="button"
+                variant={primarySave ? 'primary' : 'secondary'}
+                disabled={!canSave}
+                onClick={saveGlobally}
+              >
                 {saving ? 'Saving…' : 'Save to my Git configuration'}
               </Button>
               <button type="button" disabled={saving} onClick={() => onMode('project')}>
@@ -343,7 +355,15 @@ export function GitSettings({
   );
 }
 
-export function GithubSettings({ creator, env }: { creator: Creator; env: Environment }) {
+export function GithubSettings({
+  creator,
+  env,
+  primaryConnect = true,
+}: {
+  creator: Creator;
+  env: Environment;
+  primaryConnect?: boolean;
+}) {
   const detail = detailOf(env);
   const state = detail.githubState;
   const [connecting, setConnecting] = useState(false);
@@ -421,7 +441,7 @@ export function GithubSettings({ creator, env }: { creator: Creator; env: Enviro
           {env.ghInstalled && (
             <Button
               type="button"
-              variant="primary"
+              variant={primaryConnect ? 'primary' : 'secondary'}
               onClick={() => {
                 void creator.connect().then((started) => setConnecting(started));
               }}

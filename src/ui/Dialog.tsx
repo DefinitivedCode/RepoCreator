@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { keepDialogTab } from './dialogKeys';
 
 /**
  * A modal native <dialog>, with the same handling as WorkspaceDialog: it opens with
@@ -33,6 +34,7 @@ export function Dialog({
       className="ui-dialog"
       ref={dialog}
       aria-labelledby={titleId}
+      onKeyDown={keepDialogTab}
       onCancel={(event) => {
         event.preventDefault();
         onClose();

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Blocker, Fix } from '../blockers';
 import { Button, Dialog } from '../ui';
+import { keepDialogTab } from '../ui/dialogKeys';
 
 /**
  * Opened by activating the unavailable Create button. Lists what is missing with a
@@ -25,6 +26,7 @@ export function BlockerPopover({
       role="dialog"
       aria-labelledby="blocker-popover-title"
       onKeyDown={(event) => {
+        keepDialogTab(event);
         if (event.key === 'Escape') {
           event.stopPropagation();
           onClose();

@@ -1,6 +1,7 @@
 import { Button } from './ui';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { keepDialogTab } from './ui/dialogKeys';
 import { Icon } from './icons';
 import type { ProjectTechnologies } from './types';
 import {
@@ -52,6 +53,7 @@ export function TechnologySelector({
     } else if (dialog.current?.open) dialog.current.close();
   }, [open]);
   const close = () => {
+    dialog.current?.close();
     setOpen(false);
     trigger.current?.focus();
   };
@@ -184,11 +186,11 @@ export function TechnologySelector({
           ref={dialog}
           className="technology-dialog"
           aria-labelledby={`${id}-title`}
+          onKeyDown={keepDialogTab}
           onCancel={(event) => {
             event.preventDefault();
             close();
           }}
-          onClose={close}
         >
           <div className="technology-dialog-header">
             <div>
@@ -234,7 +236,7 @@ export function TechnologySelector({
             </select>
           </div>
           <div className="technology-dialog-body">
-            <nav className="technology-categories" aria-label="Technology categories">
+            <div className="technology-categories" role="group" aria-label="Technology categories">
               <button type="button" aria-pressed={!category} onClick={() => setCategory('')}>
                 All technologies<span>{technologyCatalog.length}</span>
               </button>
@@ -254,7 +256,7 @@ export function TechnologySelector({
                   </span>
                 </button>
               ))}
-            </nav>
+            </div>
             <div
               className="technology-catalogue-scroll"
               tabIndex={0}

@@ -7,7 +7,7 @@ import {
   type IdentityMode,
 } from '../SetupSections';
 import type { Creator } from '../useCreator';
-import { Banner, Button, Disclosure, StatusRow, type StatusState } from '../ui';
+import { Banner, Button, Disclosure, LoadingSkeleton, StatusRow, type StatusState } from '../ui';
 import { githubCliInstallHelp, gitInstallHelp, type InstallPlatform } from './installHelp';
 
 /**
@@ -45,7 +45,7 @@ export function SetupChecklist({
     return (
       <section className="setup-checklist" aria-label="Setup checklist">
         {creator.checking ? (
-          <p role="status">Checking your computer…</p>
+          <LoadingSkeleton label="Checking your computer…" />
         ) : (
           <Banner
             tone="warning"
@@ -174,6 +174,7 @@ export function SetupChecklist({
             mode={mode}
             onMode={setMode}
             hideGitRow
+            primarySave={variant !== 'first-run' || !identityOk}
           />
         </div>
       )}
@@ -198,7 +199,7 @@ export function SetupChecklist({
       />
       {open.github && (
         <div className="setup-checklist-fix">
-          <GithubSettings creator={creator} env={env} />
+          <GithubSettings creator={creator} env={env} primaryConnect={false} />
           {ghHelp && !env.ghInstalled && (
             <p className="help">
               Install help: <code>{ghHelp.command}</code>{' '}

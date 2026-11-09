@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { navigate, prepare } from './fixtures';
+import { captureFocus, expectDialogKeys } from './dialog-keys';
 
 type Call = { command: string; payload?: any };
 const calls = (page: Page) => page.evaluate(() => (window as any).testCalls as Call[]);
@@ -28,10 +29,8 @@ test('an unavailable Create button stays focusable and opens a popover with a fi
   await expect(popover).toBeVisible();
   await expect(popover).toContainText('Git needs your name and email to record commits');
   expect(await created(page)).toHaveLength(0);
-  // Escape closes it and returns focus to the button.
-  await page.keyboard.press('Escape');
-  await expect(popover).toHaveCount(0);
-  await expect(button).toBeFocused();
+  await captureFocus(page, 'blocker-focus');
+  await expectDialogKeys(page, popover, button, popover.getByRole('heading'));
   // Its fix opens the right Settings tab without losing the form.
   // aria-disabled buttons are inert but focusable, so click past Playwright's enabled wait.
   await button.click({ force: true });
@@ -55,6 +54,9 @@ test('a ready Create button has no popover and a local project is created withou
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(await page.locator('button[data-variant="primary"]:visible').count()).toBeLessThanOrEqual(
+    1,
+  );
   expect(await created(page)).toHaveLength(1);
 });
 
@@ -71,9 +73,12 @@ test('publishing to GitHub asks first, names the repository, and Cancel creates 
   await expect(dialog).toContainText('Private');
   await expect(dialog).toContainText('main');
   // Cancel is the default focus, so a stray Enter cannot publish.
-  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
+  await expectDialogKeys(
+    page,
+    dialog,
+    page.getByRole('button', { name: 'Create project', exact: true }),
+    dialog.getByRole('button', { name: 'Cancel' }),
+  );
   expect(await created(page)).toHaveLength(0);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await dialog.getByRole('button', { name: 'Cancel' }).click();
