@@ -1,19 +1,16 @@
 /* Shared desktop controls and creation editors. Project-specific views add their
    own scoped styles; all views use these sizing and focus conventions. */
 :root {
-  --control-height: 34px;
-  --compact-height: 28px;
   --page-gutter: 24px;
   --rail-width: 176px;
-  --motion: 160ms;
-  --scroll-thumb: color-mix(in srgb, var(--muted) 40%, transparent);
+  --scroll-thumb: color-mix(in srgb, var(--muted-text) 40%, transparent);
 }
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) transparent;
 }
 *:hover {
-  scrollbar-color: var(--muted) transparent;
+  scrollbar-color: var(--muted-text) transparent;
 }
 ::-webkit-scrollbar {
   width: 7px;
@@ -26,7 +23,7 @@
   border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--muted);
+  background-color: var(--muted-text);
 }
 ::-webkit-scrollbar-track,
 ::-webkit-scrollbar-corner {
@@ -42,16 +39,16 @@ select {
 input[type='checkbox'],
 input[type='radio'] {
   appearance: auto;
-  accent-color: var(--accent);
+  accent-color: var(--accent-text);
 }
 button {
-  background-color: var(--surface);
+  background-color: var(--panel-bg);
   line-height: 1.25;
   transition:
-    background-color var(--motion),
-    border-color var(--motion),
-    color var(--motion),
-    box-shadow var(--motion);
+    background-color var(--duration-fast),
+    border-color var(--duration-fast),
+    color var(--duration-fast),
+    box-shadow var(--duration-fast);
 }
 button:active:not(:disabled) {
   box-shadow: var(--shadow-inset);
@@ -62,19 +59,19 @@ summary > svg,
   display: block;
 }
 .desktop-app :where(button:not(.icon-button):not(.technology-chip):not(.text-button)) {
-  min-height: var(--control-height);
+  min-height: var(--control-field);
 }
 .desktop-app input:not([type='checkbox']):not([type='radio']),
 .desktop-app select {
-  min-height: var(--control-height);
+  min-height: var(--control-field);
 }
 .desktop-app .text-button {
-  min-height: var(--compact-height);
+  min-height: var(--control-compact);
   padding: 4px 6px;
-  color: var(--link);
+  color: var(--accent-text);
 }
 .text-button:hover:not(:disabled) {
-  background: var(--hover);
+  background: var(--hover-bg);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -88,14 +85,14 @@ button.danger {
 }
 .check-label:has(input:focus-visible),
 .appearance-theme-choice:has(input:focus-visible) {
-  outline: 2px solid var(--focus);
+  outline: 2px solid var(--accent-text);
   outline-offset: 3px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 button:focus-visible,
 a:focus-visible,
 [tabindex='0']:focus-visible {
-  outline: 2px solid var(--focus);
+  outline: 2px solid var(--accent-text);
   outline-offset: 2px;
 }
 select {
@@ -128,14 +125,14 @@ select {
   color: var(--selected-text);
   border-color: var(--selected-border);
   background: var(--selected-background);
-  box-shadow: inset 0 -2px var(--accent);
+  box-shadow: inset 0 -2px var(--accent-text);
 }
 .desktop-app .appearance-control select {
   width: 85px;
   padding-right: 22px !important;
 }
 .header-actions .mode-switch {
-  border-color: var(--separator);
+  border-color: var(--divider);
 }
 .header-actions .mode-switch button {
   min-height: 30px;
@@ -150,27 +147,27 @@ select {
 }
 .navigation-rail {
   padding: 22px 12px 14px;
-  background: var(--background);
-  border-right-color: var(--separator);
+  background: var(--page-bg);
+  border-right-color: var(--divider);
 }
 .nav-caption {
   font-size: 12px;
   margin-bottom: 10px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .nav-item {
   min-height: 38px;
   font-size: 13px;
   padding: 9px 10px;
   gap: 8px;
-  color: var(--muted);
+  color: var(--muted-text);
   border: 1px solid transparent;
   border-radius: 6px;
 }
 .nav-item.active {
   color: var(--selected-text);
   background: var(--selected-background);
-  border: 1px solid var(--separator);
+  border: 1px solid var(--divider);
   font-weight: 600;
 }
 .workspace-main {
@@ -213,8 +210,8 @@ select {
   margin: 0;
 }
 .desktop-app .subnavigation {
-  border: 1px solid var(--separator);
-  background: var(--secondary);
+  border: 1px solid var(--divider);
+  background: var(--raised-bg);
   padding: 3px;
   border-radius: 6px;
   gap: 3px;
@@ -239,19 +236,19 @@ select {
   flex-wrap: wrap;
   gap: 3px;
   padding: 3px;
-  border: 1px solid var(--separator);
+  border: 1px solid var(--divider);
   border-radius: 6px;
-  background: var(--secondary);
+  background: var(--raised-bg);
 }
 .desktop-app :is(.setup-tabs, .workspace-tabs) > button {
-  min-height: var(--control-height);
+  min-height: var(--control-field);
   padding: 6px 11px;
   font-size: 12px;
   font-weight: 500;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
   background: transparent;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .desktop-app
   :is(.setup-tabs, .workspace-tabs)
@@ -292,9 +289,9 @@ select {
   margin-top: 0;
 }
 .focused-file-preview {
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
-  background: var(--surface);
+  background: var(--panel-bg);
   position: sticky;
   top: 0;
   min-width: 0;
@@ -304,7 +301,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--divider);
   padding: 10px 12px;
   min-height: 46px;
 }
@@ -322,7 +319,7 @@ select {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--divider);
   padding: 6px;
 }
 .focused-preview-tabs > button {
@@ -345,7 +342,7 @@ select {
   padding: 18px;
   font-size: 12px;
   line-height: 1.7;
-  background: var(--surface);
+  background: var(--panel-bg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -357,8 +354,8 @@ select {
   align-items: center;
   gap: 6px;
   padding: 9px 12px;
-  border-top: 1px solid var(--separator);
-  color: var(--muted);
+  border-top: 1px solid var(--divider);
+  color: var(--muted-text);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -371,12 +368,12 @@ select {
   padding: 24px;
   gap: 10px;
   text-align: center;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .commit-plan,
 .review-summary-card {
-  background: var(--surface);
-  border: 1px solid var(--separator);
+  background: var(--panel-bg);
+  border: 1px solid var(--divider);
   border-radius: 6px;
   padding: 22px;
 }
@@ -385,7 +382,7 @@ select {
   gap: 14px;
 }
 .commit-plan > svg {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .commit-plan-branch {
   margin: 0;
@@ -421,8 +418,8 @@ select {
 }
 .assistant-options .assistant-option {
   padding: 16px;
-  border: 1px solid var(--separator);
-  background: var(--surface);
+  border: 1px solid var(--divider);
+  background: var(--panel-bg);
   border-radius: 6px;
   gap: 12px;
 }
@@ -431,10 +428,10 @@ select {
   border-color: var(--selected-border);
 }
 .primary {
-  border-color: var(--primary-border);
+  border-color: var(--action-fill);
 }
 .primary:hover:not(:disabled) {
-  background: var(--primary-hover);
+  background: var(--action-hover);
   filter: none;
 }
 .segmented > button[aria-pressed='true'] {
@@ -444,7 +441,7 @@ select {
 }
 a,
 .result-link {
-  color: var(--link);
+  color: var(--accent-text);
 }
 .assistant-option > span {
   display: grid;
@@ -456,7 +453,7 @@ a,
 .assistant-option small {
   font-size: 12px;
   line-height: 1.55;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .agent-panel .studio-rule-group {
   padding: 14px 0;
@@ -471,7 +468,7 @@ a,
 }
 .desktop-app .action-bar {
   min-height: 66px;
-  border-top-color: var(--border);
+  border-top-color: var(--control-border);
   padding: 10px var(--page-gutter) 10px calc(var(--rail-width) + var(--page-gutter));
 }
 .desktop-app .creation-status-bar {
@@ -489,18 +486,18 @@ a,
   padding: 0 12px;
   border-color: transparent;
   background: transparent;
-  color: var(--muted);
+  color: var(--muted-text);
   font-size: 12px;
   line-height: 1.5;
   text-align: left;
   white-space: normal;
 }
 .creation-status-bar .footer-summary {
-  color: var(--muted);
+  color: var(--muted-text);
   line-height: 1.5;
 }
 .creation-status-bar .footer-summary strong {
-  color: var(--text);
+  color: var(--body-text);
   font-weight: 600;
 }
 .creation-status-bar .creation-validation {
@@ -572,11 +569,11 @@ a,
   cursor: pointer;
   min-height: 36px;
   padding: 8px 6px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
   line-height: 1.4;
   transition:
-    background-color var(--motion),
-    color var(--motion);
+    background-color var(--duration-fast),
+    color var(--duration-fast);
 }
 summary::-webkit-details-marker {
   display: none;
@@ -596,7 +593,7 @@ summary::-webkit-details-marker {
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   transform: rotate(-45deg);
-  transition: transform var(--motion);
+  transition: transform var(--duration-fast);
   flex-shrink: 0;
   margin-right: 3px;
 }
@@ -612,7 +609,7 @@ summary::-webkit-details-marker {
   transform: rotate(45deg);
 }
 details > summary:hover {
-  background-color: var(--hover);
+  background-color: var(--hover-bg);
 }
 @supports (interpolate-size: allow-keywords) {
   :is(
@@ -628,9 +625,9 @@ details > summary:hover {
     opacity: 0;
     overflow: clip;
     transition:
-      block-size var(--motion) ease,
-      opacity var(--motion) ease,
-      content-visibility var(--motion) allow-discrete;
+      block-size var(--duration-fast) ease,
+      opacity var(--duration-fast) ease,
+      content-visibility var(--duration-fast) allow-discrete;
   }
   :is(
       .brief-details,
@@ -647,12 +644,12 @@ details > summary:hover {
      Keep its scroll extent stable for PageDown/End while retaining the fade. */
   .studio-subsection::details-content {
     transition:
-      opacity var(--motion) ease,
-      content-visibility var(--motion) allow-discrete;
+      opacity var(--duration-fast) ease,
+      content-visibility var(--duration-fast) allow-discrete;
   }
 }
 .disclosure > summary > svg:last-child {
-  transition-duration: var(--motion);
+  transition-duration: var(--duration-fast);
 }
 .agent-panel .studio-rule-group {
   padding: 8px 0;
@@ -673,10 +670,10 @@ details > summary:hover {
 .agent-panel .studio-advanced .settings-section {
   margin: 0;
   padding: 16px;
-  border: 1px solid var(--separator);
-  border-radius: var(--radius);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-control);
   gap: 14px;
-  background: var(--surface);
+  background: var(--panel-bg);
 }
 .studio-advanced .settings-section > button {
   align-self: flex-start;
@@ -688,7 +685,7 @@ details > summary:hover {
   gap: 16px;
 }
 dialog[open] {
-  animation: dialog-enter var(--motion) ease-out;
+  animation: dialog-enter var(--duration-fast) ease-out;
 }
 .desktop-app dialog .dialog-header h2,
 .desktop-app dialog .dialog-heading h2 {
@@ -699,10 +696,10 @@ dialog[open] {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--background);
+  background: var(--page-bg);
 }
 dialog::backdrop {
-  animation: backdrop-enter var(--motion) ease-out;
+  animation: backdrop-enter var(--duration-fast) ease-out;
 }
 @keyframes dialog-enter {
   from {
@@ -726,7 +723,7 @@ dialog::backdrop {
   position: sticky;
   top: -22px;
   z-index: 1;
-  background: var(--surface);
+  background: var(--panel-bg);
   padding-block: 8px;
 }
 .generated-files-dialog {
@@ -734,9 +731,9 @@ dialog::backdrop {
   max-width: none;
   max-height: calc(100dvh - 48px);
   padding: 0;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  color: var(--body-text);
+  background: var(--panel-bg);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
 }
 .generated-files-dialog[open] {
@@ -765,9 +762,6 @@ dialog::backdrop {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  :root {
-    --motion: 0ms;
-  }
   *,
   *::before,
   *::after,

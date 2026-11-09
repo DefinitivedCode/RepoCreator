@@ -20,7 +20,7 @@
   padding: var(--space-2);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-panel);
-  background: var(--surface);
+  background: var(--panel-bg);
   box-shadow: var(--shadow-popover);
 }
 .open-menu-panel > button {

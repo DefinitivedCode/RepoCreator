@@ -10,7 +10,7 @@ import {
 
 describe('appearance accents', () => {
   it('applies theme and accent tokens without replacing unrelated document styles', () => {
-    const styles = new Map([['--background', '#unchanged']]);
+    const styles = new Map([['--page-bg', '#unchanged']]);
     const root = {
       dataset: {} as Record<string, string>,
       style: { setProperty: (property: string, value: string) => styles.set(property, value) },
@@ -19,13 +19,13 @@ describe('appearance accents', () => {
     try {
       applyAppearance({ appearance: 'system', accent: 'custom', customAccent: '#123456' }, true);
       expect(root.dataset).toEqual({ appearance: 'system', accent: 'custom' });
-      expect(styles.get('--primary')).toBe(appearanceTokens('#123456', true)['--primary']);
+      expect(styles.get('--action-fill')).toBe(appearanceTokens('#123456', true)['--action-fill']);
       applyAppearance({ appearance: 'light', accent: 'teal' }, true);
       expect(root.dataset.appearance).toBe('light');
-      expect(styles.get('--primary')).toBe(appearanceTokens('#4FA69B', false)['--primary']);
+      expect(styles.get('--action-fill')).toBe(appearanceTokens('#4FA69B', false)['--action-fill']);
       applyAppearance({}, false);
       expect(root.dataset.accent).toBe('copper');
-      expect(styles.get('--background')).toBe('#unchanged');
+      expect(styles.get('--page-bg')).toBe('#unchanged');
     } finally {
       vi.unstubAllGlobals();
     }
@@ -73,15 +73,14 @@ describe('appearance accents', () => {
           tokens['--accent-surface'],
           tokens['--accent-surface-hover'],
         ]) {
-          expect(contrastRatio(tokens['--accent'], background)).toBeGreaterThanOrEqual(4.5);
-          expect(contrastRatio(tokens['--link'], background)).toBeGreaterThanOrEqual(4.5);
-          expect(contrastRatio(tokens['--focus'], background)).toBeGreaterThanOrEqual(3);
+          expect(contrastRatio(tokens['--accent-text'], background)).toBeGreaterThanOrEqual(4.5);
+          expect(contrastRatio(tokens['--accent-text'], background)).toBeGreaterThanOrEqual(3);
         }
-        expect(contrastRatio(tokens['--primary-text'], tokens['--primary'])).toBeGreaterThanOrEqual(
-          4.5,
-        );
         expect(
-          contrastRatio(tokens['--primary-text'], tokens['--primary-hover']),
+          contrastRatio(tokens['--action-label'], tokens['--action-fill']),
+        ).toBeGreaterThanOrEqual(4.5);
+        expect(
+          contrastRatio(tokens['--action-label'], tokens['--action-hover']),
         ).toBeGreaterThanOrEqual(4.5);
         for (const background of surfaces)
           expect(contrastRatio(tokens['--accent-border'], background)).toBeGreaterThanOrEqual(3);

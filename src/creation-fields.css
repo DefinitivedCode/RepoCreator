@@ -6,10 +6,10 @@
   padding-bottom: 0;
 }
 .creation-development {
-  border: 1px solid var(--separator);
+  border: 1px solid var(--divider);
   border-radius: 6px;
   padding: 12px;
-  background: var(--surface);
+  background: var(--panel-bg);
   align-items: start;
 }
 .creation-location-group {
@@ -35,7 +35,7 @@
   gap: 8px;
 }
 .context-heading > svg {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .context-heading h3 {
   margin: 0;
@@ -44,8 +44,8 @@
 }
 .context-count {
   font-size: 12px;
-  color: var(--muted);
-  background: var(--secondary);
+  color: var(--muted-text);
+  background: var(--raised-bg);
   padding: 2px 6px;
   border-radius: 6px;
 }
@@ -55,7 +55,7 @@
   gap: 7px;
   margin: 0;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .desktop-app .creation-context .context-files {
   margin: 0;
@@ -103,8 +103,8 @@
   justify-content: flex-start;
 }
 .desktop-app .creation-context .context-files button[aria-pressed='true'] {
-  background: var(--secondary);
-  border-color: var(--separator);
+  background: var(--raised-bg);
+  border-color: var(--divider);
   font-weight: 600;
 }
 .desktop-app .creation-context .context-files button span {
@@ -127,7 +127,7 @@
 }
 .context-live-preview h4 span {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
   font-weight: 400;
 }
 .desktop-app .creation-context .context-code {
@@ -137,9 +137,9 @@
   padding: 12px;
   font-size: 12px;
   overflow: auto;
-  border: 1px solid var(--separator);
+  border: 1px solid var(--divider);
   border-radius: 6px;
-  background: var(--background);
+  background: var(--page-bg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   tab-size: 2;
@@ -157,25 +157,25 @@
 .context-stack p {
   margin: 0;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
   line-height: 1.65;
 }
 .context-footnote {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  border-top: 1px solid var(--separator);
+  border-top: 1px solid var(--divider);
   padding-top: 10px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .context-note {
   display: flex;
   align-items: start;
   gap: 8px;
   padding: 12px;
-  background: var(--secondary);
-  color: var(--muted);
+  background: var(--raised-bg);
+  color: var(--muted-text);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -207,7 +207,7 @@
   gap: 12px;
 }
 .setup-summary > div > svg {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .setup-summary strong {
   display: block;
@@ -218,7 +218,7 @@
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .setup-summary > button {
   display: flex;
@@ -229,7 +229,7 @@
   display: flex;
   gap: 4px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--divider);
 }
 .setup-tabs > button {
   min-height: 34px;
@@ -239,9 +239,9 @@
   font-size: 13px;
 }
 .setup-tabs > button[aria-selected='true'] {
-  background: var(--secondary);
-  border-color: var(--border);
-  color: var(--accent);
+  background: var(--raised-bg);
+  border-color: var(--control-border);
+  color: var(--accent-text);
   font-weight: 650;
 }
 .setup-settings-panel {
@@ -256,7 +256,7 @@
   align-items: center;
   gap: 16px;
   min-height: 56px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--divider);
   padding: 8px 0;
 }
 .setup-tool-name {
@@ -267,7 +267,7 @@
 }
 .setup-tool-name > svg {
   flex-shrink: 0;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .setup-tool-name strong {
   font-size: 13px;
@@ -277,10 +277,10 @@
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .setup-status {
-  color: var(--muted);
+  color: var(--muted-text);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -289,7 +289,7 @@
   font-size: 12px;
   margin-right: 6px;
   vertical-align: middle;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .setup-settings .text-button {
   display: inline-flex;
@@ -322,12 +322,12 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
   font-size: 12px;
 }
 .setup-account > p {
   font-size: 13px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .setup-account {
   display: grid;
@@ -346,11 +346,11 @@
   justify-content: space-between;
   gap: 12px;
   padding-top: 12px;
-  border-top: 1px solid var(--separator);
+  border-top: 1px solid var(--divider);
 }
 .setup-settings-footer > span {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .setup-settings-footer button {
   display: flex;
@@ -413,7 +413,7 @@
   margin: 0;
   padding: 10px 12px;
   overflow-x: auto;
-  border: 1px solid var(--separator);
+  border: 1px solid var(--divider);
   border-radius: 6px;
   font-size: 12px;
 }

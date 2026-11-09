@@ -174,6 +174,10 @@ async function shoot(
   const name = `${scheme}/${size}/${screen}`;
   try {
     await action?.();
+    await page
+      .locator('.creation-status-bar')
+      .getByText('Updating files…', { exact: true })
+      .waitFor({ state: 'hidden' });
     await page.waitForTimeout(120);
     const file = path.join(output, scheme, size, `${screen}.png`);
     mkdirSync(path.dirname(file), { recursive: true });
@@ -195,6 +199,7 @@ test.describe('redesign baseline', () => {
 
   test('capture screens', async ({ page }, info) => {
     const scheme = info.project.name;
+    await page.clock.setFixedTime(new Date('2026-10-21T12:00:00Z'));
     await page.addInitScript(() => {
       (window as any).testUpdateOffer = {
         version: '9.9.0',
@@ -221,10 +226,9 @@ test.describe('redesign baseline', () => {
         );
       await at('generated-files-dialog', async () => {
         await navigate(page, 'Overview');
-        await page
-          .getByRole('button', { name: /Preview files/ })
-          .first()
-          .click();
+        const compact = page.getByRole('button', { name: 'Preview files', exact: true });
+        if (await compact.isVisible()) await compact.click();
+        else await page.getByRole('button', { name: 'Expand preview', exact: true }).click();
         await page.getByRole('dialog').waitFor();
       });
       await page.keyboard.press('Escape');
@@ -262,7 +266,7 @@ test.describe('redesign baseline', () => {
       await at('workspace-overview', async () => {
         const group = page.getByRole('tablist', { name: 'Project workspace sections' });
         if (await group.count())
-          await group.getByRole('button', { name: 'Overview', exact: true }).click();
+          await group.getByRole('tab', { name: 'Overview', exact: true }).click();
         else await page.getByRole('button', { name: 'Open workspace', exact: true }).click();
       });
       for (const tab of ['Open', 'Commands', 'Readiness', 'Handoff', 'Project Settings'])
