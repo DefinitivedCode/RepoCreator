@@ -170,6 +170,7 @@ Release decisions and manual verification stay with the maintainer. The Simple/A
 
 - **Windows native WebView2 verification.** `node tests/native-smoke.mjs` on the current debug build, with a temporary profile, Git shim and offline `gh` stub, stopped at `Production WebView2 must start` before it could attach to the debugging endpoint. Options are to rerun it in an interactive Windows session with the same Git isolation or inspect the WebView2 launch there. Use the interactive rerun to confirm the native preview-to-disk assertions. Browser fixture verification can proceed independently.
 - **Group 2 native workspace smoke.** The unsigned debug build passed again. `node tests/native-workspace-smoke.mjs` timed out waiting for its WebView2 debugging endpoint on port 9225 with the same temporary profile and shims. Rerun both native smokes in an interactive session to confirm real WebView2 command output and child-process handling. The workspace fixture never launches real commands or contacts GitHub.
+- **Group 5 public screenshots.** `node tests/public-screenshots.mjs` creates and removes `C:\Projects\field-notes`, requires an available WebView2 debug port and still uses selectors for the earlier layout. The current Windows session also could not attach the native smokes to WebView2. The recommended option is to update the selectors and move the fixture under an owned temporary root before capturing in an interactive Windows session. The alternative is a disposable Windows machine with the fixture path unoccupied and Git configuration isolated. The [capture runbook](redesign-release-checklist.md#native-public-screenshots) includes the exact build and capture commands and the privacy review. The README keeps all six existing picture blocks.
 
 ## Group 2 — Workspace remainder
 
@@ -200,8 +201,20 @@ Release decisions and manual verification stay with the maintainer. The Simple/A
 - The 48-case first-run setup matrix passes in both themes, covering 96 browser cases. Static source checks cover eight onboarding/settings components. Main views, all workspace tabs, success and audited dialogs have at most one visible primary. Technology categories are filters in a labelled group, and the pressed-navigation lint remains active.
 - `npm run check` and `npm run format:check` passed. `npm test` passed 341. `node --test scripts/audit-styles.test.mjs` passed 7. The full browser run passed 412 and skipped 2 opt-in baselines on cached Chromium on Windows. A subsequent 6-test run passed the added workspace, Development tools and success assertions. Viewed keyboard focus in both themes at 820×580, 1100×740 and 1440×900. No Rust files changed. Human screen-reader, native contrast, display scaling, physical macOS and live signed-out GitHub passes remain Not tested.
 
+## Group 5 — Release preparation drafts
+
+[PR #41](https://github.com/DefinitivedCode/RepoCreator/pull/41), branch `redesign/release-prep-drafts`, based on Group 4. Review after #40 and retarget to `main` once the base lands.
+
+- Updated the README, getting-started, workspace and troubleshooting guides. Added [unversioned release notes](release-notes/ui-redesign-draft.md). Fresh native captures remain blocked. All six README picture blocks were verified unchanged.
+- `npm run check`, `npm run format:check` and `git diff --check` passed. `npm test` passed 341. `node --test scripts/audit-styles.test.mjs` passed 7. The final full browser suite on cached Chromium on Windows passed 414 and skipped 2 opt-in baseline cases. Verified 52 local documentation link targets. No product code or test assertions changed in Group 5.
+- Group 1's [hosted CI run](https://github.com/DefinitivedCode/RepoCreator/actions/runs/42689513225) passed the Windows browser and native checks and both macOS architecture jobs. Those jobs cover the Group 1 stack base. Full CI for Groups 2–5 is pending their retargeting to `main`.
+
+## Group 6 — Human verification runbooks
+
+The [accessibility checklist](accessibility-checklist.md) has steps and evidence fields for NVDA, Narrator, VoiceOver, High Contrast and hardware scaling at 125% and 150%. The [release checklist](redesign-release-checklist.md) covers a physical Mac install and launch and the live signed-out GitHub check. All remain **Not tested**. The [summary](redesign-summary.md#human-verification-and-release-decisions) records the open release, version, signing and updater decisions.
+
 ## Next step
 
-Follow [the remainder prompt](ui-redesign-codex-remainder.md). Start Group 5 on `redesign/release-prep-drafts` from Group 4 while PR #40 is open. Draft the unversioned notes and update the user guides. Preserve the public images if the native capture cannot run safely, and add the Group 6 runbooks with the human checks still open.
+Maintainer review proceeds in order #37, #38, #39, #40 and #41. Retarget each dependent PR to `main` after its base lands to get full CI. The native capture refresh and the human verification are the remaining open checks.
 
 Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smokes need a debug build (`npm run desktop:build -- --ci --debug --no-bundle`) and an empty `HOME`; write multi-line scripts with the file tool; the browser suite has occasional load flakes; `aria-disabled` buttons need `click({ force: true })`; use `setMode` for mode; CI runs `scripts/third-party-notices.mjs --check`, so never edit `src/icons.tsx` (use `src/ui/UiIcon.tsx`); merge, never rebase, to propagate fixes up the stack.
