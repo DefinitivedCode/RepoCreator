@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { appError } from './validation';
+import { Button } from './ui';
 import type { CreatedRepo, GeneratedFile, RepositoryForm } from './types';
 import {
   builtInTemplates,
@@ -326,14 +327,9 @@ export function PromptWorkspace({
         />
       </div>
       <div className="inline-actions handoff-actions">
-        <button
-          type="button"
-          className="primary"
-          disabled={!prompt.trim()}
-          onClick={() => void copy(prompt)}
-        >
+        <Button variant="primary" disabled={!prompt.trim()} onClick={() => void copy(prompt)}>
           Copy AI Prompt
-        </button>
+        </Button>
         <button type="button" onClick={regenerate}>
           Regenerate
         </button>

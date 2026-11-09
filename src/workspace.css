@@ -522,6 +522,19 @@
   white-space: normal;
   text-align: left;
 }
+.workspace-technology-evidence {
+  margin-top: var(--space-2);
+}
+.workspace-technology-evidence summary {
+  color: var(--accent-text);
+  cursor: pointer;
+}
+.workspace-detected-technologies {
+  padding-inline-start: var(--space-4);
+}
+.workspace-detected-technologies > li + li {
+  margin-top: var(--space-2);
+}
 .workspace-quick-actions {
   display: grid;
   gap: 10px;
@@ -754,12 +767,6 @@
   font-size: 12px;
   font-weight: 650;
   margin-right: auto;
-}
-.output-toolbar > select {
-  width: auto;
-  max-width: 75%;
-  font-size: 12px;
-  min-height: 30px;
 }
 .run-summary {
   display: flex;

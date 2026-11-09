@@ -265,7 +265,7 @@ test.describe('redesign baseline', () => {
           await group.getByRole('button', { name: 'Overview', exact: true }).click();
         else await page.getByRole('button', { name: 'Open workspace', exact: true }).click();
       });
-      for (const tab of ['Open', 'Commands', 'Readiness', 'Project Settings'])
+      for (const tab of ['Open', 'Commands', 'Readiness', 'Handoff', 'Project Settings'])
         await at(`workspace-${tab.toLowerCase()}`, async () => {
           await page
             .getByRole('tablist', { name: 'Project workspace sections' })

@@ -16,6 +16,12 @@ import {
   type RecentProject,
 } from '../workspaceTypes';
 import { categories, message, presentedCommand } from './shared';
+
+function runTiming(run: CommandRun) {
+  const seconds = Math.max(0, Math.floor(((run.finishedAt ?? Date.now()) - run.startedAt) / 1000));
+  return `${seconds}s${run.exitCode == null ? '' : ` · exit ${run.exitCode}`}`;
+}
+
 export function Commands({
   project,
   exists,
@@ -425,29 +431,13 @@ export function Commands({
               <Icon name="code" size={15} />
               Output
             </span>
-            {runs.length > 0 && (
-              <select
-                aria-label="Select command run"
-                value={run?.id ?? ''}
-                onChange={(event) => setSelectedRun(event.target.value)}
-              >
-                {runs.map((run) => (
-                  <option key={run.id} value={run.id}>
-                    {run.name} · {run.status}
-                  </option>
-                ))}
-              </select>
-            )}
           </div>
           {run ? (
             <>
               <div className="run-summary">
                 <strong>{run.name}</strong>
                 <span className={`run-status status-${run.status}`}>{run.status}</span>
-                <span>
-                  {Math.max(0, Math.floor(((run.finishedAt ?? Date.now()) - run.startedAt) / 1000))}
-                  s{run.exitCode !== null ? ` · exit ${run.exitCode}` : ''}
-                </span>
+                <span>{runTiming(run)}</span>
               </div>
               <CommandOutput
                 key={run.id}
@@ -497,6 +487,29 @@ export function Commands({
               Open in Terminal <Icon name="external" size={12} />
             </button>
           </div>
+          {runs.length > 0 && (
+            <div className="command-history">
+              <h4 id="command-history-title">Run history</h4>
+              <ul aria-labelledby="command-history-title">
+                {runs.map((entry) => (
+                  <li key={entry.id}>
+                    <Button
+                      size="compact"
+                      aria-pressed={run?.id === entry.id}
+                      onClick={() => setSelectedRun(entry.id)}
+                    >
+                      <span className="command-history-name" title={entry.name}>
+                        {entry.name}
+                      </span>
+                      <span className="command-history-details">
+                        {entry.status} · {runTiming(entry)}
+                      </span>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       </div>
       {editor && (

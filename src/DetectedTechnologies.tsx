@@ -4,7 +4,94 @@ import { WorkspaceDialog } from './WorkspaceDialog';
 import { addDetectedTechnologies } from './technologies';
 import { appError } from './validation';
 import type { ProjectTechnologies } from './types';
-import type { TechnologyDetectionReport } from './workspaceTypes';
+import type { DetectedTechnology, TechnologyDetectionReport } from './workspaceTypes';
+import { Button } from './ui';
+
+function TechnologyEvidence({ item, id }: { item: DetectedTechnology; id?: string }) {
+  return (
+    <ul id={id} className="detection-evidence">
+      {item.evidence.map((evidence) => (
+        <li key={evidence.path}>
+          {evidence.description} <code>{evidence.path}</code>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Overview reads evidence on request. Selection and persistence stay in Project Settings. */
+export function ProjectTechnologyEvidence({ projectId }: { projectId: string }) {
+  const [report, setReport] = useState<TechnologyDetectionReport>();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const fetching = useRef(false);
+  async function load() {
+    if (fetching.current) return;
+    fetching.current = true;
+    setLoading(true);
+    setError('');
+    try {
+      setReport(
+        await invoke<TechnologyDetectionReport>('detect_project_technologies', { id: projectId }),
+      );
+    } catch (value) {
+      const detail = appError(value);
+      setError([detail.message, detail.guidance].filter(Boolean).join(' '));
+    } finally {
+      setLoading(false);
+      fetching.current = false;
+    }
+  }
+  return (
+    <details
+      className="workspace-technology-evidence"
+      onToggle={(event) => {
+        if (event.currentTarget.open && !report && !error) void load();
+      }}
+    >
+      <summary>Why detected</summary>
+      {loading && (
+        <p className="help" role="status">
+          Inspecting project files…
+        </p>
+      )}
+      {error && (
+        <div>
+          <p className="inline-error" role="alert">
+            {error}
+          </p>
+          <Button size="compact" onClick={() => void load()}>
+            Retry detection
+          </Button>
+        </div>
+      )}
+      {report && (
+        <>
+          {report.notices.map((notice) => (
+            <p key={notice} className="help">
+              {notice}
+            </p>
+          ))}
+          {report.suggestions.length ? (
+            <ul
+              className="workspace-detected-technologies"
+              aria-label="Detected technologies and evidence"
+            >
+              {report.suggestions.map((item) => (
+                <li key={item.id}>
+                  <strong>{item.name}</strong>
+                  <TechnologyEvidence item={item} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="help">No recognised technologies found in the inspected files.</p>
+          )}
+        </>
+      )}
+    </details>
+  );
+}
 
 export function DetectedTechnologies({
   projectId,
@@ -164,13 +251,7 @@ function DetectionReview({
                             {added && <small className="help"> · Already added</small>}
                           </span>
                         </label>
-                        <ul id={`detected-${item.id}-evidence`} className="detection-evidence">
-                          {item.evidence.map((evidence) => (
-                            <li key={evidence.path}>
-                              {evidence.description} <code>{evidence.path}</code>
-                            </li>
-                          ))}
-                        </ul>
+                        <TechnologyEvidence item={item} id={`detected-${item.id}-evidence`} />
                       </li>
                     );
                   })}

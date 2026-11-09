@@ -17,18 +17,20 @@ function uniqueName(base: string, taken: string[]): string {
 
 /**
  * The Presets page: what a preset is, built-in and your own presets as rows, and
- * Use, Duplicate and (custom only, confirmed) Delete. Editing stays in the existing
+ * Use, Duplicate and (custom only) Edit and Delete. Editing uses the existing
  * preset manager so its behaviour is unchanged.
  */
 export function PresetLibrary({
   creator,
   presets,
   onUse,
+  onEdit,
   onManage,
 }: {
   creator: Creator;
   presets: ProjectPreset[];
   onUse: (configuration: Configuration, id: string) => void;
+  onEdit: (preset: ProjectPreset) => void;
   onManage: () => void;
 }) {
   const [deleting, setDeleting] = useState<ProjectPreset | null>(null);
@@ -74,7 +76,7 @@ export function PresetLibrary({
           assistants
         </span>
       </p>
-      <div className="inline-actions">
+      <div className="inline-actions preset-actions">
         <Button
           variant="primary"
           size="compact"
@@ -91,14 +93,23 @@ export function PresetLibrary({
           Duplicate
         </Button>
         {isCustom(preset) && (
-          <Button
-            size="compact"
-            variant="danger"
-            onClick={() => setDeleting(preset)}
-            aria-label={`Delete ${preset.name}`}
-          >
-            Delete
-          </Button>
+          <>
+            <Button
+              size="compact"
+              onClick={() => onEdit(preset)}
+              aria-label={`Edit ${preset.name}`}
+            >
+              Edit
+            </Button>
+            <Button
+              size="compact"
+              variant="danger"
+              onClick={() => setDeleting(preset)}
+              aria-label={`Delete ${preset.name}`}
+            >
+              Delete
+            </Button>
+          </>
         )}
       </div>
     </article>

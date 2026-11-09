@@ -555,9 +555,6 @@
 .rc-project-workspace .output-toolbar {
   padding: 11px 13px;
 }
-.rc-project-workspace .output-toolbar select {
-  font-size: 12px;
-}
 .rc-project-workspace .run-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -587,6 +584,48 @@
 }
 .rc-project-workspace .run-status.status-failed {
   color: var(--error);
+}
+.command-history {
+  padding: var(--space-3);
+  border-top: 1px solid var(--hairline);
+}
+.command-history h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-body);
+}
+.command-history ul {
+  max-height: 192px;
+  overflow: auto;
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1);
+  display: grid;
+  gap: var(--space-1);
+}
+.command-history li {
+  min-width: 0;
+}
+.command-history .ui-button {
+  width: 100%;
+  justify-content: space-between;
+  text-align: start;
+  gap: var(--space-2);
+}
+.command-history .ui-button[aria-pressed='true'] {
+  background: var(--selected-background);
+  font-weight: 600;
+}
+.command-history-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.command-history-details {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-2);
 }
 .rc-project-workspace .command-output .run-output {
   /* Theme-aware basic palette; indexed/RGB colours retain the emitted values. */
