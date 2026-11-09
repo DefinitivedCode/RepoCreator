@@ -1477,8 +1477,8 @@ test('readiness inspects automatically, separates states and copies suggested fi
   await expect(view.getByRole('status').first()).toContainText('2 need attention');
   await expect(view.getByRole('status').first()).toContainText('1 could not check');
   await expect(view.getByRole('status').first()).toContainText('1 not checked');
-  for (const heading of ['Project', 'Development tools', 'Configuration files', 'Git'])
-    await expect(view.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+  for (const heading of [/^Needs attention/, /^Passing/, /^Not run/])
+    await expect(view.getByRole('heading', { name: heading })).toBeVisible();
   const env = view.locator('.readiness-check').filter({ hasText: 'Local environment file' });
   await expect(env).toContainText('Needs attention');
   await expect(env).toContainText('Inferred');

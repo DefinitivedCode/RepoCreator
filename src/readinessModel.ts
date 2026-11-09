@@ -194,3 +194,22 @@ export function commandResult(
     };
   return { ...base, status: 'couldNotCheck', detail: 'Stopped before it finished.' };
 }
+
+export type StatusSectionId = 'attention' | 'passing' | 'notRun';
+/** Checks grouped by what the reader should do next, in this order. Empty sections are dropped. */
+export function statusSections(checks: ReadinessCheck[]) {
+  const sections: Array<{ id: StatusSectionId; label: string; statuses: ReadinessStatus[] }> = [
+    { id: 'attention', label: 'Needs attention', statuses: ['attention', 'couldNotCheck'] },
+    { id: 'passing', label: 'Passing', statuses: ['ready'] },
+    { id: 'notRun', label: 'Not run', statuses: ['notChecked'] },
+  ];
+  return sections
+    .map(({ id, label, statuses: wanted }) => ({
+      id,
+      label,
+      checks: groupOrder.flatMap((group) =>
+        checks.filter((check) => check.group === group && wanted.includes(check.status)),
+      ),
+    }))
+    .filter((section) => section.checks.length);
+}
