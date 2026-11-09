@@ -25,10 +25,10 @@ A desktop workspace for starting Git repositories and returning to the projects 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/overview-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/overview-light.png">
-  <img src="docs/assets/overview-light.png" alt="New Project Overview for Field Notes, with a Website preset, local destination and exact generated-file previews." width="1100">
+  <img src="docs/assets/overview-light.png" alt="New Project for Field Notes, with the Website starting point, three selected technologies and a local destination." width="1100">
 </picture>
 
-The screenshots show the **1.5.2** preparation build and its earlier layout. The guide below describes the redesigned interface on this branch. See the [redesign notes draft](docs/release-notes/ui-redesign-draft.md) and the [published release notes](https://github.com/DefinitivedCode/RepoCreator/releases) for what is included in each download.
+The screenshots show the redesigned interface of the **2.0.0** Windows build with a fictional Field Notes project and a fictional Git identity. In the images, the text of a local folder path was replaced with `C:\Projects` to keep a private path out of public files; nothing else was edited. See the [redesign notes draft](docs/release-notes/ui-redesign-draft.md) and the [published release notes](https://github.com/DefinitivedCode/RepoCreator/releases) for what is included in each download.
 
 ## Download
 
@@ -92,7 +92,7 @@ Your project library brings existing and newly created repositories into one pla
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/workspace-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/workspace-light.png">
-  <img src="docs/assets/workspace-light.png" alt="Repo Creator 1.5.2 preparation build: Field Notes workspace with a clean Git tree, a suggested command to review and a running local Vite server with styled output." width="1100">
+  <img src="docs/assets/workspace-light.png" alt="Repo Creator 2.0.0: the Field Notes project workspace with a clean Git tree, the Readiness count and the Open in menu." width="1100">
 </picture>
 
 ANSI colours render as text styles, web addresses open only when chosen, and suggestions remain subject to review. [Console details and safety](docs/project-workspace.md#run-and-stop) · [v1.5.2 preparation and verification](docs/v1.5.2-preparation.md) · [Before/after review](docs/commands-ux-review.md).
@@ -102,7 +102,7 @@ ANSI colours render as text styles, web addresses open only when chosen, and sug
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/technology-detection-review-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/technology-detection-review-light.png">
-  <img src="docs/assets/technology-detection-review-light.png" alt="Repo Creator 1.5.2 reviewing technology suggestions from the fictional Field Notes project's manifests before adding them." width="1100">
+  <img src="docs/assets/technology-detection-review-light.png" alt="Repo Creator 2.0.0 reviewing technology suggestions from the fictional Field Notes project's manifests before adding them." width="1100">
 </picture>
 
 [Detection details and inspection limits →](docs/project-workspace.md#detect-technologies-from-project-files)
@@ -117,7 +117,7 @@ Automatic inspection reads a bounded set of project files and locates tools. It 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readiness-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/readiness-light.png">
-  <img src="docs/assets/readiness-light.png" alt="Real Readiness findings for the demo project: missing lockfile, missing local environment file and uninstalled dependencies, each with a copyable suggested fix." width="1100">
+  <img src="docs/assets/readiness-light.png" alt="Real Readiness findings for the demo project: missing lockfile, missing .gitignore and uninstalled dependencies, each with a copyable suggested fix." width="1100">
 </picture>
 
 This fixture intentionally has no lockfile, installed packages or local environment file. No project commands were run for these findings. [Readiness details and safeguards →](docs/project-workspace.md#check-readiness)
