@@ -95,7 +95,7 @@ Your project library brings existing and newly created repositories into one pla
   <img src="docs/assets/workspace-light.png" alt="Repo Creator 2.0.0: the Field Notes project workspace with a clean Git tree, the Readiness count and the Open in menu." width="1100">
 </picture>
 
-ANSI colours render as text styles, web addresses open only when chosen, and suggestions remain subject to review. [Console details and safety](docs/project-workspace.md#run-and-stop) · [v1.5.2 preparation and verification](docs/v1.5.2-preparation.md) · [Before/after review](docs/commands-ux-review.md).
+ANSI colours render as text styles, web addresses open only when chosen, and suggestions remain subject to review. [Console details and safety](docs/project-workspace.md#run-and-stop) · [v2.0.0 release notes](docs/release-notes/2.0.0.md) · [Before/after review](docs/commands-ux-review.md).
 
 **Review the stack already in a project.** In Project Settings, **Detect technologies** reads bounded local files and shows evidence for each suggestion. Choose what to add, then save your project settings. Detection does not run scripts, install software or change project files.
 
