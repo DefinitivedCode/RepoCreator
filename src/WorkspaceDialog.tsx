@@ -1,26 +1,41 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Icon } from './icons';
+import { keepDialogTab } from './ui/dialogKeys';
 
 export function WorkspaceDialog({
   title,
   children,
   onClose,
   className = '',
+  returnFocus,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   className?: string;
+  returnFocus?: RefObject<HTMLElement | null>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    dialog.current?.showModal();
+    const element = dialog.current;
+    if (!element) return;
+    const previous = returnFocus?.current ?? document.activeElement;
+    element.showModal();
+    element.querySelector<HTMLElement>('[data-dialog-initial]')?.focus();
+    return () => {
+      element.close();
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
   }, []);
   return (
     <dialog
       className={`workspace-dialog rc-workspace-dialog ${className}`}
       ref={dialog}
-      onCancel={onClose}
+      onKeyDown={keepDialogTab}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
       aria-label={title}
     >
       <div className="dialog-heading">

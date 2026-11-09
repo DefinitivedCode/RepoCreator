@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { expectDialogKeys } from './dialog-keys';
 
 // Component-level checks of the primitives in src/ui, using the development-only
 // kitchen-sink page. No IPC mock is needed: the primitives do not call the backend.
@@ -103,24 +104,7 @@ test('a dialog traps focus, closes with Escape and returns focus', async ({ page
   const trigger = page.getByRole('button', { name: 'Open dialog' });
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: 'Remove from history?' });
-  await expect(dialog).toBeVisible();
-  expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
-  // The platform keeps focus inside a modal dialog: Tab may reach browser chrome
-  // (the body) but never an element behind the dialog.
-  for (let press = 0; press < 6; press++) {
-    await page.keyboard.press('Tab');
-    expect(
-      await dialog.evaluate(
-        (element) =>
-          element.contains(document.activeElement) ||
-          !document.activeElement ||
-          document.activeElement === document.body,
-      ),
-    ).toBe(true);
-  }
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
-  await expect(trigger).toBeFocused();
+  await expectDialogKeys(page, dialog, trigger, dialog.getByRole('button', { name: 'Cancel' }));
 });
 
 test('toasts are announced in a persistent status region and can be dismissed', async ({

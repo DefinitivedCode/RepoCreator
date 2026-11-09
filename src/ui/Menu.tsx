@@ -40,7 +40,13 @@ export function Menu({
     ...(root.current?.querySelectorAll<HTMLElement>('[role=menuitem]:not(:disabled)') ?? []),
   ];
   return (
-    <div className="ui-menu" ref={root}>
+    <div
+      className="ui-menu"
+      ref={root}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
       <button
         type="button"
         ref={trigger}
@@ -80,13 +86,17 @@ export function Menu({
             } else if (event.key === 'Home' || event.key === 'End') {
               event.preventDefault();
               all[event.key === 'Home' ? 0 : all.length - 1]?.focus();
-            } else if (event.key === 'Tab') setOpen(false);
+            } else if (event.key === 'Tab') {
+              trigger.current?.focus();
+              setOpen(false);
+            }
           }}
         >
           {actions.map((action) => (
             <button
               type="button"
               role="menuitem"
+              tabIndex={-1}
               key={action.id}
               disabled={action.disabled}
               onClick={() => {

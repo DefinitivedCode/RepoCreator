@@ -7,6 +7,7 @@ import path from 'node:path';
 import { prepare, createProject, overviewOverflow } from './fixtures';
 import type { RecentProject, ProjectCommand } from '../src/workspaceTypes';
 import type { ReadinessReport } from '../src/readinessModel';
+import { captureFocus, expectDialogKeys } from './dialog-keys';
 
 const project: RecentProject = {
   id: 'project-river',
@@ -411,6 +412,108 @@ async function section(page: Page, name: string) {
     .getByRole('tab', { name, exact: true })
     .click();
 }
+
+test('workspace dialogs keep keyboard focus and return it to the invoking control', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  const remove = page.getByRole('button', { name: 'Remove from history', exact: true });
+  await remove.click();
+  const removal = page.getByRole('dialog', { name: 'Remove from history?' });
+  await expectDialogKeys(page, removal, remove, removal.getByRole('button', { name: 'Cancel' }));
+  await openWorkspace(page);
+  await section(page, 'Project Settings');
+  const detect = page.getByRole('button', { name: 'Detect technologies', exact: true });
+  await detect.click();
+  const detection = page.getByRole('dialog', { name: 'Detected technologies' });
+  await expect(detection.getByRole('list', { name: 'Technology suggestions' })).toBeVisible();
+  await expectDialogKeys(
+    page,
+    detection,
+    detect,
+    detection.getByRole('button', { name: 'Cancel' }),
+  );
+
+  await section(page, 'Commands');
+  const add = page.getByRole('button', { name: 'Add command', exact: true });
+  await add.click();
+  await expectDialogKeys(page, page.getByRole('dialog', { name: 'Add command' }), add);
+  const suggestions = page.getByRole('button', { name: 'Review suggestions', exact: false });
+  await suggestions.click();
+  const review = page.getByRole('dialog', { name: 'Review suggested commands' });
+  await captureFocus(page, 'workspace-dialog-focus');
+  await expectDialogKeys(page, review, suggestions, review.getByRole('button', { name: 'Cancel' }));
+  await suggestions.click();
+  await review.getByRole('button', { name: 'Import selected commands' }).click();
+  await expect(review).toBeHidden();
+
+  const run = page.getByRole('button', { name: 'Run', exact: true });
+  await run.click();
+  const imported = page.getByRole('dialog', { name: 'Review imported command' });
+  await expectDialogKeys(page, imported, run, imported.getByRole('button', { name: 'Cancel' }));
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+
+  const actions = page.getByRole('button', { name: /^More actions for Build application/ });
+  const menu = page.getByRole('menu', { name: /^More actions for Build application/ });
+  const edit = menu.getByRole('menuitem', { name: 'Edit', exact: true });
+  for (const key of ['Escape', 'Tab', 'Shift+Tab']) {
+    await actions.press('Enter');
+    await expect(edit).toBeFocused();
+    await page.keyboard.press(key);
+    await expect(menu).toBeHidden();
+    if (key === 'Escape') await expect(actions).toBeFocused();
+    else {
+      await expect(actions).not.toBeFocused();
+      expect(await page.evaluate(() => document.activeElement !== document.body)).toBe(true);
+    }
+  }
+  await actions.click();
+  await edit.click();
+  await expectDialogKeys(page, page.getByRole('dialog', { name: 'Edit command' }), actions);
+  await actions.click();
+  await menu.getByRole('menuitem', { name: 'Delete…', exact: true }).click();
+  const deletion = page.getByRole('dialog', { name: 'Delete command?' });
+  await expectDialogKeys(page, deletion, actions, deletion.getByRole('button', { name: 'Cancel' }));
+  const workspace = page.getByRole('main', { name: 'Project workspace' });
+  for (const size of workspaceSizes) {
+    await page.setViewportSize(size);
+    for (const name of [
+      'Overview',
+      'Open',
+      'Commands',
+      'Readiness, 2 need attention',
+      'Handoff',
+      'Project Settings',
+    ]) {
+      await section(page, name);
+      expect(
+        await workspace.locator('button[data-variant="primary"]:visible').count(),
+        `${name} primary actions at ${size.width}×${size.height}`,
+      ).toBeLessThanOrEqual(1);
+    }
+  }
+});
+
+test('Open in starts at the first action, dismisses on Tab and restores focus on Escape', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await openWorkspace(page);
+  const trigger = page.getByRole('button', { name: 'Open in…', exact: true });
+  const panel = page.getByRole('group', { name: 'Open this project in' });
+  for (const key of ['Escape', 'Shift+Tab', 'Tab']) {
+    await trigger.press('Enter');
+    const actions = panel.getByRole('button');
+    await expect(actions.first()).toBeFocused();
+    if (key === 'Tab') await actions.last().focus();
+    if (key === 'Escape') await captureFocus(page, 'open-menu-focus');
+    await page.keyboard.press(key);
+    await expect(panel).toBeHidden();
+    if (key !== 'Tab') await expect(trigger).toBeFocused();
+    else await expect(page.getByRole('tab', { name: 'Overview', exact: true })).toBeFocused();
+  }
+  expect(await calls(page, 'launch_project_tool')).toHaveLength(0);
+});
 
 const workspaceSizes = [
   { width: 820, height: 580 },
@@ -1648,7 +1751,8 @@ test('full check lists programs, never preselects commands and confirms project 
   }, savedCommands);
   await openWorkspace(page);
   await section(page, 'Readiness, 2 need attention');
-  await page.getByRole('button', { name: 'Run full check', exact: true }).click();
+  const fullCheck = page.getByRole('button', { name: 'Run full check', exact: true });
+  await fullCheck.click();
   const plan = page.getByRole('dialog', { name: 'Run full check' });
   await expect(plan).toContainText('node --version');
   await expect(plan.locator('li').filter({ hasText: 'git ls-remote' })).toContainText(
@@ -1658,8 +1762,7 @@ test('full check lists programs, never preselects commands and confirms project 
   await expect(build).not.toBeChecked();
   await expect(plan.getByRole('checkbox', { name: /Test suite/ })).toBeDisabled();
   await expect(plan.getByRole('checkbox', { name: /Development server/ })).toBeDisabled();
-  await page.keyboard.press('Escape');
-  await expect(plan).toHaveCount(0);
+  await expectDialogKeys(page, plan, fullCheck, plan.getByRole('button', { name: 'Cancel' }));
 
   await page.getByRole('button', { name: 'Run full check', exact: true }).click();
   await page.getByRole('button', { name: 'Run checks', exact: true }).click();
@@ -1683,6 +1786,10 @@ test('full check lists programs, never preselects commands and confirms project 
     animations: 'disabled',
     path: `artifacts/workspace-ui/readiness-confirm-${testInfo.project.name}.png`,
   });
+  await expectDialogKeys(page, confirm, fullCheck, confirm.getByRole('button', { name: 'Back' }));
+  await fullCheck.click();
+  await build.check();
+  await page.getByRole('button', { name: 'Review 1 command', exact: true }).click();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.getByRole('button', { name: 'Review 1 command', exact: true }).click();
   expect(await calls(page, 'run_project_command')).toHaveLength(0);

@@ -111,13 +111,13 @@ test('technology picker retains multi-selection, stacks, custom context and focu
     'true',
   );
   await picker
-    .getByRole('navigation', { name: 'Technology categories' })
+    .getByRole('group', { name: 'Technology categories' })
     .getByRole('button', { name: /^Databases/ })
     .click();
   await expect(picker.locator('.technology-results > button')).toHaveCount(5);
   await picker.getByRole('button', { name: 'SQLite', exact: true }).click();
   await picker
-    .getByRole('navigation', { name: 'Technology categories' })
+    .getByRole('group', { name: 'Technology categories' })
     .getByRole('button', { name: /^All technologies/ })
     .click();
   await picker.getByRole('searchbox').fill('cloudflare');

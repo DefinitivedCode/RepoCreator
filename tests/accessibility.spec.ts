@@ -1,5 +1,7 @@
-import { expect, test, type Page } from '@playwright/test';
-import { prepare } from './fixtures';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openHandoff, prepare } from './fixtures';
+import { captureFocus, expectDialogKeys } from './dialog-keys';
+import { accentPresets, contrastRatio } from '../src/appearance';
 
 /**
  * DOM-based accessibility checks (axe is not a dependency; see docs/redesign-baseline.md).
@@ -17,15 +19,21 @@ const screens: Array<[string, (page: Page) => Promise<void>]> = [
   ['New Project', (page) => sidebar(page).getByRole('button', { name: 'New Project' }).click()],
   ['Projects', (page) => sidebar(page).getByRole('button', { name: 'Projects' }).click()],
   ['Presets', (page) => sidebar(page).getByRole('button', { name: 'Presets' }).click()],
-  ...['Git & identity', 'GitHub', 'Appearance', 'Updates', 'Setup', 'General'].map(
-    (tab): [string, (page: Page) => Promise<void>] => [
-      `Settings / ${tab}`,
-      async (page) => {
-        await sidebar(page).getByRole('button', { name: 'Settings' }).click();
-        await page.getByRole('tab', { name: tab, exact: true }).click();
-      },
-    ],
-  ),
+  ...[
+    'Git & identity',
+    'GitHub',
+    'Development tools',
+    'Appearance',
+    'Updates',
+    'Setup',
+    'General',
+  ].map((tab): [string, (page: Page) => Promise<void>] => [
+    `Settings / ${tab}`,
+    async (page) => {
+      await sidebar(page).getByRole('button', { name: 'Settings' }).click();
+      await page.getByRole('tab', { name: tab, exact: true }).click();
+    },
+  ]),
 ];
 
 /** Collects structural problems in the current DOM. Runs in the page. */
@@ -155,9 +163,101 @@ for (const [name, open] of screens) {
       await page.waitForTimeout(150);
       const problems = await page.evaluate(audit);
       expect(problems, `${name} at ${size.width}×${size.height}`).toEqual([]);
+      expect(
+        await page.locator('main button[data-variant="primary"]:visible').count(),
+        `${name} primary actions`,
+      ).toBeLessThanOrEqual(1);
     }
   });
 }
+
+test('creation dialogs keep focus, close on Escape and return to their own trigger', async ({
+  page,
+}) => {
+  await prepare(page, false, 'simple');
+  const browse = page.getByRole('button', { name: 'Browse technologies', exact: true });
+  await browse.click();
+  const picker = page.getByRole('dialog', { name: 'Choose technologies', exact: true });
+  const filters = picker.getByRole('group', { name: 'Technology categories' });
+  await expect(filters.getByRole('button', { pressed: true })).toHaveCount(1);
+  await expect(picker.getByRole('navigation', { name: 'Technology categories' })).toHaveCount(0);
+  await expectDialogKeys(
+    page,
+    picker,
+    browse,
+    picker.getByRole('searchbox', { name: 'Search technologies' }),
+  );
+
+  for (const [label, title] of [
+    ['Save as preset', 'Save as preset'],
+    ['Manage…', 'Project Preset Studio'],
+    ['Preview files', 'Generated files'],
+  ]) {
+    const trigger = page.getByRole('button', { name: label, exact: true });
+    await trigger.click();
+    await expectDialogKeys(page, page.getByRole('dialog', { name: title, exact: true }), trigger);
+  }
+  const handoff = await openHandoff(page);
+  await expectDialogKeys(
+    page,
+    handoff,
+    page.getByRole('button', { name: 'Handoff prompt', exact: true }),
+  );
+});
+
+function cssHex(cssColor: string) {
+  const channels = cssColor.match(/\d+(?:\.\d+)?/g)?.map(Number);
+  if (!channels || channels.length !== 3)
+    throw new Error(`Expected an opaque sRGB colour, received ${cssColor}`);
+  return `#${channels.map((channel) => Math.round(channel).toString(16).padStart(2, '0')).join('')}`;
+}
+
+async function measureRing(target: Locator) {
+  await target.focus();
+  const ring = await target.evaluate((element) => {
+    const style = getComputedStyle(element);
+    let adjacent = element.parentElement;
+    while (adjacent) {
+      const color = getComputedStyle(adjacent).backgroundColor;
+      if (color !== 'rgba(0, 0, 0, 0)') break;
+      adjacent = adjacent.parentElement;
+    }
+    return {
+      outline: style.outlineColor,
+      width: parseFloat(style.outlineWidth),
+      visible: element.matches(':focus-visible') && style.outlineStyle !== 'none',
+      adjacent: getComputedStyle(adjacent ?? document.body).backgroundColor,
+      label: style.color,
+      fill: style.backgroundColor,
+    };
+  });
+  expect(ring.visible).toBe(true);
+  expect(ring.width).toBeGreaterThanOrEqual(2);
+  expect(contrastRatio(cssHex(ring.outline), cssHex(ring.adjacent))).toBeGreaterThanOrEqual(3);
+  return ring;
+}
+
+test('computed focus rings meet 3:1 for every accent and primary labels meet 4.5:1', async ({
+  page,
+}) => {
+  await prepare(page, false, 'simple');
+  await page.getByLabel('Project name').fill('focus-colour-fixture');
+  for (const name of [...accentPresets.map((preset) => preset.name), 'Custom']) {
+    await sidebar(page).getByRole('button', { name: 'Settings' }).click();
+    await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
+    await page.getByRole('radio', { name, exact: true }).check();
+    if (name === 'Custom') await page.getByRole('textbox', { name: 'Hex color' }).fill('#777777');
+    await sidebar(page).getByRole('button', { name: 'New Project' }).click();
+    await page.keyboard.press('Tab');
+    await measureRing(sidebar(page).getByRole('button', { name: 'Projects', exact: true }));
+    await measureRing(page.getByLabel('Project name'));
+    const create = page.getByRole('button', { name: 'Create project', exact: true });
+    await expect(create).toBeEnabled();
+    const { label, fill } = await measureRing(create);
+    expect(contrastRatio(cssHex(label), cssHex(fill))).toBeGreaterThanOrEqual(4.5);
+  }
+  await captureFocus(page, 'accent-ring');
+});
 
 test('every focusable control shows a focus ring of at least 2px on the main screens', async ({
   page,

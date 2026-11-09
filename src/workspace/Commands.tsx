@@ -588,7 +588,7 @@ export function Commands({
             ))}
           </div>
           <div className="dialog-actions">
-            <button type="button" onClick={() => setSuggestions(null)}>
+            <button type="button" data-dialog-initial onClick={() => setSuggestions(null)}>
               Cancel
             </button>
             <Button
@@ -641,7 +641,7 @@ export function Commands({
             <dd>{Object.keys(confirmation.environment).join(', ') || 'Inherited environment'}</dd>
           </dl>
           <div className="dialog-actions">
-            <button type="button" onClick={() => setConfirmation(null)}>
+            <button type="button" data-dialog-initial onClick={() => setConfirmation(null)}>
               Cancel
             </button>
             <Button
