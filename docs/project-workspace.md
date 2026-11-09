@@ -1,7 +1,7 @@
 # Project workspace
 
-Repo Creator 1.4 adds a local project library and development workspace alongside
-repository creation. Choose **New Project** to create a repository, **Projects**
+The sidebar connects repository creation to the local library and development
+workspace. Choose **New Project** to create a repository, **Projects**
 to return to one, **Presets** for reusable configurations, or **Settings** to
 check the computer's setup.
 
@@ -31,7 +31,7 @@ configuration; **Undo preset change** restores the previous configuration.
 Technologies describe intent. Selecting React, Rust, SQLite and Cloudflare
 Workers does not install them or imply that they share an application component.
 The bounded **Browse technologies** picker stays open while you select several
-entries. Search or use its category navigation, then close it with **Done** or
+entries. Search or use its category filters, then close it with **Done** or
 Escape; selected chips remain visible in the project form.
 
 Selections inform ignore recommendations, generated AI context, project summaries
@@ -40,12 +40,14 @@ Older single-technology configuration and project presets remain supported.
 
 ## Keep a project library
 
-Created projects enter **Projects**. Use **Add existing repository** to select an
+Created projects enter **Projects**. Use **Add existing project** to select an
 existing local Git repository. Repo Creator checks only the selected directory;
 it does not scan your drives or execute package scripts.
 
-Search and sort the library, pin useful projects, and open a workspace to inspect
-its location, Git branch/status and technology summary. The stored identity is
+Search and sort the library, pin useful projects and open a workspace. **Overview**
+lists Git status, branch, technologies, created and last-opened dates, and the
+repository link when present. Open **Why detected** to see local file evidence.
+The stored identity is
 the directory rather than the repository name, so projects with matching names
 can coexist. If a folder moves, use its location recovery action. Removing a
 project removes its library entry; it never deletes the source folder.
@@ -144,7 +146,9 @@ require explicit review of the actual command and working directory. They never
 run merely because you opened a project or applied a preset.
 
 The output panel shows stdout/stderr, running state, elapsed time and the final
-exit code. Use **Stop** for a long-running server; process-tree cleanup includes
+exit code. **Run history** lists the newest runs first with status, duration and
+the exit code when available. Select a run to view its output. Use **Stop** for a
+long-running server. Process-tree cleanup includes
 ordinary child processes. Closing Repo Creator stops managed command processes.
 Commands deliberately launched in an external terminal belong to that terminal.
 Use a terminal for interactive prompts; the output panel is not a terminal
@@ -179,9 +183,7 @@ reading position. Selecting another run starts at its latest output.
   <img src="assets/commands-light.png" alt="Repo Creator 1.5.2 preparation build showing the Field Notes console, real Vite colours, a localhost link and a suggested command to review." width="1100">
 </picture>
 
-This is a real **1.5.2** build prepared for the upcoming **v1.5.2 Beta**.
-Console styling and suggestions shipped in v1.5.1; v1.5.2 adds technology
-detection and performance/reliability improvements. See the
+This screenshot shows the earlier **1.5.2** preparation build. See the
 [preparation review](v1.5.2-preparation.md) and [before/after comparison](commands-ux-review.md).
 
 Duplicate running instances of the same saved command are blocked. Retained
@@ -207,6 +209,18 @@ working directories. Imported commands are always marked for review. Shell
 commands and absolute executable locations may need editing on another platform.
 Review all authored text before sharing a preset; do not put secrets into command
 arguments, descriptions or shell text.
+
+Open **Presets** in the sidebar to use or duplicate a built-in starting point.
+Choose **Edit** under **Yours** to open that preset in Project Preset Studio.
+**Manage presets** opens the studio's full list and import/export actions.
+
+## Prepare an AI handoff
+
+From **Overview**, choose **Plan with AI**, or open **Handoff** directly. Choose a
+template and prompt style, then review and edit the prompt before using **Copy AI
+Prompt**, **Save Markdown** or **Save Text**. Switching templates preserves your
+edited text until you choose **Regenerate**. Repo Creator prepares prompts locally.
+Review paths and project details before sharing a prompt with another tool.
 
 ## Check readiness
 
