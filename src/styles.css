@@ -1082,7 +1082,6 @@ pre,
 .eyebrow {
   color: var(--muted);
   font-size: 12px;
-  letter-spacing: 1px;
   font-weight: 600;
 }
 .nav-caption {

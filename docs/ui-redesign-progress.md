@@ -15,7 +15,7 @@ Resumable log for the autonomous redesign run ([prompt](ui-redesign-autonomous-p
 | 5c Create flow (confirmation, blocker popover) | `redesign/phase-5c-create-flow`                                                                                                             | `redesign/phase-5a-layout`      | [#27](https://github.com/DefinitivedCode/RepoCreator/pull/27) | Verified, PR open, unmerged |
 | 5b Unified wording, no mode switch (partial)   | `redesign/phase-5b-sections`                                                                                                                | `redesign/phase-5c-create-flow` | [#28](https://github.com/DefinitivedCode/RepoCreator/pull/28) | Verified, PR open, unmerged |
 | 6 Projects, workspace, presets (partial)       | `redesign/phase-6-workspace`                                                                                                                | `redesign/phase-5b-sections`    | [#29](https://github.com/DefinitivedCode/RepoCreator/pull/29) | Verified, PR open, unmerged |
-| 7 Settings and polish                          | `redesign/phase-7-settings`                                                                                                                 | phase 6                         | —                                                             | Not started                 |
+| 7 Settings and polish                          | `redesign/phase-7-settings`                                                                                                                 | `main` (phases 1–6 merged)      | pending                                                       | Verified, PR open, unmerged |
 | 8 Accessibility                                | `redesign/phase-8-accessibility`                                                                                                            | phase 7                         | —                                                             | Not started                 |
 
 ## Phase 1 — verification (Windows 11 only)
@@ -117,6 +117,16 @@ Delivered:
 Changed existing tests: the remove-from-history flow now confirms; `native-workspace-smoke.mjs` uses tab selectors for the workspace tabs (they became tabs in Phase 3) and seeds `accent: 'teal'` (my Phase 4 seeding made the file look like an older install, which keeps the legacy copper accent).
 
 **Not delivered from the spec's Phase 6:** the workspace header "Open in…" split button replacing the Open tab; moving launcher configuration to Project Settings → Tools; the Handoff workspace tab; definition-list Overview with expandable technology evidence; Commands list with one primary action plus a menu for Edit/Delete/reorder and a run-history list; Readiness grouping into Needs attention / Passing / Not run with a single Run checks; Edit on the Presets page opening that specific preset. These are each their own change to command and readiness behaviour that needs careful tests; recorded for a follow-up.
+
+## Phase 7 — verification (Windows 11 only)
+
+`check` (tsc + repo-wide style gate) pass; `format:check` pass; `npm test` 331; audit-script node tests 6 passed; `npm run test:ui` 238 passed, 2 skipped (opt-in baseline) incl. 3 new `polish.spec.ts` tests (both themes). No Rust or native change, so cargo and native smoke were not re-run. Viewed Settings → Appearance and New Project at 1100×740 (light); other sizes and dark theme are asserted by tests, not viewed.
+
+Delivered: (6a) every left accent bar / inset stripe on a selected item is gone (sidebar item, New Project rail, assistant option, legacy rail rule in `workspace.css`), selected items use tint + weight; (5) `lint:styles` is now a repo-wide gate for font-size < 12px, radii outside 6/8/999 (0 and % allowed), side stripes on selected selectors, all-caps text and `aria-pressed` on navigation markup; 94 sub-12px sizes became 12px and 56 radii snapped to 6px (9px → 8px); the "PROJECT SETUP" eyebrow is sentence case; (1) Settings content is one 720px measure and readiness is stated once (the duplicate line in the panel summary is gone).
+
+Changed existing tests: none. Added: `tests/polish.spec.ts` (no stripe via computed shadow and border, 720px panels, status once, no text under 12px or uppercase), node tests for the new lint rules.
+
+**Not delivered from the spec's Phase 7:** raw colour literals in the legacy stylesheets are still outside the gate (126 distinct literals; the gate covers `src/ui` and `tokens.css`) and the alias variables were not removed; Updates download/install progress is not yet a `StatusRow` (existing controls and tests kept); the Settings tabs keep the seven existing tabs (Git & identity, GitHub, Development tools, Appearance, Updates, Setup, General) rather than the four in the spec, because Git identity and GitHub controls have no other home; the Appearance theme/accent controls keep their radio-card markup (no segmented control); the global loading skeleton and inline error `message`+`guidance` placement from G9 were not reworked; the button-variant audit across old screens was not done beyond the stripe fix.
 
 ## Decisions for the maintainer
 
