@@ -1727,3 +1727,33 @@ test('arrow keys move between projects and New project starts a new one', async 
   await page.getByRole('button', { name: 'New project', exact: true }).click();
   await expect(page.getByLabel('Project name')).toBeVisible();
 });
+
+test('the header Open in menu launches a detected tool and falls back to the Open tab', async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await openWorkspace(page);
+  const toolCalls = async () => (await calls(page, 'launch_project_tool')).length;
+  // Detection runs once for the workspace (twice under React StrictMode in dev) and is shared.
+  const detections = (await calls(page, 'get_project_tools')).length;
+  const trigger = page.getByRole('button', { name: 'Open in…' });
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  // Opening the menu launches nothing.
+  expect(await toolCalls()).toBe(0);
+  await page.keyboard.press('Escape');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  const group = page.getByRole('group', { name: 'Open this project in' });
+  await group.getByRole('button').first().click();
+  await expect.poll(toolCalls).toBe(1);
+  await trigger.click();
+  await group.getByRole('button', { name: 'All tools and setup' }).click();
+  await expect(page.getByRole('tab', { name: 'Open', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  // Neither the menu nor the Open tab starts another detection.
+  expect((await calls(page, 'get_project_tools')).length).toBe(detections);
+});

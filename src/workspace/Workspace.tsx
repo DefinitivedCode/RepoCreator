@@ -10,7 +10,8 @@ import { PromptWorkspace } from '../HandoffPanel';
 import { technologySummary } from '../technologies';
 import { type ProjectCommand, type ProjectWorkspaceState } from '../workspaceTypes';
 import { date, gitLabel, message, normalize } from './shared';
-import { ToolLauncher } from './Tools';
+import { ToolLauncher, useProjectTools } from './Tools';
+import { OpenMenu } from './OpenMenu';
 import { ProjectSettings } from './Settings';
 import { Commands } from './Commands';
 export function ProjectWorkspace({
@@ -63,6 +64,7 @@ export function ProjectWorkspace({
     }
   }
   const project = workspace?.project;
+  const detection = useProjectTools(id);
   const readiness = useReadiness(project, !!workspace?.exists);
   const attention = workspace ? summarize(readinessChecks(readiness, workspace)).attention : 0;
   return (
@@ -106,6 +108,12 @@ export function ProjectWorkspace({
               <Icon name="repo" size={13} />
               {workspace.branch || 'No branch'}
             </span>
+            <OpenMenu
+              id={id}
+              tools={detection.tools}
+              disabled={!workspace.exists}
+              onMore={() => setTab('open')}
+            />
           </div>
           <TabList
             base="project-workspace"
@@ -251,6 +259,7 @@ export function ProjectWorkspace({
                 <ToolLauncher
                   id={id}
                   disabled={!workspace.exists}
+                  detection={detection}
                   onConfigure={() => setTab('settings')}
                 />
               </>
