@@ -89,10 +89,10 @@ for (const { text: gitText, ...git } of gitCases) {
             },
           },
         );
-        await prepare(page, false, 'simple', false);
         const checklist = page.getByRole('region', { name: 'Setup checklist' });
         const row = (title: string) =>
           checklist.locator('.ui-status-row').filter({ hasText: title });
+        await prepare(page, false, 'simple', row('Git is installed'));
         await expect(row('Git is installed')).toContainText(gitText);
         await expect(row('Git is installed')).toHaveAttribute(
           'data-state',

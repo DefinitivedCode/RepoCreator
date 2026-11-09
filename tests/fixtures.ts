@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 const mockSource = readFileSync('node_modules/@tauri-apps/api/mocks.js', 'utf8').replace(
@@ -13,7 +13,7 @@ export async function prepare(
   page: Page,
   failPublish = false,
   mode: 'simple' | 'advanced' = 'advanced',
-  expectReady = true,
+  expectReady: boolean | Locator = true,
 ) {
   await page.addInitScript({
     content: `${mockSource}
@@ -174,7 +174,7 @@ export async function prepare(
   });
   await page.goto('/');
   if (expectReady) {
-    const ready = page.getByText('Git ready', { exact: true });
+    const ready = expectReady === true ? page.getByText('Git ready', { exact: true }) : expectReady;
     try {
       await expect(ready).toBeVisible({ timeout: 10_000 });
     } catch {
