@@ -1,0 +1,31 @@
+/* Windows High Contrast / forced colours: system colours replace ours, so state must not
+   depend on background tint alone. Selected items get an outline and every control an edge. */
+@media (forced-colors: active) {
+  .sidebar-item[aria-current='page'],
+  .nav-item.active,
+  .setup-tabs > button[aria-selected='true'],
+  .workspace-tabs > button[aria-selected='true'],
+  .assistant-option.selected,
+  .segmented > button[aria-pressed='true'],
+  .appearance-theme-choice[data-selected='true'],
+  .appearance-accent-choice[data-selected='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+    forced-color-adjust: none;
+    color: HighlightText;
+    background: Highlight;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    border: 1px solid ButtonText;
+  }
+  :focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+  .appearance-color-swatch {
+    forced-color-adjust: none;
+  }
+}

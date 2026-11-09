@@ -231,9 +231,10 @@
   flex-direction: column;
   gap: 12px;
 }
-.appearance-preview-content h4 {
+.appearance-preview-content .appearance-preview-title {
   margin: 0;
   font-size: 15px;
+  font-weight: 600;
   letter-spacing: -0.3px;
 }
 .appearance-preview-content > p {

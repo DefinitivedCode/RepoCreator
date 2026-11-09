@@ -176,7 +176,7 @@ export function AppearanceSettings({ creator }: { creator: Creator }) {
             <span>Settings</span>
           </div>
           <div className="appearance-preview-content">
-            <h4>Field notes</h4>
+            <p className="appearance-preview-title">Field notes</p>
             <p>A place for your next project.</p>
             <div className="appearance-preview-file">
               <Icon name="file" size={15} />

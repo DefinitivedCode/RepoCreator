@@ -16,7 +16,7 @@ Resumable log for the autonomous redesign run ([prompt](ui-redesign-autonomous-p
 | 5b Unified wording, no mode switch (partial)   | `redesign/phase-5b-sections`                                                                                                                | `redesign/phase-5c-create-flow` | [#28](https://github.com/DefinitivedCode/RepoCreator/pull/28) | Verified, PR open, unmerged |
 | 6 Projects, workspace, presets (partial)       | `redesign/phase-6-workspace`                                                                                                                | `redesign/phase-5b-sections`    | [#29](https://github.com/DefinitivedCode/RepoCreator/pull/29) | Verified, PR open, unmerged |
 | 7 Settings and polish                          | `redesign/phase-7-settings`                                                                                                                 | `main` (phases 1–6 merged)      | pending                                                       | Verified, PR open, unmerged |
-| 8 Accessibility                                | `redesign/phase-8-accessibility`                                                                                                            | phase 7                         | —                                                             | Not started                 |
+| 8 Accessibility                                | `redesign/phase-8-accessibility`                                                                                                            | `redesign/phase-7-settings`     | pending                                                       | Verified, PR open, unmerged |
 
 ## Phase 1 — verification (Windows 11 only)
 
@@ -127,6 +127,12 @@ Delivered: (6a) every left accent bar / inset stripe on a selected item is gone 
 Changed existing tests: none. Added: `tests/polish.spec.ts` (no stripe via computed shadow and border, 720px panels, status once, no text under 12px or uppercase), node tests for the new lint rules.
 
 **Not delivered from the spec's Phase 7:** raw colour literals in the legacy stylesheets are still outside the gate (126 distinct literals; the gate covers `src/ui` and `tokens.css`) and the alias variables were not removed; Updates download/install progress is not yet a `StatusRow` (existing controls and tests kept); the Settings tabs keep the seven existing tabs (Git & identity, GitHub, Development tools, Appearance, Updates, Setup, General) rather than the four in the spec, because Git identity and GitHub controls have no other home; the Appearance theme/accent controls keep their radio-card markup (no segmented control); the global loading skeleton and inline error `message`+`guidance` placement from G9 were not reworked; the button-variant audit across old screens was not done beyond the stripe fix.
+
+## Phase 8 — verification (Windows 11 only)
+
+`npm run check`, `format:check`, `npm test` 331 and `npm run test:ui` 264 passed (2 skipped opt-in baseline) incl. 26 new `accessibility.spec.ts` tests; no Rust or native change. Delivered: `tests/accessibility.spec.ts` (DOM checks for names, label associations, duplicate ids, `aria-describedby`/`aria-labelledby` targets, tab semantics, landmarks, heading order, no horizontal scroll over 9 screens x 3 sizes x 2 themes; ring check on tabbed controls; forced-colors and reduced-motion), one real fix (the Appearance preview skipped from h2 to h4), `forced-colors` styles, `docs/accessibility-checklist.md` (every item recorded as not tested by a human) and `docs/redesign-summary.md`.
+
+Not done: refreshed screenshots under `docs/images/redesign/` and the README/getting-started/troubleshooting updates; keyboard shortcuts; WebView2/WKWebView forced-colors verification; axe (not a dependency).
 
 ## Decisions for the maintainer
 
