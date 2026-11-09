@@ -4,9 +4,9 @@ Use this checklist when you decide to ship the redesign. The redesign PRs prepar
 
 ## Version
 
-**Open decision.** The candidates are **1.6.0** and **2.0.0**. The recommendation is **2.0.0** for the first-run and navigation changes, with a Beta first so users can exercise the redesigned workflows before a Stable release. Record the chosen version and channel before preparing a version PR.
+**Decided by the maintainer: 2.0.0 on Beta first**, so users can exercise the redesigned workflows before a Stable release. The version pull request and [preparation page](v2.0.0-preparation.md) record it; the draft and publication steps below are still open.
 
-Additive preferences and compatible generated files also support a 1.6.0 version if you prefer to emphasise data compatibility. Either version can start on Beta. [Update channels](updates.md)
+[Update channels](updates.md)
 
 ## Change the version everywhere
 

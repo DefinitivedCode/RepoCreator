@@ -1,6 +1,6 @@
 [package]
 name = "repo-creator"
-version = "1.5.2"
+version = "2.0.0"
 description = "A small, considered utility for starting Git repositories."
 authors = ["DefinitivedCode"]
 license = "MIT"
