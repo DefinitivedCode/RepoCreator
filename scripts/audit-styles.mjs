@@ -28,9 +28,60 @@ export function pixels(value) {
   return match[2] === 'rem' || match[2] === 'em' ? number * 16 : number;
 }
 
-/** Files held to the design-token rules today: new primitives and the tokens themselves. */
+/**
+ * Phase 7: the font-size, radius, selection-stripe, all-caps and pressed-navigation rules hold
+ * for every stylesheet and component. Raw colours stay confined to the new primitives and
+ * tokens.css (the legacy stylesheets still carry colour literals; migrating them is recorded
+ * in the progress log).
+ */
 export const gated = (relative) => /^src\/(ui\/|tokens\.css$)/.test(relative);
+const colourGated = gated;
+const SELECTED_SELECTOR =
+  /(\.active|\.selected|aria-current|aria-selected|aria-pressed|data-selected|data-active|\.is-selected)/;
 const TOKEN_RADII = new Set([6, 8, 999]);
+
+const lineOf = (text, index) => text.slice(0, index).split('\n').length;
+const NO_STRIPE = /^(0|none|transparent|initial|unset|inherit)?$/;
+
+/** Rules a selected item must not use (maintainer decision 8) plus the no-all-caps copy rule. */
+export function ruleViolations(relative, source) {
+  const text = source.replaceAll(/\/\*[\s\S]*?\*\//g, (comment) =>
+    comment.replaceAll(/[^\n]/g, ' '),
+  );
+  const found = [];
+  for (const block of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selector = block[1].trim();
+    const body = block[2];
+    const line = lineOf(text, block.index + block[0].indexOf('{'));
+    for (const [, value] of body.matchAll(/(?<![\w-])text-transform\s*:\s*([^;}]+)/g))
+      if (value.trim() === 'uppercase')
+        found.push(`${relative}:${line} all-caps text (sentence case only)`);
+    if (!SELECTED_SELECTOR.test(selector)) continue;
+    for (const [, value] of body.matchAll(/(?<![\w-])box-shadow\s*:\s*([^;}]+)/g))
+      for (const shadow of value.split(/,(?![^(]*\))/)) {
+        const offset = /\binset\s+(-?\d*\.?\d+)(?:px)?\s/.exec(shadow);
+        if (offset && Number(offset[1]) !== 0 && /var\(--|#|rgb/.test(shadow))
+          found.push(
+            `${relative}:${line} side stripe (inset box-shadow) on a selected item: ${selector}`,
+          );
+      }
+    for (const [, name, value] of body.matchAll(
+      /(?<![\w-])(border-(?:left|inline-start)(?:-width|-color)?)\s*:\s*([^;}]+)/g,
+    ))
+      if (!NO_STRIPE.test(value.trim()))
+        found.push(`${relative}:${line} ${name} on a selected item: ${selector}`);
+  }
+  return found;
+}
+
+/** aria-pressed on the markup of a navigation group (tabs, sidebar, sub-navigation). */
+export function pressedNavigation(relative, text) {
+  return [
+    ...text.matchAll(
+      /className=\{?[`"'][^`"'\n]*(workspace-tabs|subnavigation|sidebar|nav-item|app-navigation)[^\n]*[\s\S]{0,400}?aria-pressed/g,
+    ),
+  ].map((m) => `${relative}:${lineOf(text, m.index)} aria-pressed used for navigation`);
+}
 
 export function audit(files = walk(root)) {
   const gateViolations = [];
@@ -41,7 +92,7 @@ export function audit(files = walk(root)) {
   const violations = [];
   let ariaPressed = 0;
   let roleTab = 0;
-  let pressedNavigation = 0;
+  let pressedGroups = 0;
   for (const file of files) {
     const relative = path.relative(path.dirname(root), file).replaceAll('\\', '/');
     const text = readFileSync(file, 'utf8');
@@ -56,14 +107,14 @@ export function audit(files = walk(root)) {
             small.push(`${relative}:${index + 1}`);
             const message = `${relative}:${index + 1} font-size ${key} is below 12px`;
             violations.push(message);
-            if (gated(relative)) gateViolations.push(message);
+            gateViolations.push(message);
           }
         }
         for (const [, value] of line.matchAll(/(?<![\w-])border-radius\s*:\s*([^;}]+)/g)) {
           for (const part of value.trim().split(/\s+/)) {
             const px = pixels(part);
             if (px !== null) tally(radii, `${px}px`);
-            if (gated(relative) && px !== null && px !== 0 && !TOKEN_RADII.has(px))
+            if (px !== null && px !== 0 && !TOKEN_RADII.has(px))
               gateViolations.push(
                 `${relative}:${index + 1} border-radius ${px}px is outside 6/8/999`,
               );
@@ -73,16 +124,17 @@ export function audit(files = walk(root)) {
           /#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)/g,
         )) {
           tally(colours, colour.toLowerCase().replaceAll(/\s+/g, ''));
-          if (gated(relative) && !relative.endsWith('tokens.css'))
+          if (colourGated(relative) && !relative.endsWith('tokens.css'))
             gateViolations.push(`${relative}:${index + 1} raw colour ${colour} outside tokens.css`);
         }
       });
+      gateViolations.push(...ruleViolations(relative, text));
     } else {
+      gateViolations.push(...pressedNavigation(relative, text));
       ariaPressed += (text.match(/aria-pressed/g) ?? []).length;
       roleTab += (text.match(/role="tab"|role='tab'/g) ?? []).length;
       // Navigation built from pressed-state buttons (aria-pressed inside a *tabs/nav* group).
-      pressedNavigation += (text.match(/className="[^"]*(workspace-tabs|subnav)[^"]*"/g) ?? [])
-        .length;
+      pressedGroups += (text.match(/className="[^"]*(workspace-tabs|subnav)[^"]*"/g) ?? []).length;
     }
   }
   return {
@@ -94,7 +146,7 @@ export function audit(files = walk(root)) {
     distinctColours: colours.size,
     ariaPressed,
     roleTab,
-    pressedStyleNavigationGroups: pressedNavigation,
+    pressedStyleNavigationGroups: pressedGroups,
     violations,
     gateViolations,
   };
@@ -105,16 +157,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (process.argv.includes('--json')) console.log(JSON.stringify(result, null, 2));
   else if (process.argv.includes('--lint')) {
     if (process.argv.includes('--verbose')) for (const line of result.violations) console.log(line);
-    console.log(
-      `\n${result.violations.length} style violation(s) across src/ (report-only outside the gated files).`,
-    );
+    console.log(`\n${result.violations.length} style violation(s) across src/ .`);
     if (result.gateViolations.length) {
       console.error(
-        `\n${result.gateViolations.length} violation(s) in gated files (src/ui, tokens.css):`,
+        `\n${result.gateViolations.length} violation(s) fail the repo-wide style gate:`,
       );
       for (const line of result.gateViolations) console.error(`  ${line}`);
       process.exitCode = 1;
-    } else console.log('Gated files (src/ui, tokens.css): clean.');
+    } else console.log('Repo-wide style gate: clean.');
   } else {
     console.log(`Scanned ${result.files} source files under src/`);
     console.log(`Distinct font sizes: ${result.distinctFontSizes}`);

@@ -18,6 +18,7 @@ import { Sidebar } from './shell/Sidebar';
 import { initialRoute, routeReducer, type SettingsTarget } from './shell/route';
 import { TabList, panelIdOf, tabId } from './ui/Tabs';
 import './shell/shell.css';
+import './settings.css';
 import { useCreator } from './useCreator';
 import { useUpdates } from './useUpdates';
 import { configurationOf } from './validation';

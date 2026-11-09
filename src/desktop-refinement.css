@@ -120,7 +120,7 @@ select {
   min-height: 34px;
   padding: 7px 12px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 550;
 }
@@ -154,7 +154,7 @@ select {
   border-right-color: var(--separator);
 }
 .nav-caption {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.8px;
   margin-bottom: 10px;
   color: var(--muted);
@@ -166,13 +166,13 @@ select {
   gap: 8px;
   color: var(--muted);
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 .nav-item.active {
   color: var(--selected-text);
   background: var(--selected-background);
   border: 1px solid var(--separator);
-  box-shadow: inset 2px 0 var(--accent);
+  font-weight: 600;
 }
 .workspace-main {
   padding: 22px var(--page-gutter);
@@ -217,7 +217,7 @@ select {
   border: 1px solid var(--separator);
   background: var(--secondary);
   padding: 3px;
-  border-radius: 5px;
+  border-radius: 6px;
   gap: 3px;
   flex-wrap: wrap;
   margin-bottom: 18px;
@@ -226,7 +226,7 @@ select {
   min-height: 32px;
   padding: 6px 11px;
   border: 1px solid transparent;
-  border-radius: 3px;
+  border-radius: 6px;
   font-size: 12px;
 }
 .subnavigation > button:is([aria-pressed='true'], [aria-selected='true']) {
@@ -241,7 +241,7 @@ select {
   gap: 3px;
   padding: 3px;
   border: 1px solid var(--separator);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--secondary);
 }
 .desktop-app :is(.setup-tabs, .workspace-tabs) > button {
@@ -294,7 +294,7 @@ select {
 }
 .focused-file-preview {
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--surface);
   position: sticky;
   top: 0;
@@ -327,7 +327,7 @@ select {
   padding: 6px;
 }
 .focused-preview-tabs > button {
-  font-size: 11px;
+  font-size: 12px;
   min-height: 28px;
   border-color: transparent;
 }
@@ -360,7 +360,7 @@ select {
   padding: 9px 12px;
   border-top: 1px solid var(--separator);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .preview-placeholder {
@@ -378,7 +378,7 @@ select {
 .review-summary-card {
   background: var(--surface);
   border: 1px solid var(--separator);
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 22px;
 }
 .commit-plan {
@@ -424,13 +424,12 @@ select {
   padding: 16px;
   border: 1px solid var(--separator);
   background: var(--surface);
-  border-radius: 5px;
+  border-radius: 6px;
   gap: 12px;
 }
 .assistant-option.selected {
   background: var(--selected-background);
   border-color: var(--selected-border);
-  box-shadow: inset 3px 0 var(--accent);
 }
 .primary {
   border-color: var(--primary-border);
@@ -739,7 +738,7 @@ dialog::backdrop {
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
 }
 .generated-files-dialog[open] {
   display: flex;

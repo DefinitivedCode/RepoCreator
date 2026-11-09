@@ -6,8 +6,8 @@
   height: 17px;
   padding: 0 5px;
   margin-left: 7px;
-  border-radius: 9px;
-  font-size: 11px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--warning);
   background: var(--warning-bg);
@@ -25,7 +25,7 @@
   padding: 11px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 .rc-readiness .readiness-counts {
   display: flex;
@@ -53,12 +53,12 @@
   align-items: center;
   gap: 4px;
   padding: 1px 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 16px;
   color: var(--muted);
   border: 1px solid var(--separator);
-  border-radius: 3px;
+  border-radius: 6px;
   white-space: nowrap;
 }
 .rc-readiness .readiness-progress {
@@ -72,7 +72,7 @@
   font-size: 12px;
   background: var(--selected-background);
   border: 1px solid var(--selected-border);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 .rc-readiness .readiness-progress > span:nth-of-type(2) {
   flex: 1;
@@ -114,7 +114,7 @@
   list-style: none;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 .rc-readiness .readiness-check {
   display: grid;
@@ -213,7 +213,7 @@
   font-size: 12px;
   background: var(--background);
   border: 1px solid var(--separator);
-  border-radius: 3px;
+  border-radius: 6px;
 }
 .rc-readiness .readiness-fix > span {
   color: var(--muted);
@@ -261,10 +261,10 @@
   align-items: center;
   gap: 4px;
   padding: 1px 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--warning);
   background: var(--warning-bg);
-  border-radius: 3px;
+  border-radius: 6px;
 }
 .rc-workspace-dialog .readiness-command-options {
   display: grid;
@@ -297,7 +297,7 @@
   color: var(--text);
   background: var(--warning-bg);
   border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 .rc-workspace-dialog .readiness-warning > svg {
   color: var(--warning);
@@ -317,7 +317,7 @@
   padding: 9px 11px;
   font-size: 12px;
   border: 1px solid var(--separator);
-  border-radius: 3px;
+  border-radius: 6px;
 }
 .rc-workspace-dialog .readiness-confirm-list small {
   color: var(--muted);
