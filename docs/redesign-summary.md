@@ -8,15 +8,15 @@ Maps the brief's acceptance criteria (section K, 1–25) to evidence. Status wor
 | 2   | Git missing: official page, focus-regain recheck     | Partial  | Recheck on focus is implemented and tested in browser fixtures; not tested with a real Git install                                                          |
 | 3   | "This project only" never touches global config      | Covered  | Rust tests with isolated `GIT_CONFIG_GLOBAL`; Phase 4 manual check (global config stayed empty)                                                             |
 | 4   | Invalid email rejected; identity verified            | Covered  | Rust tests and `setup-correctness.spec.ts`                                                                                                                  |
-| 5   | Setup state matrix renders specified rows            | Partial  | Main combinations covered by Phase 1 and 4 specs; the full matrix is not exhaustively asserted                                                              |
+| 5   | Setup state matrix renders specified rows            | Covered  | `setup-matrix.spec.ts` asserts all 48 Git × identity × GitHub combinations in both themes with mocked IPC.                                                  |
 | 6   | GitHub optional; local creation makes no GitHub call | Covered  | `setup-correctness.spec.ts` ("creating a local project makes no GitHub call")                                                                               |
-| 7   | No token or password inputs                          | Partial  | Onboarding fields reviewed; no static test added                                                                                                            |
+| 7   | No token or password inputs                          | Covered  | `settingsSecretInputs.test.ts` checks onboarding and settings source fields. `onboarding.spec.ts` checks the rendered first run.                            |
 | 8   | Returning users skip first run; Settings → Setup     | Covered  | `onboarding.spec.ts`                                                                                                                                        |
 | 9   | "Unverifiable" never shown as "Not connected"        | Covered  | Phase 1 Rust and UI tests                                                                                                                                   |
-| 10  | One navigation per level; real tabs; no pressed nav  | Partial  | `shell.spec.ts`, `accessibility.spec.ts`, style gate rule. The Technology category list still uses `aria-pressed` filter buttons                            |
-| 11  | One primary action per view                          | Untested | Not asserted by a visual test                                                                                                                               |
+| 10  | One navigation per level; real tabs; no pressed nav  | Covered  | `shell.spec.ts`, `accessibility.spec.ts` and the pressed-navigation style gate. Technology categories are a labelled filter group.                          |
+| 11  | One primary action per view                          | Covered  | Visible primary counts are asserted across the main views, workspace tabs, first-run matrix, success screen and audited dialogs.                            |
 | 12  | Style lint                                           | Partial  | Repo-wide gate: font size, radii, colours outside custom properties, side stripes, all-caps, pressed navigation. The nested-container rule is not automated |
-| 13  | Focus ring ≥ 3:1 in both themes                      | Partial  | `accessibility.spec.ts` asserts a ≥2px ring on tabbed controls in both themes; the ring's contrast ratio was not measured                                   |
+| 13  | Focus ring ≥ 3:1 in both themes                      | Covered  | `accessibility.spec.ts` measures computed outlines on the sidebar, name field and Create for every accent. `tokens.test.ts` checks palette contrast.        |
 | 14  | Preview equals created output                        | Covered  | Existing native smoke assertion retained (last run in Phase 6)                                                                                              |
 | 15  | Local creation from a clean profile; mocked publish  | Covered  | Native smoke with empty `HOME`; no real GitHub calls                                                                                                        |
 | 16  | Create with unmet requirements opens fix list        | Covered  | `create-flow.spec.ts`                                                                                                                                       |
@@ -38,7 +38,8 @@ Group 2 adds evidence for criterion 21 at 820×580. Long run names remain select
 
 Group 3 centralizes the style tokens and adds a style gate against retired button classes (criterion 12). Browser tests cover the loading skeleton, optimistic theme selection with a pending save and retry, and errors next to create, folder and library controls. See the [progress log](ui-redesign-progress.md#group-3--consistency-polish) for baseline comparison results.
 
+Group 4 verifies keyboard containment and focus return in dialogs. Tab dismisses the command menu and moves focus out, as specified by the [ARIA menu keyboard pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menubar/#keyboard_interaction). Open in… follows the same dismissal rule. The browser evidence covers keyboard behavior and computed colours. The human accessibility passes remain Not tested.
+
 ## Not done
 
 - Refreshed screenshots and the README rewrite: they come from the native release build and belong to release preparation (the release checklist lists them). `getting-started.md` and `project-workspace.md` were updated for the new UI.
-- A full Tab-order and keyboard-trap audit of every dialog beyond the existing dialog tests.

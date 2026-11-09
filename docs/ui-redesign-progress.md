@@ -191,8 +191,17 @@ Release decisions and manual verification stay with the maintainer. The Simple/A
 - System, Light and Dark use a segmented radio group. Instant application, keyboard selection, accent settings, reset and invalid hex are covered by the browser suite.
 - `npm run check`, `npm run format:check` and `npm run build` passed. `npm test` passed 333. `node --test scripts/audit-styles.test.mjs` passed 7. The full browser suite passed 310 on cached Chromium on Windows, including both opt-in baselines. Viewed the segmented control, inline failures and library skeleton at all three sizes and in both themes. No Rust files changed and native smokes were not re-run in this group.
 
+## Group 4 — Accessibility evidence
+
+[PR #40](https://github.com/DefinitivedCode/RepoCreator/pull/40), branch `redesign/accessibility-evidence`, based on Group 3. Merge after #39 and retarget to `main` once the base lands.
+
+- Keyboard tests exercise initial focus, both Tab boundaries, Escape and trigger restoration across creation and workspace dialogs, confirmation sheets, the technology picker, preset studio, file dialog, Handoff and the blocker popover. Tab leaves the non-modal menus and Escape restores their triggers. This preserves the [ARIA menu pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menubar/#keyboard_interaction).
+- Browser checks measure computed outline contrast on the sidebar, project-name input and Create button for all six accents in both themes. All pairs meet 3:1, and the computed primary button labels meet 4.5:1.
+- The 48-case first-run setup matrix passes in both themes, covering 96 browser cases. Static source checks cover eight onboarding/settings components. Main views, all workspace tabs, success and audited dialogs have at most one visible primary. Technology categories are filters in a labelled group, and the pressed-navigation lint remains active.
+- `npm run check` and `npm run format:check` passed. `npm test` passed 341. `node --test scripts/audit-styles.test.mjs` passed 7. The full browser run passed 412 and skipped 2 opt-in baselines on cached Chromium on Windows. A subsequent 6-test run passed the added workspace, Development tools and success assertions. Viewed keyboard focus in both themes at 820×580, 1100×740 and 1440×900. No Rust files changed. Human screen-reader, native contrast, display scaling, physical macOS and live signed-out GitHub passes remain Not tested.
+
 ## Next step
 
-Follow [the remainder prompt](ui-redesign-codex-remainder.md) in group order. Start Group 4 on `redesign/accessibility-evidence` from Group 3 while PR #39 is open. Begin with dialog focus at the first and last tab stops, then measure computed outlines and add the setup matrix, primary-action and no-secret-input tests.
+Follow [the remainder prompt](ui-redesign-codex-remainder.md). Start Group 5 on `redesign/release-prep-drafts` from Group 4 while PR #40 is open. Draft the unversioned notes and update the user guides. Preserve the public images if the native capture cannot run safely, and add the Group 6 runbooks with the human checks still open.
 
 Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smokes need a debug build (`npm run desktop:build -- --ci --debug --no-bundle`) and an empty `HOME`; write multi-line scripts with the file tool; the browser suite has occasional load flakes; `aria-disabled` buttons need `click({ force: true })`; use `setMode` for mode; CI runs `scripts/third-party-notices.mjs --check`, so never edit `src/icons.tsx` (use `src/ui/UiIcon.tsx`); merge, never rebase, to propagate fixes up the stack.
