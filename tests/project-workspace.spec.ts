@@ -1218,15 +1218,17 @@ test('command editor preserves structured arguments and shell mode, reorder and 
   await page.getByRole('button', { name: 'Shell command', exact: true }).click();
   await page.getByLabel('Shell command', { exact: true }).fill('echo ready');
   await page.getByRole('button', { name: 'Save command', exact: true }).click();
-  await page.getByRole('button', { name: 'Move Shell task up' }).click();
+  await page.getByRole('button', { name: 'More actions for Shell task' }).click();
+  await page.getByRole('menuitem', { name: 'Move up' }).click();
   await expect(page.locator('.command-card').first()).toContainText('Shell task');
   await section(page, 'Overview');
   await section(page, 'Commands');
   await page
     .locator('.command-card')
     .filter({ hasText: 'Unit tests' })
-    .getByRole('button', { name: 'Edit', exact: true })
+    .getByRole('button', { name: /More actions for/ })
     .click();
+  await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
   await expect(page.getByLabel('Arguments · one per line')).toHaveValue(
     '--test\nfolder with spaces/test.js',
   );
@@ -1756,4 +1758,47 @@ test('the header Open in menu launches a detected tool and falls back to the Ope
   );
   // Neither the menu nor the Open tab starts another detection.
   expect((await calls(page, 'get_project_tools')).length).toBe(detections);
+});
+
+test('command actions live in a menu and deleting asks first', async ({ page }) => {
+  await workspaceFixture(page);
+  await openWorkspace(page);
+  await section(page, 'Commands');
+  for (const label of ['Build site', 'Lint site']) {
+    await page.getByRole('button', { name: 'Add command', exact: true }).click();
+    await page.getByLabel('Display name').fill(label);
+    await page.getByRole('button', { name: 'Shell command', exact: true }).click();
+    await page.getByLabel('Shell command', { exact: true }).fill('echo ok');
+    await page.getByRole('button', { name: 'Save command', exact: true }).click();
+  }
+  const card = page.locator('.command-card').first();
+  const name = await card.locator('h4').innerText();
+  const trigger = card.getByRole('button', { name: `More actions for ${name}` });
+  await trigger.focus();
+  await page.keyboard.press('ArrowDown');
+  const menu = page.getByRole('menu', { name: `More actions for ${name}` });
+  await expect(menu.getByRole('menuitem', { name: 'Edit' })).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(menu.getByRole('menuitem', { name: 'Delete…' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  // Run is the only primary action on the card, and nothing ran.
+  await expect(card.locator('.primary')).toHaveCount(1);
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
+  const before = await page.locator('.command-card').count();
+  await trigger.click();
+  await page.getByRole('menuitem', { name: 'Delete…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Delete command?' });
+  await expect(dialog).toContainText(name);
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.locator('.command-card')).toHaveCount(before);
+  await trigger.click();
+  await page.getByRole('menuitem', { name: 'Delete…' }).click();
+  await page
+    .getByRole('dialog', { name: 'Delete command?' })
+    .getByRole('button', { name: 'Delete command' })
+    .click();
+  await expect(page.locator('.command-card')).toHaveCount(before - 1);
+  expect(await calls(page, 'run_project_command')).toHaveLength(0);
 });

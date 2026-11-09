@@ -2,6 +2,7 @@ import type { ProjectPreset } from '../types';
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../icons';
+import { Button, Dialog, Menu } from '../ui';
 import { WorkspaceDialog } from '../WorkspaceDialog';
 import { CommandOutput } from '../CommandOutput';
 import { parseCommandOutput } from '../commandOutputModel';
@@ -182,6 +183,7 @@ export function Commands({
       setError(message(error));
     }
   }
+  const [deleting, setDeleting] = useState<ProjectCommand | null>(null);
   function move(index: number, delta: number) {
     const commands = [...project.commands];
     [commands[index], commands[index + delta]] = [commands[index + delta], commands[index]];
@@ -387,40 +389,30 @@ export function Commands({
                         Run <Icon name="arrow" size={13} />
                       </button>
                     )}
-                    <button
-                      type="button"
+                    <Menu
+                      label={`More actions for ${command.name}`}
                       disabled={pending || !!running}
-                      onClick={() => setEditor(structuredClone(command))}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pending || !!running}
-                      onClick={() =>
-                        void save(project.commands.filter((item) => item.id !== command.id))
-                      }
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  <div className="command-reorder">
-                    <button
-                      type="button"
-                      aria-label={`Move ${command.name} up`}
-                      disabled={!index || pending}
-                      onClick={() => move(index, -1)}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Move ${command.name} down`}
-                      disabled={index === project.commands.length - 1 || pending}
-                      onClick={() => move(index, 1)}
-                    >
-                      ↓
-                    </button>
+                      actions={[
+                        {
+                          id: 'edit',
+                          label: 'Edit',
+                          onSelect: () => setEditor(structuredClone(command)),
+                        },
+                        {
+                          id: 'up',
+                          label: 'Move up',
+                          disabled: !index,
+                          onSelect: () => move(index, -1),
+                        },
+                        {
+                          id: 'down',
+                          label: 'Move down',
+                          disabled: index === project.commands.length - 1,
+                          onSelect: () => move(index, 1),
+                        },
+                        { id: 'delete', label: 'Delete…', onSelect: () => setDeleting(command) },
+                      ]}
+                    />
                   </div>
                 </div>
               </article>
@@ -629,6 +621,32 @@ export function Commands({
             </button>
           </div>
         </WorkspaceDialog>
+      )}
+      {deleting && (
+        <Dialog
+          title="Delete command?"
+          onClose={() => setDeleting(null)}
+          footer={
+            <>
+              <Button onClick={() => setDeleting(null)}>Cancel</Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  const target = deleting;
+                  setDeleting(null);
+                  void save(project.commands.filter((item) => item.id !== target.id));
+                }}
+              >
+                Delete command
+              </Button>
+            </>
+          }
+        >
+          <p>
+            <strong>{deleting.name}</strong> will be removed from this project's saved commands.
+            Nothing is run and no files are changed.
+          </p>
+        </Dialog>
       )}
     </section>
   );

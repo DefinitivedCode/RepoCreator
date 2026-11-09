@@ -319,3 +319,32 @@
     transition: none;
   }
 }
+
+.ui-menu {
+  position: relative;
+  display: inline-block;
+}
+.ui-menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-1));
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: var(--space-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+}
+.ui-menu-list > button {
+  justify-content: flex-start;
+  min-height: var(--control-default);
+  border-color: transparent;
+  background: transparent;
+  text-align: left;
+}
+.ui-menu-list > button:hover:not(:disabled) {
+  background: var(--sunken);
+}
