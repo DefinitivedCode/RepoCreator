@@ -1,3 +1,4 @@
+import { Button } from '../ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../icons';
@@ -98,16 +99,17 @@ export function OpenMenu({
               {error}
             </p>
           )}
-          <button
+          <Button
             type="button"
-            className="text-button"
+            variant="tertiary"
+            size="compact"
             onClick={() => {
               setOpen(false);
               onMore();
             }}
           >
             All tools and setup
-          </button>
+          </Button>
         </div>
       )}
     </div>

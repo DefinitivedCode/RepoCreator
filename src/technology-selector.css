@@ -42,7 +42,7 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  background: var(--secondary);
+  background: var(--raised-bg);
 }
 .technology-chip-label {
   max-width: 180px;
@@ -57,10 +57,10 @@ dialog.technology-dialog {
   max-height: none;
   padding: 0;
   margin: auto;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
+  background: var(--panel-bg);
+  color: var(--body-text);
   box-shadow: var(--shadow-popover);
   overflow: hidden;
 }
@@ -88,7 +88,7 @@ dialog.technology-dialog[open] {
 .technology-dialog-header p {
   margin: 4px 0 0;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .technology-dialog-header .icon-button {
   width: 32px;
@@ -101,7 +101,7 @@ dialog.technology-dialog[open] {
   grid-template-columns: minmax(0, 1fr) 210px;
   gap: 12px;
   padding: 0 20px 12px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--divider);
 }
 .technology-dialog input,
 .technology-dialog select,
@@ -113,14 +113,14 @@ dialog.technology-dialog[open] {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
   padding-left: 9px;
-  background: var(--background);
+  background: var(--page-bg);
 }
 .technology-search > svg {
   flex-shrink: 0;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .technology-search input {
   min-width: 0;
@@ -130,7 +130,7 @@ dialog.technology-dialog[open] {
   padding-left: 0;
 }
 .technology-search:focus-within {
-  outline: 2px solid var(--focus);
+  outline: 2px solid var(--accent-text);
   outline-offset: 1px;
 }
 .technology-search input:focus-visible {
@@ -147,8 +147,8 @@ dialog.technology-dialog[open] {
   flex-direction: column;
   gap: 4px;
   padding: 12px 8px;
-  background: var(--secondary);
-  border-right: 1px solid var(--separator);
+  background: var(--raised-bg);
+  border-right: 1px solid var(--divider);
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -170,13 +170,13 @@ dialog.technology-dialog[open] {
 }
 .technology-categories button span {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
   flex-shrink: 0;
 }
 .technology-categories button[aria-pressed='true'] {
-  background: var(--selected-background, var(--surface));
-  border-color: var(--selected-border, var(--border));
-  color: var(--selected-text, var(--accent));
+  background: var(--selected-background, var(--panel-bg));
+  border-color: var(--selected-border, var(--control-border));
+  color: var(--selected-text, var(--accent-text));
   font-weight: 650;
 }
 .technology-catalogue-scroll {
@@ -189,7 +189,7 @@ dialog.technology-dialog[open] {
   margin: 0 0 8px;
   font-size: 12px;
   font-weight: 650;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .technology-category-group + .technology-category-group {
   margin-top: 20px;
@@ -209,19 +209,19 @@ dialog.technology-dialog[open] {
   text-align: left;
   border-radius: 6px;
   font-weight: 450;
-  background: var(--surface);
+  background: var(--panel-bg);
 }
 .technology-results > button[aria-pressed='true'] {
-  border-color: var(--selected-border, var(--accent));
-  background: var(--selected-background, var(--secondary));
-  color: var(--selected-text, var(--text));
+  border-color: var(--selected-border, var(--accent-text));
+  background: var(--selected-background, var(--raised-bg));
+  color: var(--selected-text, var(--body-text));
 }
 .technology-results > button > svg {
   flex-shrink: 0;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .technology-add {
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .technology-recommendations {
   margin-bottom: 20px;
@@ -238,7 +238,7 @@ dialog.technology-dialog[open] {
 }
 .technology-selection-summary {
   padding: 10px 20px;
-  border-top: 1px solid var(--separator);
+  border-top: 1px solid var(--divider);
   display: flex;
   gap: 10px;
   align-items: center;
@@ -276,17 +276,17 @@ dialog.technology-dialog[open] {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 20px;
-  background: var(--secondary);
-  border-top: 1px solid var(--separator);
+  background: var(--raised-bg);
+  border-top: 1px solid var(--divider);
 }
-.technology-dialog-footer > .primary {
+.technology-dialog-footer > [data-variant='primary'] {
   min-width: 80px;
 }
 .technology-empty {
   padding: 28px 0;
   text-align: center;
   font-size: 13px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 @container app (max-width: 850px) {
   dialog.technology-dialog {

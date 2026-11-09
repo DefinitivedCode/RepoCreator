@@ -8,3 +8,5 @@ export { Dialog } from './Dialog';
 export { ToastRegion, useToasts, type ToastMessage } from './Toast';
 export { UiIcon, type UiIconName, type ExtraIconName } from './UiIcon';
 export { Menu, type MenuAction } from './Menu';
+export { LoadingSkeleton } from './LoadingSkeleton';
+export { InlineProblem } from './InlineProblem';

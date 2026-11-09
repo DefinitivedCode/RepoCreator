@@ -1,3 +1,4 @@
+import { Button } from '../ui';
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { displayPath } from '../validation';
@@ -80,10 +81,20 @@ export function ProjectSettings({
           <h3>Project settings</h3>
           <p className="help">Local preferences. Your source files stay unchanged.</p>
         </div>
-        <button type="button" className="primary" disabled={saving} onClick={() => void save()}>
+        <Button type="button" variant="primary" disabled={saving} onClick={() => void save()}>
           {saving ? 'Saving...' : 'Save project settings'}
-        </button>
+        </Button>
       </div>
+      {error && (
+        <p role="alert" className="field-error">
+          {error}
+        </p>
+      )}
+      {saving && (
+        <p role="status" className="help">
+          Saving project settings…
+        </p>
+      )}
       <section className="project-preference-section" aria-labelledby="project-general-heading">
         <div className="preference-section-label">
           <h3 id="project-general-heading">General</h3>
@@ -120,9 +131,9 @@ export function ProjectSettings({
           <div className="project-location-setting">
             <span>Project location</span>
             <code>{displayPath(project.context.localPath)}</code>
-            <button type="button" className="text-button" onClick={onRelocate}>
+            <Button type="button" variant="tertiary" size="compact" onClick={onRelocate}>
               Locate moved project
-            </button>
+            </Button>
           </div>
         </div>
       </section>
@@ -219,9 +230,9 @@ export function ProjectSettings({
           {status}
         </p>
       )}
-      {(error || detection.error) && (
+      {detection.error && (
         <p role="alert" className="field-error">
-          {error || detection.error}
+          {detection.error}
         </p>
       )}
     </section>

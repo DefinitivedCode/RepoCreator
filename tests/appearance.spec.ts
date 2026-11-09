@@ -47,8 +47,8 @@ test('appearance themes and accent presets apply live through native preferences
       const root = getComputedStyle(document.documentElement);
       const preview = getComputedStyle(document.querySelector('.appearance-preview')!);
       return {
-        actual: root.getPropertyValue('--primary'),
-        preview: preview.getPropertyValue('--primary'),
+        actual: root.getPropertyValue('--action-fill'),
+        preview: preview.getPropertyValue('--action-fill'),
       };
     });
     expect(colors.preview).toBe(colors.actual);
@@ -76,7 +76,7 @@ test('System follows OS appearance changes while explicit themes stay fixed and 
   const token = () =>
     page
       .locator('html')
-      .evaluate((element) => getComputedStyle(element).getPropertyValue('--accent'));
+      .evaluate((element) => getComputedStyle(element).getPropertyValue('--accent-text'));
   const brandBody = () =>
     header.locator('.brand-mark').evaluate(async (element) => {
       const url = JSON.parse(getComputedStyle(element).backgroundImage.slice(4, -1));
@@ -121,7 +121,7 @@ test('invalid custom drafts leave saved colors unchanged; valid picker changes p
   let panel = await openAppearance(page);
   const prior = await page
     .locator('html')
-    .evaluate((element) => getComputedStyle(element).getPropertyValue('--accent'));
+    .evaluate((element) => getComputedStyle(element).getPropertyValue('--accent-text'));
   const before = (await accentCalls(page)).length;
   for (const draft of ['#ZZZZZZ', '#12', '#123', 'invalid']) {
     await panel.getByLabel('Hex color', { exact: true }).fill(draft);
@@ -130,7 +130,7 @@ test('invalid custom drafts leave saved colors unchanged; valid picker changes p
     expect(
       await page
         .locator('html')
-        .evaluate((element) => getComputedStyle(element).getPropertyValue('--accent')),
+        .evaluate((element) => getComputedStyle(element).getPropertyValue('--accent-text')),
     ).toBe(prior);
     await expect(panel.getByRole('radio', { name: 'Muted Teal', exact: true })).toBeChecked();
   }

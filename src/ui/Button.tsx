@@ -26,6 +26,7 @@ export function Button({
   type = 'button',
   onClick,
   className = '',
+  'aria-disabled': ariaDisabled,
   ...rest
 }: ButtonProps) {
   const reasonId = useId();
@@ -41,7 +42,7 @@ export function Button({
         className={`ui-button ${className}`.trim()}
         data-variant={variant}
         data-size={size}
-        aria-disabled={unavailable || undefined}
+        aria-disabled={unavailable || ariaDisabled || undefined}
         aria-describedby={describedBy || undefined}
         onClick={(event) => {
           if (unavailable) {

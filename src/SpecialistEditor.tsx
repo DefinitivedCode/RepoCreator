@@ -1,3 +1,4 @@
+import { Button } from './ui';
 import { useRef, useState } from 'react';
 import type { AIStudio, Specialist } from './aiTypes';
 import type { Creator } from './useCreator';
@@ -122,9 +123,10 @@ export function SpecialistEditor({
                 </span>
               </label>
               <div className="inline-actions studio-actions">
-                <button
+                <Button
                   type="button"
-                  className="text-button"
+                  variant="tertiary"
+                  size="compact"
                   aria-label={`Edit ${role.name} specialist`}
                   onClick={() => {
                     setDraft({
@@ -135,11 +137,12 @@ export function SpecialistEditor({
                   }}
                 >
                   Edit copy
-                </button>
+                </Button>
                 {role.id.startsWith('custom-') && (
-                  <button
+                  <Button
                     type="button"
-                    className="text-button"
+                    variant="tertiary"
+                    size="compact"
                     aria-label={`Remove ${role.name} from configuration`}
                     onClick={() =>
                       update({
@@ -150,7 +153,7 @@ export function SpecialistEditor({
                     }
                   >
                     Remove
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -190,14 +193,15 @@ export function SpecialistEditor({
               >
                 Use saved specialist
               </button>
-              <button
+              <Button
                 type="button"
-                className="text-button danger"
+                variant="danger"
+                size="compact"
                 disabled={!savedId}
                 onClick={() => setDeleting(true)}
               >
                 Delete library entry
-              </button>
+              </Button>
             </div>
             {deleting && (
               <div className="delete-confirm">
@@ -206,9 +210,9 @@ export function SpecialistEditor({
                   kept.
                 </p>
                 <div className="inline-actions">
-                  <button type="button" className="danger" onClick={() => void removeSaved()}>
+                  <Button type="button" variant="danger" onClick={() => void removeSaved()}>
                     Delete saved specialist
-                  </button>
+                  </Button>
                   <button type="button" onClick={() => setDeleting(false)}>
                     Cancel
                   </button>

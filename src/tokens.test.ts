@@ -27,12 +27,12 @@ describe('accent tokens', () => {
           contrastRatio(tokens['--accent-fill'], tokens['--accent-on-fill']),
         ).toBeGreaterThanOrEqual(4.5);
         // Existing roles keep their guarantee.
-        expect(contrastRatio(tokens['--primary'], tokens['--primary-text'])).toBeGreaterThanOrEqual(
-          3,
-        );
+        expect(
+          contrastRatio(tokens['--action-fill'], tokens['--action-label']),
+        ).toBeGreaterThanOrEqual(3);
         for (const surface of surfaces[theme]) {
           expect(contrastRatio(tokens['--accent-text'], surface)).toBeGreaterThanOrEqual(4.5);
-          expect(contrastRatio(tokens['--focus'], surface)).toBeGreaterThanOrEqual(3);
+          expect(contrastRatio(tokens['--accent-text'], surface)).toBeGreaterThanOrEqual(3);
         }
       });
     }
@@ -47,16 +47,9 @@ describe('accent tokens', () => {
     expect(accentFill('#2A7D73')).toEqual({ fill: '#2A7D73', onFill: '#FFFFFF' });
   });
 
-  it('keeps the original tokens so unmigrated screens render the same', () => {
+  it('provides colours for the existing accent interactions', () => {
     const tokens = appearanceTokens('#4FA69B', false);
-    for (const key of [
-      '--accent',
-      '--accent-text',
-      '--primary',
-      '--primary-text',
-      '--focus',
-      '--link',
-    ])
+    for (const key of ['--accent-text', '--action-fill', '--action-label', '--action-hover'])
       expect(tokens[key]).toMatch(/^#[0-9A-F]{6}$/);
   });
 });

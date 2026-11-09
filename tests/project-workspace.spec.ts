@@ -1921,7 +1921,11 @@ test('command actions live in a menu and deleting asks first', async ({ page }) 
   await expect(menu).toHaveCount(0);
   await expect(trigger).toBeFocused();
   // Run is the only primary action on the card, and nothing ran.
-  await expect(card.locator('.primary')).toHaveCount(1);
+  await expect(card.getByRole('button', { name: 'Run', exact: true })).toHaveAttribute(
+    'data-variant',
+    'secondary',
+  );
+  await expect(page.locator('.commands-workspace [data-variant="primary"]')).toHaveCount(1);
   expect(await calls(page, 'run_project_command')).toHaveLength(0);
   const before = await page.locator('.command-card').count();
   await trigger.click();

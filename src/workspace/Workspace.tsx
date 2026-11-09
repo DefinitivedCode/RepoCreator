@@ -15,6 +15,7 @@ import { ToolLauncher, useProjectTools } from './Tools';
 import { OpenMenu } from './OpenMenu';
 import { ProjectSettings } from './Settings';
 import { Commands } from './Commands';
+import { Button, LoadingSkeleton } from '../ui';
 export function ProjectWorkspace({
   id,
   onBack,
@@ -75,14 +76,16 @@ export function ProjectWorkspace({
         </p>
       )}
       {!workspace || !project ? (
-        <p role="status">Loading workspace…</p>
+        !error && <LoadingSkeleton label="Loading workspace…" />
       ) : (
         <>
           <div className="project-workspace-heading">
             <nav aria-label="Breadcrumb" className="library-breadcrumb">
-              <button
+              <Button
                 type="button"
-                className="text-button library-back"
+                variant="tertiary"
+                size="compact"
+                className="library-back"
                 onClick={onBack}
                 aria-label="All projects"
               >
@@ -90,7 +93,7 @@ export function ProjectWorkspace({
                 <span aria-hidden="true" className="library-back-label">
                   Projects
                 </span>
-              </button>
+              </Button>
             </nav>
             <div className="project-glyph">
               <Icon name="repo" size={20} />
@@ -204,13 +207,14 @@ export function ProjectWorkspace({
                     {!project.technologies.ids.length && !project.technologies.custom.length && (
                       <p className="help">
                         Technologies haven't been selected yet.{' '}
-                        <button
+                        <Button
                           type="button"
-                          className="text-button"
+                          variant="tertiary"
+                          size="compact"
                           onClick={() => setTab('settings')}
                         >
                           Detect them from project files
-                        </button>
+                        </Button>
                       </p>
                     )}
                   </section>

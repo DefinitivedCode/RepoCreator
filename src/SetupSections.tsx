@@ -1,3 +1,4 @@
+import { Button } from './ui';
 import { useEffect, useRef, useState } from 'react';
 import { detailOf, MINIMUM_GIT, validEmail } from './blockers';
 import { Icon } from './icons';
@@ -145,14 +146,19 @@ export function GitSettings({
                 ? 'Too old'
                 : 'Installed'}
           </span>
-          <button type="button" className="text-button" onClick={() => openGuide(creator, 'git')}>
+          <Button
+            type="button"
+            variant="tertiary"
+            size="compact"
+            onClick={() => openGuide(creator, 'git')}
+          >
             {!env.gitInstalled
               ? 'Install Git'
               : detail.gitState === 'too-old'
                 ? 'Update Git'
                 : 'Official guide'}
             <Icon name="external" size={12} />
-          </button>
+          </Button>
         </div>
       )}
       <div className="setup-identity">
@@ -188,9 +194,10 @@ export function GitSettings({
         {hasProjectIdentity && (
           <p className="help">
             This new project uses its own identity: {projectName} &lt;{projectEmail}&gt;.{' '}
-            <button
+            <Button
               type="button"
-              className="text-button"
+              variant="tertiary"
+              size="compact"
               onClick={() =>
                 creator.update('options', {
                   ...form.options,
@@ -200,7 +207,7 @@ export function GitSettings({
               }
             >
               Remove
-            </button>
+            </Button>
           </p>
         )}
         <fieldset className="setup-identity-choice">
@@ -270,9 +277,9 @@ export function GitSettings({
         </div>
         {mode === 'project' ? (
           <div className="inline-actions">
-            <button type="button" className="primary" disabled={!canSave} onClick={saveForProjects}>
+            <Button type="button" variant="primary" disabled={!canSave} onClick={saveForProjects}>
               {saving ? 'Saving…' : 'Save for Repo Creator projects'}
-            </button>
+            </Button>
             {saved && (
               <button type="button" disabled={saving} onClick={removeSaved}>
                 Remove saved identity
@@ -297,9 +304,9 @@ export function GitSettings({
                 ` It replaces ${[globalName, globalEmail && `<${globalEmail}>`].filter(Boolean).join(' ')}.`}
             </p>
             <div className="inline-actions">
-              <button type="button" className="primary" disabled={!canSave} onClick={saveGlobally}>
+              <Button type="button" variant="primary" disabled={!canSave} onClick={saveGlobally}>
                 {saving ? 'Saving…' : 'Save to my Git configuration'}
-              </button>
+              </Button>
               <button type="button" disabled={saving} onClick={() => onMode('project')}>
                 Cancel
               </button>
@@ -321,14 +328,15 @@ export function GitSettings({
           <span>
             Projects published to GitHub use your GitHub private address as the author email.
           </span>
-          <button
+          <Button
             type="button"
-            className="text-button"
+            variant="tertiary"
+            size="compact"
             onClick={() => openGuide(creator, 'git-identity')}
           >
             Git identity help
             <Icon name="external" size={12} />
-          </button>
+          </Button>
         </div>
       </div>
     </>
@@ -390,10 +398,15 @@ export function GithubSettings({ creator, env }: { creator: Creator; env: Enviro
         <span className="setup-status" data-ready={env.ghInstalled}>
           {env.ghInstalled ? 'Installed' : 'Not detected'}
         </span>
-        <button type="button" className="text-button" onClick={() => openGuide(creator, 'gh')}>
+        <Button
+          type="button"
+          variant="tertiary"
+          size="compact"
+          onClick={() => openGuide(creator, 'gh')}
+        >
           {env.ghInstalled ? 'Official guide' : 'Install GitHub CLI'}
           <Icon name="external" size={12} />
-        </button>
+        </Button>
       </div>
       <div className="setup-account">
         <h3>GitHub account</h3>
@@ -406,15 +419,15 @@ export function GithubSettings({ creator, env }: { creator: Creator; env: Enviro
         )}
         <div className="inline-actions">
           {env.ghInstalled && (
-            <button
+            <Button
               type="button"
-              className="primary"
+              variant="primary"
               onClick={() => {
                 void creator.connect().then((started) => setConnecting(started));
               }}
             >
               {state === 'signed-in' ? 'Connect another account' : 'Connect to GitHub'}
-            </button>
+            </Button>
           )}
           <button type="button" disabled={checking} onClick={() => void refresh(true)}>
             {state === 'unverified' ? 'Retry' : 'Check GitHub connection'}

@@ -44,7 +44,8 @@ export function Commands({
   const [selectedRun, setSelectedRun] = useState('');
   const [cleared, setCleared] = useState<Record<string, string>>({});
   const [confirmation, setConfirmation] = useState<ProjectCommand | null>(null);
-  const [error, setError] = useState('');
+  const [issue, setIssue] = useState<{ scope: string; detail: string }>();
+  const [historyError, setHistoryError] = useState('');
   const [pending, setPending] = useState(false);
   const [presetId, setPresetId] = useState('');
   const [detected, setDetected] = useState<ProjectCommand[]>([]);
@@ -105,6 +106,7 @@ export function Commands({
       try {
         const result = await invoke<CommandRun[]>('list_command_runs', { projectId: project.id });
         if (active) {
+          setHistoryError('');
           const snapshots = Array.isArray(result)
             ? result.sort((a, b) => b.startedAt - a.startedAt)
             : [];
@@ -117,7 +119,7 @@ export function Commands({
           );
         }
       } catch (error) {
-        if (active) setError(message(error));
+        if (active) setHistoryError(message(error));
       } finally {
         fetching = false;
       }
@@ -135,26 +137,39 @@ export function Commands({
   const run = runs.find((run) => run.id === selectedRun) ?? runs[0];
   const outputStart =
     run && cleared[run.id] && run.output.startsWith(cleared[run.id]) ? cleared[run.id].length : 0;
-  async function save(commands: ProjectCommand[]) {
+  function errorAt(scope: string) {
+    return issue?.scope === scope ? issue.detail : '';
+  }
+  function showError(scope: string) {
+    const detail = errorAt(scope);
+    return (
+      detail && (
+        <p role="alert" className="field-error">
+          {detail}
+        </p>
+      )
+    );
+  }
+  async function save(commands: ProjectCommand[], scope: string) {
     setPending(true);
+    setIssue(undefined);
     try {
       const result = await invoke<RecentProject>('save_project_commands', {
         id: project.id,
         commands,
       });
       onChange(result);
-      setError('');
       return true;
     } catch (error) {
-      setError(message(error));
+      setIssue({ scope, detail: message(error) });
       return false;
     } finally {
       setPending(false);
     }
   }
   async function execute(command: ProjectCommand, confirmed = false) {
+    setIssue(undefined);
     if (command.imported && !confirmed) {
-      setError('');
       setConfirmation(command);
       return;
     }
@@ -175,9 +190,8 @@ export function Commands({
           ),
         });
       setConfirmation(null);
-      setError('');
     } catch (error) {
-      setError(message(error));
+      setIssue({ scope: confirmed ? 'confirmation' : command.id, detail: message(error) });
     } finally {
       setPending(false);
     }
@@ -186,14 +200,14 @@ export function Commands({
     try {
       await invoke('stop_project_command', { runId: run.id });
     } catch (error) {
-      setError(message(error));
+      setIssue({ scope: 'output', detail: message(error) });
     }
   }
   const [deleting, setDeleting] = useState<ProjectCommand | null>(null);
   function move(index: number, delta: number) {
     const commands = [...project.commands];
     [commands[index], commands[index + delta]] = [commands[index + delta], commands[index]];
-    void save(commands);
+    void save(commands, project.commands[index].id);
   }
   return (
     <section className="commands-workspace">
@@ -203,9 +217,9 @@ export function Commands({
           <p className="help">Run only when you choose. Output includes stdout and stderr.</p>
         </div>
         <div className="inline-actions">
-          <button
+          <Button
             type="button"
-            className="primary"
+            variant="primary"
             disabled={pending}
             onClick={() =>
               setEditor({
@@ -225,12 +239,12 @@ export function Commands({
             }
           >
             Add command
-          </button>
+          </Button>
         </div>
       </div>
-      {error && (
-        <p role="alert" className="error-banner">
-          {error}
+      {pending && (
+        <p role="status" className="help">
+          Updating commands…
         </p>
       )}
       {exists && (
@@ -265,15 +279,16 @@ export function Commands({
                 Review suggestions <Icon name="arrow" size={13} />
               </button>
             )}
-            <button
+            <Button
               type="button"
-              className="text-button"
+              variant="tertiary"
+              size="compact"
               aria-label="Refresh suggestions"
               disabled={suggestionLoading}
               onClick={() => setSuggestionRefresh((value) => value + 1)}
             >
               Refresh
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -378,22 +393,24 @@ export function Commands({
                 <div className="command-card-actions">
                   <div className="inline-actions">
                     {running ? (
-                      <button
+                      <Button
                         type="button"
-                        className="command-stop"
+                        variant="danger"
+                        size="compact"
                         onClick={() => void stop(running)}
                       >
                         Stop
-                      </button>
+                      </Button>
                     ) : (
-                      <button
+                      <Button
                         type="button"
                         disabled={!exists || !command.enabled || pending}
-                        className="run-button primary"
+                        variant="secondary"
+                        size="compact"
                         onClick={() => void execute(command)}
                       >
                         Run <Icon name="arrow" size={13} />
-                      </button>
+                      </Button>
                     )}
                     <Menu
                       label={`More actions for ${command.name}`}
@@ -421,6 +438,7 @@ export function Commands({
                     />
                   </div>
                 </div>
+                {showError(command.id)}
               </article>
             );
           })}
@@ -445,8 +463,9 @@ export function Commands({
                 startOffset={outputStart}
                 name={run.name}
                 running={run.status === 'running'}
-                onError={setError}
+                onError={(detail) => setIssue({ scope: 'output', detail })}
               />
+              {showError('output')}
               <div className="output-actions">
                 <button
                   type="button"
@@ -480,13 +499,19 @@ export function Commands({
               disabled={!exists}
               onClick={() =>
                 void invoke('launch_project_tool', { id: project.id, tool: 'terminal' }).catch(
-                  (error) => setError(message(error)),
+                  (error) => setIssue({ scope: 'terminal', detail: message(error) }),
                 )
               }
             >
               Open in Terminal <Icon name="external" size={12} />
             </button>
           </div>
+          {showError('terminal')}
+          {historyError && (
+            <p role="alert" className="field-error">
+              {historyError} Checking again…
+            </p>
+          )}
           {runs.length > 0 && (
             <div className="command-history">
               <h4 id="command-history-title">Run history</h4>
@@ -515,24 +540,20 @@ export function Commands({
       {editor && (
         <CommandEditor
           command={editor}
-          nativeError={error}
+          nativeError={errorAt('editor')}
           pending={pending}
           onClose={() => setEditor(null)}
           onSave={async (command) => {
             const commands = project.commands.some((item) => item.id === command.id)
               ? project.commands.map((item) => (item.id === command.id ? command : item))
               : [...project.commands, command];
-            if (await save(commands)) setEditor(null);
+            if (await save(commands, 'editor')) setEditor(null);
           }}
         />
       )}
       {suggestions !== null && (
         <WorkspaceDialog title="Review suggested commands" onClose={() => setSuggestions(null)}>
-          {error && (
-            <p role="alert" className="field-error">
-              {error}
-            </p>
-          )}
+          {showError('suggestions')}
           <p className="help">
             Suggested commands come from your project files. Review each command before running it
             for the first time. Imported preset commands also require review. Nothing runs
@@ -570,33 +591,32 @@ export function Commands({
             <button type="button" onClick={() => setSuggestions(null)}>
               Cancel
             </button>
-            <button
+            <Button
               type="button"
-              className="primary"
+              variant="primary"
               disabled={pending || !selectedSuggestions.length}
               onClick={() =>
-                void save([
-                  ...project.commands,
-                  ...suggestions
-                    .filter((command) => selectedSuggestions.includes(command.id))
-                    .map((command) => ({ ...command, id: crypto.randomUUID(), imported: true })),
-                ]).then((saved) => {
+                void save(
+                  [
+                    ...project.commands,
+                    ...suggestions
+                      .filter((command) => selectedSuggestions.includes(command.id))
+                      .map((command) => ({ ...command, id: crypto.randomUUID(), imported: true })),
+                  ],
+                  'suggestions',
+                ).then((saved) => {
                   if (saved) setSuggestions(null);
                 })
               }
             >
               Import selected commands
-            </button>
+            </Button>
           </div>
         </WorkspaceDialog>
       )}
       {confirmation && (
         <WorkspaceDialog title="Review imported command" onClose={() => setConfirmation(null)}>
-          {error && (
-            <p role="alert" className="field-error">
-              {error}
-            </p>
-          )}
+          {showError('confirmation')}
           <p>This command came from a manifest or preset. Review it before allowing execution.</p>
           <dl className="workspace-facts command-review">
             <dt>Command</dt>
@@ -624,14 +644,14 @@ export function Commands({
             <button type="button" onClick={() => setConfirmation(null)}>
               Cancel
             </button>
-            <button
+            <Button
               type="button"
-              className="primary"
+              variant="primary"
               disabled={pending}
               onClick={() => void execute(confirmation, true)}
             >
               Run reviewed command
-            </button>
+            </Button>
           </div>
         </WorkspaceDialog>
       )}
@@ -643,11 +663,16 @@ export function Commands({
             <>
               <Button onClick={() => setDeleting(null)}>Cancel</Button>
               <Button
-                variant="primary"
+                variant="danger"
+                disabled={pending}
                 onClick={() => {
                   const target = deleting;
-                  setDeleting(null);
-                  void save(project.commands.filter((item) => item.id !== target.id));
+                  void save(
+                    project.commands.filter((item) => item.id !== target.id),
+                    'delete',
+                  ).then((saved) => {
+                    if (saved) setDeleting(null);
+                  });
                 }}
               >
                 Delete command
@@ -659,6 +684,7 @@ export function Commands({
             <strong>{deleting.name}</strong> will be removed from this project's saved commands.
             Nothing is run and no files are changed.
           </p>
+          {showError('delete')}
         </Dialog>
       )}
     </section>
@@ -843,9 +869,9 @@ export function CommandEditor({
           <button type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="primary" disabled={pending} onClick={save}>
+          <Button type="button" variant="primary" disabled={pending} onClick={save}>
             Save command
-          </button>
+          </Button>
         </div>
       </div>
     </WorkspaceDialog>

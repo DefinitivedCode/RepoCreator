@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { Button, Disclosure } from './ui';
+import { Button, Disclosure, InlineProblem, LoadingSkeleton } from './ui';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './icons';
 import { AdvancedPanel, IgnorePanel, type FileSection } from './ConfigurationPanels';
@@ -291,10 +291,11 @@ export default function App() {
         )}
         {!form || !catalog || !preferences ? (
           <main className="content">
-            <p role="status">{creator.notice || creator.error?.message || 'Loading settings…'}</p>
+            {!creator.error && !creator.notice && <LoadingSkeleton label="Loading settings…" />}
+            {creator.notice && <p role="status">{creator.notice}</p>}
             {creator.error && (
               <>
-                <p className="help">{creator.error.guidance}</p>
+                <InlineProblem error={creator.error} />
                 <button type="button" onClick={() => window.location.reload()}>
                   Retry loading settings
                 </button>
@@ -423,22 +424,26 @@ export default function App() {
                     <h1 className="page-title">New project</h1>
                   </div>
                   <div className="workspace-heading-actions">
-                    <button
+                    <Button
                       type="button"
-                      className="text-button compact-preview-trigger"
+                      variant="tertiary"
+                      size="compact"
+                      className="compact-preview-trigger"
                       aria-haspopup="dialog"
                       onClick={() => setPreviewPath('README.md')}
                     >
                       <Icon name="file" size={14} /> Preview files
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      className="text-button context-toggle"
+                      variant="tertiary"
+                      size="compact"
+                      className="context-toggle"
                       aria-pressed={contextOpen}
                       onClick={() => setContextOpen(!contextOpen)}
                     >
                       {contextOpen ? 'Hide details' : 'Show details'}
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 {requiredBlockers.length > 1 && (
@@ -453,22 +458,24 @@ export default function App() {
                         <li key={blocker.id}>
                           <span>{blocker.title}</span>{' '}
                           {blocker.fix && (
-                            <button
+                            <Button
                               type="button"
-                              className="text-button"
+                              variant="tertiary"
+                              size="compact"
                               onClick={() => runFix(blocker.fix!.target)}
                             >
                               {blocker.fix.label}
-                            </button>
+                            </Button>
                           )}
                           {blocker.alternative && (
-                            <button
+                            <Button
                               type="button"
-                              className="text-button"
+                              variant="tertiary"
+                              size="compact"
                               onClick={() => runFix(blocker.alternative!.target)}
                             >
                               {blocker.alternative.label}
-                            </button>
+                            </Button>
                           )}
                         </li>
                       ))}
@@ -694,12 +701,6 @@ export default function App() {
                     </Disclosure>
                   </section>
                 </fieldset>
-                {creator.error && (
-                  <div className="error-banner" role="alert">
-                    <strong>{creator.error.message}</strong>
-                    <p>{creator.error.guidance}</p>
-                  </div>
-                )}
                 {creator.notice && (
                   <p className="notice" role="status">
                     {creator.notice}
@@ -757,6 +758,11 @@ export default function App() {
               />
             )}
             <footer className="action-bar creation-status-bar">
+              {creator.error && (
+                <div className="creation-action-error">
+                  <InlineProblem error={creator.error} id="creation-error" />
+                </div>
+              )}
               <button
                 type="button"
                 className="creation-git-status git-readiness"
@@ -783,15 +789,17 @@ export default function App() {
                 {form.destination === 'github'
                   ? `${form.visibility === 'private' ? 'Private' : 'Public'} GitHub repository`
                   : 'On this computer'}
-                <button
+                <Button
                   type="button"
-                  className="text-button preview-drawer-trigger"
+                  variant="tertiary"
+                  size="compact"
+                  className="preview-drawer-trigger"
                   aria-expanded={drawerOpen}
                   aria-controls="result-drawer"
                   onClick={() => setDrawerOpen(!drawerOpen)}
                 >
                   Preview files ({creator.files.length})
-                </button>
+                </Button>
               </div>
               <p
                 id="creation-reason"
@@ -802,26 +810,30 @@ export default function App() {
                 {inlineFix && (
                   <>
                     {' '}
-                    <button
+                    <Button
                       type="button"
-                      className="text-button"
+                      variant="tertiary"
+                      size="compact"
                       onClick={() => runFix(inlineFix.target)}
                     >
                       {inlineFix.label}
-                    </button>
+                    </Button>
                   </>
                 )}
               </p>
-              <button
+              <Button
                 type="submit"
                 ref={createButton}
-                className="primary create-button"
+                variant="primary"
+                className="create-button"
                 aria-disabled={!creator.ready || undefined}
-                aria-describedby="creation-reason"
+                aria-describedby={
+                  creator.error ? 'creation-reason creation-error' : 'creation-reason'
+                }
               >
                 Create project
                 <Icon name="arrow" size={14} />
-              </button>
+              </Button>
             </footer>
           </form>
         )}

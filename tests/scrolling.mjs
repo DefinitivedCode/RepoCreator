@@ -74,6 +74,6 @@ export async function verifyExpandedScrolling(page, resize = (size) => page.setV
     expect(geometry.pageScroll).toBeLessThanOrEqual(1);
     expect(geometry.footer).toBe(size.height);
     expect(geometry.mainBottom).toBeLessThanOrEqual(geometry.footerTop);
-    await expect(page.locator('.action-bar .primary')).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('.action-bar [data-variant="primary"]')).toBeInViewport({ ratio: 1 });
   }
 }

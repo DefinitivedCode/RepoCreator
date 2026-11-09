@@ -1,17 +1,4 @@
-/*
- * Design tokens for the redesign (brief section E). Imported first.
- *
- * Existing variable names (--background, --surface, --text, --muted, --border,
- * --primary, --radius ...) are NOT redefined here, so screens that have not been
- * migrated render exactly as before. Only names the old styles do not use are
- * added. The brief's --surface and --text will take their new values when the
- * remaining screens are migrated (Phase 7); until then the primitives in src/ui
- * use the existing --surface and --text, which are close to the brief's.
- *
- * Accent roles (--accent-text, --accent-fill, --accent-on-fill) are derived at
- * runtime in appearance.ts with a contrast guarantee; the values below are only
- * first-paint defaults for the default teal accent.
- */
+/* Shared design tokens. Accent roles are updated by appearance.ts. */
 :root {
   /* Neutrals (light) */
   --bg: #f6f6f4;
@@ -19,7 +6,6 @@
   --text-2: #55555c;
   --hairline: #e3e3df;
   --field-border: #8a8a90;
-  --accent-text: #1f6f66;
   --accent-fill: #2a7d73;
   --accent-on-fill: #ffffff;
   --scrim: rgb(20 20 22 / 45%);
@@ -64,11 +50,12 @@
   --control-compact: 28px;
   --control-default: 32px;
   --control-large: 40px;
+  --control-field: 34px;
 
   /* Focus, motion, layers */
   --focus-width: 2px;
   --focus-offset: 2px;
-  /* --motion (160ms) is defined in desktop-refinement.css and reused. */
+  --duration-fast: 160ms;
   --z-popover: 20;
   --z-dialog: 30;
   --z-toast: 40;
@@ -80,7 +67,6 @@
     --text-2: #a8a8b0;
     --hairline: #2e2e32;
     --field-border: #6e6e76;
-    --accent-text: #5bbfb2;
     --accent-fill: #4fa69b;
     --accent-on-fill: #0b1f1c;
     --scrim: rgb(0 0 0 / 60%);
@@ -93,9 +79,90 @@
   --text-2: #a8a8b0;
   --hairline: #2e2e32;
   --field-border: #6e6e76;
-  --accent-text: #5bbfb2;
   --accent-fill: #4fa69b;
   --accent-on-fill: #0b1f1c;
   --scrim: rgb(0 0 0 / 60%);
   --shadow-popover: 0 8px 24px rgb(0 0 0 / 50%), 0 1px 3px rgb(0 0 0 / 40%);
+}
+
+/* Desktop surfaces and interaction colours preserve the existing palette. */
+:root {
+  --page-bg: #f5f4f1;
+  --panel-bg: #fffefa;
+  --raised-bg: #eeede9;
+  --hover-bg: #e7e5df;
+  --body-text: #282724;
+  --muted-text: #69665f;
+  --control-border: #cdc9bf;
+  --divider: #dedad1;
+  --action-fill: #326e66;
+  --action-hover: #2d635c;
+  --action-label: #ffffff;
+  --accent-text: #326e66;
+  --accent-border: #478b80;
+  --accent-surface: #eff6f1;
+  --accent-surface-hover: #e6f1eb;
+  --selected-background: var(--accent-surface);
+  --selected-text: var(--accent-text);
+  --selected-border: var(--accent-border);
+  --success: #267046;
+  --success-bg: #edf6ef;
+  --warning: #835d13;
+  --warning-bg: #fbf3df;
+  --error: #a33023;
+  --error-bg: #fff2ed;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance='light']) {
+    --page-bg: #1e1e1e;
+    --panel-bg: #282827;
+    --raised-bg: #222221;
+    --hover-bg: #343331;
+    --body-text: #eeece7;
+    --muted-text: #aaa69e;
+    --control-border: #484641;
+    --divider: #393833;
+    --action-fill: #72c0b5;
+    --action-hover: #7fc6bc;
+    --action-label: #151515;
+    --accent-text: #72c0b5;
+    --accent-border: #4fa69b;
+    --accent-surface: #2d3937;
+    --accent-surface-hover: #30413d;
+    --success: #7dc59c;
+    --success-bg: #24332a;
+    --warning: #e3b95f;
+    --warning-bg: #383020;
+    --error: #ffa99b;
+    --error-bg: #352624;
+  }
+}
+:root[data-appearance='dark'] {
+  --page-bg: #1e1e1e;
+  --panel-bg: #282827;
+  --raised-bg: #222221;
+  --hover-bg: #343331;
+  --body-text: #eeece7;
+  --muted-text: #aaa69e;
+  --control-border: #484641;
+  --divider: #393833;
+  --action-fill: #72c0b5;
+  --action-hover: #7fc6bc;
+  --action-label: #151515;
+  --accent-text: #72c0b5;
+  --accent-border: #4fa69b;
+  --accent-surface: #2d3937;
+  --accent-surface-hover: #30413d;
+  --success: #7dc59c;
+  --success-bg: #24332a;
+  --warning: #e3b95f;
+  --warning-bg: #383020;
+  --error: #ffa99b;
+  --error-bg: #352624;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+  }
 }

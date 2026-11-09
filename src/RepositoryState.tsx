@@ -1,3 +1,4 @@
+import { Button } from './ui';
 import { Icon } from './icons';
 import type { Creator } from './useCreator';
 import { displayPath } from './validation';
@@ -141,9 +142,9 @@ export function RepositoryState({
           ))}
           <div className="result-actions">
             {error?.canRetry && (
-              <button className="primary" type="button" onClick={() => void creator.execute(true)}>
+              <Button variant="primary" type="button" onClick={() => void creator.execute(true)}>
                 Retry publishing <Icon name="arrow" size={14} />
-              </button>
+              </Button>
             )}
             <button type="button" onClick={() => void creator.action('open_project')}>
               <Icon name="folder" size={14} />
@@ -209,9 +210,9 @@ export function RepositoryState({
       </main>
       <footer className="action-bar">
         <span className="help">{success ? '' : 'Created files are preserved.'}</span>
-        <button type="button" className={success ? 'primary' : ''} onClick={onAnother}>
+        <Button onClick={onAnother}>
           Create Another <Icon name="arrow" size={14} />
-        </button>
+        </Button>
       </footer>
     </>
   );

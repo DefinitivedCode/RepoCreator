@@ -252,7 +252,7 @@ export function SetupChecklist({
       {variant === 'first-run' ? (
         <div className="setup-checklist-actions">
           <Button
-            variant="primary"
+            variant={requiredMet ? 'primary' : 'secondary'}
             size="large"
             reason={requiredMet ? undefined : 'Finish the required setup to continue.'}
             onClick={onCreate}
@@ -269,9 +269,10 @@ export function SetupChecklist({
           {!requiredMet && (
             <p className="help" role="status">
               Finish{' '}
-              <button
+              <Button
                 type="button"
-                className="text-button"
+                variant="tertiary"
+                size="compact"
                 onClick={() => {
                   if (gitOk) setOpen({ ...open, identity: true });
                   else setOpen({ ...open, git: true });
@@ -279,7 +280,7 @@ export function SetupChecklist({
                 }}
               >
                 {gitOk ? 'Your commit identity' : 'Git'}
-              </button>{' '}
+              </Button>{' '}
               to continue.
             </p>
           )}

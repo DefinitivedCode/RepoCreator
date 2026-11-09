@@ -12,7 +12,7 @@
   color: var(--warning);
   background: var(--warning-bg);
 }
-.rc-readiness .view-heading .inline-actions > .text-button {
+.rc-readiness .view-heading .inline-actions > [data-variant='tertiary'] {
   font-size: 12px;
   min-height: 30px;
 }
@@ -23,8 +23,8 @@
   justify-content: space-between;
   gap: 10px 16px;
   padding: 11px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
 }
 .rc-readiness .readiness-counts {
@@ -38,11 +38,11 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .rc-readiness .readiness-time {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .rc-readiness .readiness-legend {
   margin: 10px 0 4px;
@@ -56,8 +56,8 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
-  color: var(--muted);
-  border: 1px solid var(--separator);
+  color: var(--muted-text);
+  border: 1px solid var(--divider);
   border-radius: 6px;
   white-space: nowrap;
 }
@@ -86,7 +86,7 @@
   position: absolute;
   inset: auto 0 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  background: linear-gradient(90deg, transparent, var(--accent-text), transparent);
   background-size: 40% 100%;
   background-repeat: no-repeat;
   animation: readiness-progress 1.4s ease-in-out infinite;
@@ -106,14 +106,14 @@
   margin: 0 0 8px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .rc-readiness .readiness-list {
   margin: 0;
   padding: 0;
   list-style: none;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
 }
 .rc-readiness .readiness-check {
@@ -121,8 +121,8 @@
   grid-template-columns: 22px minmax(0, 1fr);
   gap: 10px;
   padding: 12px 14px;
-  border-top: 1px solid var(--separator);
-  animation: readiness-enter var(--motion) ease-out;
+  border-top: 1px solid var(--divider);
+  animation: readiness-enter var(--duration-fast) ease-out;
 }
 .rc-readiness .readiness-check:first-child {
   border-top: 0;
@@ -139,8 +139,8 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  color: var(--muted);
-  background: var(--secondary);
+  color: var(--muted-text);
+  background: var(--raised-bg);
 }
 .rc-readiness .status-ready .readiness-icon,
 .rc-readiness .readiness-count.status-ready {
@@ -182,7 +182,7 @@
 }
 .rc-readiness .readiness-state {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .rc-readiness .status-attention .readiness-state {
   color: var(--warning);
@@ -194,10 +194,10 @@
   margin: 0;
   font-size: 12px;
   line-height: 1.55;
-  color: var(--muted);
+  color: var(--muted-text);
   overflow-wrap: anywhere;
 }
-.rc-readiness .readiness-body > .text-button {
+.rc-readiness .readiness-body > [data-variant='tertiary'] {
   justify-self: start;
   font-size: 12px;
   min-height: 26px;
@@ -211,12 +211,12 @@
   margin-top: 3px;
   padding: 7px 10px;
   font-size: 12px;
-  background: var(--background);
-  border: 1px solid var(--separator);
+  background: var(--page-bg);
+  border: 1px solid var(--divider);
   border-radius: 6px;
 }
 .rc-readiness .readiness-fix > span {
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .rc-readiness .readiness-fix > code {
   flex: 1;
@@ -224,11 +224,11 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
-.rc-readiness .readiness-fix > .text-button {
+.rc-readiness .readiness-fix > [data-variant='tertiary'] {
   font-size: 12px;
   min-height: 26px;
   padding: 2px 4px;
-  transition: color var(--motion);
+  transition: color var(--duration-fast);
 }
 .rc-workspace-dialog .readiness-dialog-heading {
   margin: 18px 0 8px;
@@ -282,19 +282,19 @@
   font-size: 12px;
 }
 .rc-workspace-dialog .readiness-command-option small {
-  color: var(--muted);
+  color: var(--muted-text);
   font-size: 12px;
 }
 .rc-workspace-dialog .readiness-command-option.unavailable strong,
 .rc-workspace-dialog .readiness-command-option.unavailable code {
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .rc-workspace-dialog .readiness-warning {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   gap: 11px;
   padding: 13px 14px;
-  color: var(--text);
+  color: var(--body-text);
   background: var(--warning-bg);
   border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
   border-radius: 6px;
@@ -316,11 +316,11 @@
   gap: 3px;
   padding: 9px 11px;
   font-size: 12px;
-  border: 1px solid var(--separator);
+  border: 1px solid var(--divider);
   border-radius: 6px;
 }
 .rc-workspace-dialog .readiness-confirm-list small {
-  color: var(--muted);
+  color: var(--muted-text);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
@@ -335,11 +335,11 @@
   }
 }
 .readiness-group-name {
-  color: var(--muted);
+  color: var(--muted-text);
   font-size: 12px;
   font-weight: 400;
 }
 .readiness-section-count {
-  color: var(--muted);
+  color: var(--muted-text);
   font-weight: 400;
 }

@@ -1,3 +1,4 @@
+import { Button } from './ui';
 import { useState } from 'react';
 import { Icon } from './icons';
 import { GeneratedFileTree } from './GeneratedFileTree';
@@ -168,13 +169,15 @@ export function IgnorePanel({
           </button>
         </div>
         {suggested && (
-          <button
-            className="text-button recommendation"
+          <Button
+            variant="tertiary"
+            size="compact"
+            className="recommendation"
             type="button"
             onClick={() => update({ ...options, ignorePresets: [...recommendation] })}
           >
             Use project preset recommendations
-          </button>
+          </Button>
         )}
         <div className="preset-checklist" aria-label="Ignore presets">
           {groups.length ? (

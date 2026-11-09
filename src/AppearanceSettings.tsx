@@ -1,6 +1,8 @@
-import { useEffect, useId, useState, type CSSProperties } from 'react';
+import { Button, InlineProblem } from './ui';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from './icons';
 import type { Creator } from './useCreator';
+import type { AppError } from './types';
 import { accentPresets, appearanceTokens, normalizeHex, resolveAccent } from './appearance';
 import './appearance-settings.css';
 
@@ -12,6 +14,22 @@ export function AppearanceSettings({ creator }: { creator: Creator }) {
   const selectedAccent = preferences.accent ?? 'copper';
   const customAccent = preferences.customAccent ?? '#4FA69B';
   const [draft, setDraft] = useState(customAccent);
+  const latestSave = useRef({ theme: 0, accent: 0 });
+  const [saving, setSaving] = useState<
+    Partial<Record<'theme' | 'accent', AppError | 'pending' | null>>
+  >({});
+  async function save(kind: 'theme' | 'accent', apply: () => Promise<AppError | null>) {
+    const request = ++latestSave.current[kind];
+    setSaving((state) => ({ ...state, [kind]: 'pending' }));
+    const result = await apply();
+    if (request === latestSave.current[kind]) setSaving((state) => ({ ...state, [kind]: result }));
+  }
+  function saveTheme(theme: Parameters<Creator['appearance']>[0]) {
+    void save('theme', () => creator.appearance(theme));
+  }
+  function saveAccent(accent: Parameters<Creator['accent']>[0], color: string) {
+    void save('accent', () => creator.accent(accent, color));
+  }
   const [systemDark, setSystemDark] = useState(
     () => matchMedia('(prefers-color-scheme: dark)').matches,
   );
@@ -33,7 +51,7 @@ export function AppearanceSettings({ creator }: { creator: Creator }) {
   const updateCustom = (value: string) => {
     const normalized = customHex(value);
     setDraft(normalized ?? value);
-    if (normalized) void creator.accent('custom', normalized);
+    if (normalized) saveAccent('custom', normalized);
   };
   return (
     <div className="appearance-settings">
@@ -52,21 +70,31 @@ export function AppearanceSettings({ creator }: { creator: Creator }) {
                   name={`${id}-theme`}
                   value={theme}
                   checked={preferences.appearance === theme}
-                  onChange={() => void creator.appearance(theme)}
+                  onChange={() => saveTheme(theme)}
                 />
-                <span className="appearance-theme-thumbnail" data-theme={theme} aria-hidden="true">
-                  <i />
-                  <span>
-                    <b />
-                    <b />
-                    <b />
-                  </span>
-                </span>
                 <span>{theme[0].toUpperCase() + theme.slice(1)}</span>
-                <Icon name="check" size={13} />
               </label>
             ))}
           </div>
+          {saving.theme === 'pending' ? (
+            <p className="help" role="status">
+              Saving theme…
+            </p>
+          ) : (
+            saving.theme && (
+              <InlineProblem
+                error={saving.theme}
+                action={
+                  <Button
+                    size="compact"
+                    onClick={() => saveTheme(preferences.appearance ?? 'system')}
+                  >
+                    Retry saving theme
+                  </Button>
+                }
+              />
+            )
+          )}
         </fieldset>
         <fieldset className="appearance-fieldset">
           <legend>Accent color</legend>
@@ -81,9 +109,7 @@ export function AppearanceSettings({ creator }: { creator: Creator }) {
                   type="radio"
                   name={`${id}-accent`}
                   checked={selectedAccent === preset.id}
-                  onChange={() =>
-                    void creator.accent(preset.id as Parameters<Creator['accent']>[0], customAccent)
-                  }
+                  onChange={() => saveAccent(preset.id, customAccent)}
                 />
                 <span
                   className="appearance-color-swatch"
@@ -101,7 +127,7 @@ export function AppearanceSettings({ creator }: { creator: Creator }) {
                 checked={selectedAccent === 'custom'}
                 onChange={() => {
                   setDraft(customAccent);
-                  void creator.accent('custom', customAccent);
+                  saveAccent('custom', customAccent);
                 }}
               />
               <span
@@ -143,19 +169,36 @@ export function AppearanceSettings({ creator }: { creator: Creator }) {
             Enter a six-digit hex color, for example #4FA69B.
           </p>
         )}
+        {saving.accent === 'pending' ? (
+          <p className="help" role="status">
+            Saving accent…
+          </p>
+        ) : (
+          saving.accent && (
+            <InlineProblem
+              error={saving.accent}
+              action={
+                <Button size="compact" onClick={() => saveAccent(selectedAccent, customAccent)}>
+                  Retry saving accent
+                </Button>
+              }
+            />
+          )
+        )}
         <div className="appearance-reset">
-          <button
+          <Button
             type="button"
-            className="text-button"
+            variant="tertiary"
+            size="compact"
             onClick={() => {
               setDraft('#4FA69B');
-              void creator.appearance('system');
-              void creator.accent('teal', '#4FA69B');
+              saveTheme('system');
+              saveAccent('teal', '#4FA69B');
             }}
           >
             <Icon name="refresh" size={13} />
             Reset to default
-          </button>
+          </Button>
           <span>System theme · Muted Teal</span>
         </div>
       </div>

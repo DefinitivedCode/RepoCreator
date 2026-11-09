@@ -36,8 +36,9 @@ Group 1 adds browser evidence for criteria 14 and 19. The preset tests compare g
 
 Group 2 adds evidence for criterion 21 at 820×580. Long run names remain selectable and the console scrolls its long output internally. Tests also cover navigation to Handoff, detection evidence and opening Edit for a specific custom preset. The native workspace smoke timed out before attaching to WebView2. See the [progress log](ui-redesign-progress.md#group-2--workspace-remainder).
 
+Group 3 centralizes the style tokens and adds a style gate against retired button classes (criterion 12). Browser tests cover the loading skeleton, optimistic theme selection with a pending save and retry, and errors next to create, folder and library controls. See the [progress log](ui-redesign-progress.md#group-3--consistency-polish) for baseline comparison results.
+
 ## Not done
 
 - Refreshed screenshots and the README rewrite: they come from the native release build and belong to release preparation (the release checklist lists them). `getting-started.md` and `project-workspace.md` were updated for the new UI.
-- Phase 7 remainder: removing the legacy alias variables, G9 loading skeletons and inline error placement, the button-variant audit.
 - A full Tab-order and keyboard-trap audit of every dialog beyond the existing dialog tests.

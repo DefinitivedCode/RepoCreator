@@ -1,85 +1,10 @@
 /* The workspace uses the same controls and persistence as project creation. */
-:root {
-  --background: #f5f4f1;
-  --surface: #fffefa;
-  --secondary: #eeede9;
-  --hover: #e7e5df;
-  --surface-hover: #e7e5df;
-  --text: #282724;
-  --muted: #69665f;
-  --border: #cdc9bf;
-  --separator: #dedad1;
-  --primary: #326e66;
-  --primary-hover: #2d635c;
-  --primary-text: #ffffff;
-  --primary-border: var(--primary);
-  --accent: #326e66;
-  --accent-border: #478b80;
-  --accent-surface: #eff6f1;
-  --accent-surface-hover: #e6f1eb;
-  --selected-background: var(--accent-surface);
-  --selected-text: var(--accent);
-  --selected-border: var(--accent-border);
-  --link: var(--accent);
-  --focus: var(--accent);
-  --success: #267046;
-  --success-bg: #edf6ef;
-  --warning: #835d13;
-  --warning-bg: #fbf3df;
-  --radius: 6px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-appearance='light']) {
-    --background: #1e1e1e;
-    --surface: #282827;
-    --secondary: #222221;
-    --hover: #343331;
-    --surface-hover: #343331;
-    --text: #eeece7;
-    --muted: #aaa69e;
-    --border: #484641;
-    --separator: #393833;
-    --primary: #72c0b5;
-    --primary-hover: #7fc6bc;
-    --primary-text: #151515;
-    --accent: #72c0b5;
-    --accent-border: #4fa69b;
-    --accent-surface: #2d3937;
-    --accent-surface-hover: #30413d;
-    --success: #7dc59c;
-    --success-bg: #24332a;
-    --warning: #e3b95f;
-    --warning-bg: #383020;
-  }
-}
-:root[data-appearance='dark'] {
-  --background: #1e1e1e;
-  --surface: #282827;
-  --secondary: #222221;
-  --hover: #343331;
-  --surface-hover: #343331;
-  --text: #eeece7;
-  --muted: #aaa69e;
-  --border: #484641;
-  --separator: #393833;
-  --primary: #72c0b5;
-  --primary-hover: #7fc6bc;
-  --primary-text: #151515;
-  --accent: #72c0b5;
-  --accent-border: #4fa69b;
-  --accent-surface: #2d3937;
-  --accent-surface-hover: #30413d;
-  --success: #7dc59c;
-  --success-bg: #24332a;
-  --warning: #e3b95f;
-  --warning-bg: #383020;
-}
 .desktop-app .app-header {
   min-height: 64px;
   padding: 0 18px;
   gap: 18px;
-  background: var(--surface);
-  border-bottom-color: var(--border);
+  background: var(--panel-bg);
+  border-bottom-color: var(--control-border);
 }
 .app-title {
   gap: 9px;
@@ -113,12 +38,12 @@
   border-bottom: 2px solid transparent;
   border-radius: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--muted-text);
   font-size: 12px;
 }
 .app-navigation > button[aria-current='page'] {
   color: var(--selected-text);
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--accent-text);
   background: var(--selected-background);
 }
 .header-actions {
@@ -143,7 +68,7 @@
   grid-template-columns: 148px minmax(0, 1fr);
 }
 .navigation-rail {
-  background: var(--background);
+  background: var(--page-bg);
   padding: 23px 10px 15px;
   gap: 6px;
 }
@@ -170,7 +95,7 @@
   font-size: 12px;
 }
 .nav-status .status-dot {
-  background: var(--muted);
+  background: var(--muted-text);
 }
 .desktop-app .nav-note {
   font-size: 12px;
@@ -208,14 +133,14 @@
 }
 .overview-preset {
   padding-bottom: 13px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--divider);
 }
 .overview-tools {
   margin-top: 2px;
 }
 .context-panel {
   padding: 26px 19px;
-  background: var(--surface);
+  background: var(--panel-bg);
 }
 .context-panel h3 {
   font-size: 16px;
@@ -229,20 +154,20 @@
   gap: 10px;
 }
 .context-panel .context-files svg {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .context-panel h4 {
   font-size: 12px;
   font-weight: 600;
 }
 .context-panel .context-code {
-  background: var(--background);
-  border-color: var(--separator);
+  background: var(--page-bg);
+  border-color: var(--divider);
 }
 .desktop-app .action-bar {
   min-height: 70px;
-  background: var(--surface);
-  border-top-color: var(--border);
+  background: var(--panel-bg);
+  border-top-color: var(--control-border);
 }
 .desktop-app .create-button {
   min-width: 156px;
@@ -286,7 +211,7 @@
   gap: 16px;
   align-items: center;
   padding-bottom: 20px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--divider);
   margin-bottom: 20px;
 }
 .library-search {
@@ -298,7 +223,7 @@
   gap: 8px;
   align-items: center;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .sort-control select {
   width: 155px;
@@ -314,9 +239,9 @@
 .project-card {
   min-width: 0;
   padding: 19px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
-  background: var(--surface);
+  background: var(--panel-bg);
 }
 .project-card-heading {
   display: flex;
@@ -330,9 +255,9 @@
 .project-glyph {
   width: 40px;
   height: 40px;
-  border: 1px solid var(--separator);
-  background: var(--secondary);
-  color: var(--accent);
+  border: 1px solid var(--divider);
+  background: var(--raised-bg);
+  color: var(--accent-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -356,7 +281,7 @@
 }
 .project-card .path {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
   overflow-wrap: anywhere;
 }
 .pin-button {
@@ -364,11 +289,11 @@
   padding: 4px;
   align-self: flex-start;
   background: transparent;
-  color: var(--muted);
+  color: var(--muted-text);
   font-size: 23px;
 }
 .pin-button.pinned {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .project-tech {
   padding: 18px 0;
@@ -381,7 +306,7 @@
   justify-content: space-between;
   gap: 12px;
   padding-top: 12px;
-  border-top: 1px solid var(--separator);
+  border-top: 1px solid var(--divider);
 }
 .project-card-footer .inline-actions {
   flex-wrap: wrap;
@@ -405,7 +330,7 @@
   min-height: 225px;
 }
 .empty-workspace > svg {
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .empty-workspace h3 {
   font-size: 16px;
@@ -437,7 +362,7 @@
   height: 46px;
 }
 .project-workspace-heading .path {
-  color: var(--muted);
+  color: var(--muted-text);
   font-size: 12px;
   margin-top: 4px;
   overflow-wrap: anywhere;
@@ -447,9 +372,9 @@
   align-items: center;
   gap: 7px;
   margin-left: auto;
-  color: var(--muted);
-  background: var(--surface);
-  border: 1px solid var(--separator);
+  color: var(--muted-text);
+  background: var(--panel-bg);
+  border: 1px solid var(--divider);
   padding: 6px 9px;
   border-radius: 6px;
   font-size: 12px;
@@ -457,7 +382,7 @@
 .workspace-tabs {
   display: flex;
   gap: 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--control-border);
   margin-bottom: 24px;
 }
 .workspace-tabs > button {
@@ -466,11 +391,11 @@
   padding: 10px 4px 13px;
   background: transparent;
   border-bottom: 2px solid transparent;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .workspace-tabs > button:is([aria-pressed='true'], [aria-selected='true']) {
-  border-bottom-color: var(--accent);
-  color: var(--text);
+  border-bottom-color: var(--accent-text);
+  color: var(--body-text);
 }
 .project-view {
   min-width: 0;
@@ -481,8 +406,8 @@
   gap: 20px;
 }
 .workspace-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
   padding: 22px;
   min-width: 0;
@@ -509,7 +434,7 @@
   font-size: 12px;
 }
 .workspace-facts dt {
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .workspace-facts dd {
   margin: 0;
@@ -550,8 +475,8 @@
 .project-view > .handoff-panel {
   padding: 25px;
   margin-top: 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border: 1px solid var(--control-border);
 }
 .view-heading {
   display: flex;
@@ -584,7 +509,7 @@
   width: 100%;
   min-height: 78px;
   white-space: normal;
-  background: var(--surface);
+  background: var(--panel-bg);
 }
 .tool-item > button > span {
   flex: 1;
@@ -595,12 +520,12 @@
 .tool-item > button small {
   display: block;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
   margin-top: 6px;
   font-weight: 400;
 }
 .tool-item > a {
-  color: var(--muted);
+  color: var(--muted-text);
   display: flex;
   justify-content: end;
   align-items: center;
@@ -610,7 +535,7 @@
   text-decoration: none;
 }
 .tool-item > a:hover {
-  color: var(--text);
+  color: var(--body-text);
   text-decoration: underline;
 }
 .project-settings {
@@ -682,9 +607,9 @@
   gap: 12px;
 }
 .command-card {
-  background: var(--surface);
+  background: var(--panel-bg);
   padding: 17px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
   min-width: 0;
 }
@@ -697,7 +622,7 @@
 .command-category {
   font-size: 12px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .unreviewed-label {
   font-size: 12px;
@@ -711,7 +636,7 @@
 }
 .saved-command-text {
   display: block;
-  color: var(--muted);
+  color: var(--muted-text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   margin: 10px 0;
@@ -733,9 +658,6 @@
 .command-card-actions .inline-actions {
   flex-wrap: wrap;
 }
-.run-button {
-  color: var(--accent);
-}
 .command-reorder {
   display: flex;
   gap: 3px;
@@ -748,8 +670,8 @@
   opacity: 0.65;
 }
 .command-output {
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: 1px solid var(--control-border);
+  background: var(--panel-bg);
   border-radius: 6px;
   position: sticky;
   top: 0;
@@ -761,7 +683,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--divider);
 }
 .output-title {
   font-size: 12px;
@@ -775,12 +697,12 @@
   padding: 12px 15px;
   font-size: 12px;
   flex-wrap: wrap;
-  color: var(--muted);
+  color: var(--muted-text);
 }
 .run-summary > strong {
   font-weight: 600;
   font-size: 12px;
-  color: var(--text);
+  color: var(--body-text);
 }
 .run-summary > span:last-child {
   margin-left: auto;
@@ -799,14 +721,14 @@
 }
 .desktop-app .run-output {
   margin: 0;
-  border-block: 1px solid var(--separator);
+  border-block: 1px solid var(--divider);
   padding: 16px;
   height: 260px;
   max-height: 42vh;
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: var(--background);
+  background: var(--page-bg);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -822,7 +744,7 @@
   min-height: 27px;
 }
 .output-terminal {
-  border-top: 1px solid var(--separator);
+  border-top: 1px solid var(--divider);
   padding: 13px 14px;
   display: flex;
   flex-wrap: wrap;
@@ -839,7 +761,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--muted);
+  color: var(--muted-text);
   gap: 15px;
   font-size: 12px;
 }
@@ -847,11 +769,11 @@
   width: min(670px, calc(100vw - 50px));
   max-height: calc(100dvh - 48px);
   overflow: auto;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
   padding: 24px;
-  background: var(--surface);
-  color: var(--text);
+  background: var(--panel-bg);
+  color: var(--body-text);
 }
 .workspace-dialog::backdrop {
   background: var(--scrim);
@@ -881,7 +803,7 @@
   gap: 8px;
   padding-top: 16px;
   margin-top: 8px;
-  border-top: 1px solid var(--separator);
+  border-top: 1px solid var(--divider);
 }
 .command-review {
   margin-block: 22px;
@@ -899,7 +821,7 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  border: 1px solid var(--separator);
+  border: 1px solid var(--divider);
   padding: 14px;
   border-radius: 6px;
 }
@@ -918,7 +840,7 @@
 }
 .suggested-command small {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--muted-text);
   overflow-wrap: anywhere;
 }
 .preset-library {
@@ -939,7 +861,7 @@
   margin-top: 0;
 }
 .preset-details {
-  color: var(--muted);
+  color: var(--muted-text);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -955,7 +877,7 @@
   max-width: 820px;
 }
 .completion-launcher {
-  border-top: 1px solid var(--separator);
+  border-top: 1px solid var(--divider);
   padding-top: 10px;
   margin-top: 5px;
 }

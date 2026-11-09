@@ -20,9 +20,9 @@
   font: inherit;
   margin: 0;
   padding: 16px;
-  border: 1px solid var(--separator);
-  border-radius: var(--radius);
-  background: var(--surface);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-control);
+  background: var(--panel-bg);
   line-height: 1.65;
   scroll-padding: 16px;
 }
@@ -47,27 +47,27 @@
 }
 .update-notes pre {
   padding: 10px;
-  background: var(--secondary);
+  background: var(--raised-bg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 .update-notes :not(pre) > code {
   padding: 1px 4px;
-  background: var(--secondary);
+  background: var(--raised-bg);
   border-radius: 6px;
 }
 .update-notes blockquote {
   margin-inline: 0;
   padding-left: 12px;
-  border-left: 2px solid var(--border);
-  color: var(--muted);
+  border-left: 2px solid var(--control-border);
+  color: var(--muted-text);
 }
 .update-notes a {
   text-underline-offset: 3px;
 }
 .update-settings progress {
   width: 100%;
-  accent-color: var(--accent);
+  accent-color: var(--accent-text);
 }
 .update-notification {
   display: flex;
@@ -75,5 +75,5 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 12px 24px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--control-border);
 }

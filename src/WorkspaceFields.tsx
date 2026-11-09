@@ -5,7 +5,7 @@ import type { Updates } from './useUpdates';
 import { Icon } from './icons';
 import { ProjectBrief } from './ProjectBrief';
 import type { Creator } from './useCreator';
-import type { Configuration, Environment } from './types';
+import type { AppError, Configuration, Environment, ExperienceMode } from './types';
 import type { Agent } from './aiTypes';
 import type { Section } from './App';
 import { displayPath, nameError } from './validation';
@@ -20,7 +20,7 @@ import { detailOf } from './blockers';
 import { SetupChecklist } from './setup/SetupChecklist';
 import { TechnologySelector } from './TechnologySelector';
 import { technologiesFor, technologySummary } from './technologies';
-import { Button } from './ui';
+import { Button, InlineProblem, LoadingSkeleton } from './ui';
 import { GeneratedFileTree } from './GeneratedFileTree';
 import './creation-fields.css';
 export { TechnologySelector } from './TechnologySelector';
@@ -141,17 +141,18 @@ export function Overview({
           <ProjectBrief value={form.brief} onChange={(brief) => creator.update('brief', brief)} />
         </details>
         {canUndo && (
-          <button type="button" className="text-button" onClick={onUndo}>
+          <Button type="button" variant="tertiary" size="compact" onClick={onUndo}>
             Undo preset change
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           type="button"
-          className="text-button"
+          variant="tertiary"
+          size="compact"
           onClick={() => onApply(catalog.defaultConfiguration, 'default')}
         >
           Reset configuration
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -177,14 +178,15 @@ function Assistant({ creator, onAdvanced }: { creator: Creator; onAdvanced: () =
     <div className="field">
       <div className="field-label-row">
         <label htmlFor="quick-assistant">AI coding assistant</label>
-        <button
+        <Button
           type="button"
-          className="text-button"
+          variant="tertiary"
+          size="compact"
           aria-label="Configure multiple assistants"
           onClick={onAdvanced}
         >
           More…
-        </button>
+        </Button>
       </div>
       <select
         id="quick-assistant"
@@ -257,6 +259,16 @@ function Location({ creator }: { creator: Creator }) {
           </label>
         )}
       </div>
+      {creator.locationError && (
+        <InlineProblem
+          error={creator.locationError}
+          action={
+            <Button size="compact" onClick={() => void creator.chooseFolder()}>
+              Choose a folder
+            </Button>
+          }
+        />
+      )}
       <span className="sr-only">
         Creates a new project folder here. Existing folders are protected.
       </span>
@@ -342,14 +354,15 @@ function Destination({ creator }: { creator: Creator }) {
                         ? 'GitHub CLI isn’t installed'
                         : 'Not connected'}
                 </span>
-                <button
+                <Button
                   type="button"
-                  className="text-button"
+                  variant="tertiary"
+                  size="compact"
                   onClick={() => void creator.refresh(true)}
                   disabled={creator.checking}
                 >
                   Check connection
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -520,14 +533,15 @@ export function Context({
         <div className="context-live-preview">
           <h4>
             {preview.path}
-            <button
+            <Button
               type="button"
-              className="text-button"
+              variant="tertiary"
+              size="compact"
               aria-haspopup="dialog"
               onClick={() => onPreview(preview.path)}
             >
               Expand preview <Icon name="external" size={12} />
-            </button>
+            </Button>
           </h4>
           <pre className="context-code" tabIndex={0} aria-label={`${preview.path} preview`}>
             {preview.content}
@@ -542,9 +556,15 @@ export function Context({
       )}
       <FirstCommit creator={creator} />
       {onHandoff && (
-        <button type="button" className="text-button context-handoff" onClick={onHandoff}>
+        <Button
+          type="button"
+          variant="tertiary"
+          size="compact"
+          className="context-handoff"
+          onClick={onHandoff}
+        >
           Handoff prompt
-        </button>
+        </Button>
       )}
       <div className="context-footnote">
         <span>{presetName}</span>
@@ -588,6 +608,11 @@ export function SetupPanel({
     email: creator.preferences?.identityOverride?.email ?? '',
   });
   const [identityMode, setIdentityMode] = useState<IdentityMode>('project');
+  const [modeSave, setModeSave] = useState<AppError | 'pending' | null>(null);
+  async function saveMode(value: ExperienceMode) {
+    setModeSave('pending');
+    setModeSave(await creator.experienceMode(value));
+  }
   return (
     <div className="setup-settings">
       <div className="setup-summary">
@@ -681,13 +706,15 @@ export function SetupPanel({
       >
         {tab === 'appearance' && <AppearanceSettings creator={creator} />}
         {tab === 'updates' && <UpdateSettings updates={updates} />}
-        {tab !== 'appearance' && tab !== 'updates' && !creator.environment && (
-          <p role="status">
-            {creator.checking
-              ? 'Checking your computer…'
-              : 'Computer checks are unavailable. Select Recheck to try again.'}
-          </p>
-        )}
+        {tab !== 'appearance' &&
+          tab !== 'updates' &&
+          tab !== 'setup' &&
+          !creator.environment &&
+          (creator.checking ? (
+            <LoadingSkeleton label="Checking your computer…" />
+          ) : (
+            <p role="status">Computer checks are unavailable. Select Recheck to try again.</p>
+          ))}
         {tab === 'setup' && <SetupChecklist creator={creator} variant="settings" />}
         {tab === 'general' && (
           <div className="setup-identity">
@@ -698,9 +725,8 @@ export function SetupPanel({
               <input
                 type="checkbox"
                 checked={creator.preferences?.experienceMode === 'advanced'}
-                onChange={(event) =>
-                  void creator.experienceMode(event.target.checked ? 'advanced' : 'simple')
-                }
+                disabled={modeSave === 'pending'}
+                onChange={(event) => void saveMode(event.target.checked ? 'advanced' : 'simple')}
               />
               Show advanced options by default
             </label>
@@ -708,6 +734,25 @@ export function SetupPanel({
               Every option is always available. This only decides how much detail pickers such as
               the technology selector show at first.
             </p>
+            {modeSave === 'pending' ? (
+              <p role="status" className="help">
+                Saving project options…
+              </p>
+            ) : (
+              modeSave && (
+                <InlineProblem
+                  error={modeSave}
+                  action={
+                    <Button
+                      size="compact"
+                      onClick={() => void saveMode(creator.preferences?.experienceMode ?? 'simple')}
+                    >
+                      Retry saving project options
+                    </Button>
+                  }
+                />
+              )
+            )}
           </div>
         )}
         {tab === 'git' && !!creator.environment && (
@@ -741,14 +786,15 @@ export function SetupPanel({
                 <span className="setup-status" data-ready={env.vscodeAvailable}>
                   {env.vscodeAvailable ? 'Available' : 'Not detected'}
                 </span>
-                <button
+                <Button
                   type="button"
-                  className="text-button"
+                  variant="tertiary"
+                  size="compact"
                   onClick={() => void creator.action('open_setup_resource', { resource: 'vscode' })}
                 >
                   Official guide
                   <Icon name="external" size={12} />
-                </button>
+                </Button>
               </div>
               {env.optionalTools?.map((tool) => (
                 <div className="setup-status-row" key={tool.id}>
@@ -763,16 +809,17 @@ export function SetupPanel({
                         ? 'Not checked'
                         : 'Not detected'}
                   </span>
-                  <button
+                  <Button
                     type="button"
-                    className="text-button"
+                    variant="tertiary"
+                    size="compact"
                     onClick={() =>
                       void creator.action('open_setup_resource', { resource: tool.id })
                     }
                   >
                     Official guide
                     <Icon name="external" size={12} />
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>

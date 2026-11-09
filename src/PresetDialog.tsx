@@ -310,14 +310,14 @@ export function PresetDialog({
           {configurationOverride ? ' · Includes workspace command templates' : ''}
         </p>
         <div className="inline-actions">
-          <button
-            className="primary"
+          <Button
+            variant="primary"
             type="button"
             disabled={!name.trim() || pending}
             onClick={() => void save()}
           >
             {editing ? 'Save changes to preset' : imported ? 'Confirm import' : 'Save preset'}
-          </button>
+          </Button>
           {(editing || source) && (
             <button type="button" disabled={pending} onClick={clearEditor}>
               Cancel edit
@@ -364,22 +364,22 @@ export function PresetDialog({
                   >
                     Export…
                   </button>
-                  <button
+                  <Button
                     type="button"
-                    className="danger"
+                    variant="danger"
                     disabled={pending}
                     onClick={() => setDeleting(preset.id)}
                   >
                     Delete
-                  </button>
+                  </Button>
                 </div>
                 {deleting === preset.id && (
                   <div className="delete-confirm">
                     <p>Delete “{preset.name}”? Your project settings will be kept.</p>
                     <div className="inline-actions">
-                      <button
+                      <Button
                         type="button"
-                        className="danger"
+                        variant="danger"
                         disabled={pending}
                         onClick={() =>
                           void run(async () => {
@@ -390,7 +390,7 @@ export function PresetDialog({
                         }
                       >
                         Delete preset
-                      </button>
+                      </Button>
                       <button type="button" onClick={() => setDeleting(null)}>
                         Cancel
                       </button>

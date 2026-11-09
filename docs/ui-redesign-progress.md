@@ -181,8 +181,18 @@ Release decisions and manual verification stay with the maintainer. The Simple/A
 - Edit opens the selected custom preset in Project Preset Studio. Built-in presets stay read-only, and Use, Duplicate, Delete, import, export and the full manager remain available.
 - `npm run check` and `npm run format:check` passed. `npm test` passed 333 tests. `node --test scripts/audit-styles.test.mjs` passed 6. The full Playwright suite passed 304 tests with cached Chromium on Windows, including both opt-in baselines. Reviewed the workspace facts, Handoff, run history and preset editor at 820×580, 1100×740 and 1440×900 in both themes. The baseline manifest recorded 164 images and six missed captures from stale selectors. Group 3 should fix those selectors before comparing the token-only changes.
 
+## Group 3 — Consistency polish
+
+[PR #39](https://github.com/DefinitivedCode/RepoCreator/pull/39), branch `redesign/consistency-polish`, based on Group 2. Merge after #38 and retarget to `main` once the base lands.
+
+- Moved the desktop palette and motion to `src/tokens.css`, consolidated shared radius and focus roles, and removed the legacy property names from consumers. The repaired baseline produced 170 pairs with no missing captures. 149 pairs matched exactly. The 21 differences were confined to text, scrollbars and control edges, with at most 869 changed pixels in one image. The token commit preserves colour values and geometry. Later button, skeleton, inline error and theme-control changes intentionally change the screenshots.
+- Replaced loading text with status-labelled skeletons for Projects, the workspace, initial Readiness, tool detection and Settings startup. Folder and creation errors, theme/accent and project-settings saves, library operations, and command failures put their guidance at the relevant control. Slow fixture saves expose progress and a local retry.
+- Migrated the retired primary, text, danger and command button classes to shared variants. Commands and Presets have one page-level primary. Run and Use stay available on every row. The style gate rejects the retired classes in JSX and CSS.
+- System, Light and Dark use a segmented radio group. Instant application, keyboard selection, accent settings, reset and invalid hex are covered by the browser suite.
+- `npm run check`, `npm run format:check` and `npm run build` passed. `npm test` passed 333. `node --test scripts/audit-styles.test.mjs` passed 7. The full browser suite passed 310 on cached Chromium on Windows, including both opt-in baselines. Viewed the segmented control, inline failures and library skeleton at all three sizes and in both themes. No Rust files changed and native smokes were not re-run in this group.
+
 ## Next step
 
-Follow [the remainder prompt](ui-redesign-codex-remainder.md) in group order. Start Group 3 on `redesign/consistency-polish` from Group 2 while PR #38 is open. Fix the baseline's wide file-dialog trigger and Overview tab selectors, then capture a fresh baseline before changing tokens.
+Follow [the remainder prompt](ui-redesign-codex-remainder.md) in group order. Start Group 4 on `redesign/accessibility-evidence` from Group 3 while PR #39 is open. Begin with dialog focus at the first and last tab stops, then measure computed outlines and add the setup matrix, primary-action and no-secret-input tests.
 
 Facts: baseline capture is `REPO_CREATOR_BASELINE=1 REPO_CREATOR_BASELINE_DIR=<dir> npx playwright test tests/baseline.spec.ts`; native smokes need a debug build (`npm run desktop:build -- --ci --debug --no-bundle`) and an empty `HOME`; write multi-line scripts with the file tool; the browser suite has occasional load flakes; `aria-disabled` buttons need `click({ force: true })`; use `setMode` for mode; CI runs `scripts/third-party-notices.mjs --check`, so never edit `src/icons.tsx` (use `src/ui/UiIcon.tsx`); merge, never rebase, to propagate fixes up the stack.
