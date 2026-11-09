@@ -73,11 +73,16 @@ test('the sidebar collapses to an accessible icon rail at 820px without page scr
 test('navigation is disabled while a project is being created and returns afterwards', async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    (window as any).testHoldCreation = true;
+  });
   await prepare(page, false, 'simple');
   await page.getByLabel('Project name').fill('busy-lock');
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
   for (const name of ['New Project', 'Projects', 'Presets', 'Settings'])
     await expect(nav(page).getByRole('button', { name, exact: true })).toBeDisabled();
+  await page.waitForFunction(() => typeof (window as any).finishCreation === 'function');
+  await page.evaluate(() => (window as any).finishCreation());
   await expect(page.getByText('busy-lock').first()).toBeVisible();
   await expect(nav(page).getByRole('button', { name: 'Projects', exact: true })).toBeEnabled();
 });

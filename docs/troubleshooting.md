@@ -12,7 +12,7 @@ Mac builds are ad-hoc signed and not notarized. Follow the [Mac guide](macOS-tes
 
 ## Git or another tool is not detected
 
-Open **Settings**, use the relevant official installation link, then select **Recheck**. Reopen Repo Creator if the installer changed your environment.
+Open **Settings → Setup**, use the relevant official installation link, then select **Recheck**. Reopen Repo Creator if the installer changed your environment.
 
 Git is required for local creation. GitHub CLI and sign-in are required only for GitHub publishing. Coding assistants and VS Code are optional, so their absence does not prevent local creation or prompt generation.
 
@@ -24,11 +24,11 @@ Git needs a name and email to record commits. Open **Settings → Git & identity
 
 For a GitHub project, Repo Creator verifies the authenticated account and uses its no-reply email for the initial commit. Repo Creator never changes your global Git identity automatically.
 
-## Review or Create is disabled
+## Create project explains a requirement
 
-Check the explanation beside the primary action: it names the first thing to fix and offers a button for it. When several things need fixing, the footer says how many and the list sits under the page heading. Complete the project name, save location, required setup and invalid configuration. Wait for preview updates or an open native dialog to finish. Existing project names, invalid branch names and incomplete license/identity fields must be corrected.
+Read the explanation beside **Create project**. Activate the button to open **To create this project**, which lists the outstanding requirements and fix actions. Check the project name, save location and Git setup. Wait for file generation or a native dialog to finish. If creating fails, read the guidance beside the action bar before retrying.
 
-If a settings or tool check failed, use the retry action. All settings are available in every section, so open **Project Files** or **AI Agents** if a setting needs correction.
+Use **Customize files** or **Customize AI agents** to correct a file or agent option. Choose **Back** to return from the focused editor with your changes. To check the output before trying again, open **Generated files** or **Preview files** and search by path.
 
 ## A folder with this name already exists
 
@@ -49,16 +49,16 @@ Do not create another repository or delete the remote until you have checked whi
 
 Use the success screen's manual action or open the shown path yourself. An opening-action failure does not undo a successfully created repository. VS Code is optional and must be installed before **Open in VS Code** is available.
 
-Recent Projects records the original location; moved or deleted folders may no longer open. Removing a history entry does not remove the project from disk.
+**Projects** records the original location. If the folder moved, open its workspace and use **Locate folder**, or choose **Locate moved project** in Project Settings. **Remove from history** removes the library entry and keeps the folder on disk.
 
 ## Presets, prompts or settings look different
 
-Applying a preset offers **Undo preset change**. A selected prompt template or changed project context does not overwrite edited prompt text until **Regenerate** is selected.
+Applying a preset offers **Undo preset change**. If **Save as preset** reports a duplicate name, choose another name or edit the saved preset under **Presets → Yours**. A new template or changed project context keeps your edited Handoff prompt until you select **Regenerate**.
 
 If custom prompt-template storage is unreadable or from a newer version, the app keeps the original data and disables saving template changes for that session. Do not clear application data if you need to recover custom templates. For general settings recovery notices, preserve any backup before changing files.
 
 ## Report a bug
 
-Open a [GitHub issue](https://github.com/DefinitivedCode/RepoCreator/issues) with the app version, operating system, architecture, selected mode/preset, steps, expected result and displayed error. Mention whether you used an installer or test artifact. For a launch problem, include the exact warning.
+Open a [GitHub issue](https://github.com/DefinitivedCode/RepoCreator/issues) with the app version, operating system, architecture, preset, steps, expected result and displayed error. Mention whether **Show advanced options by default** was enabled and whether you used an installer or test artifact. For a launch problem, include the exact warning.
 
 Review screenshots before attaching them. Remove account names, private paths, repository URLs, project text, tokens and authentication output. Do not attach complete settings files or `.gitconfig`. For vulnerabilities, follow [SECURITY.md](../SECURITY.md) instead of posting details publicly.

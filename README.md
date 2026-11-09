@@ -28,13 +28,13 @@ A desktop workspace for starting Git repositories and returning to the projects 
   <img src="docs/assets/overview-light.png" alt="New Project Overview for Field Notes, with a Website preset, local destination and exact generated-file previews." width="1100">
 </picture>
 
-**Upcoming v1.5.2 Beta.** These unedited screenshots come from the actual **1.5.2** application build. The latest published download is **v1.5.1 Beta**; technology detection and the performance and reliability improvements described in the [proposed v1.5.2 notes](docs/release-notes/1.5.2.md) await publication. Check the [published release notes](https://github.com/DefinitivedCode/RepoCreator/releases) for what's included in your download.
+The screenshots show the **1.5.2** preparation build and its earlier layout. The guide below describes the redesigned interface on this branch. See the [redesign notes draft](docs/release-notes/ui-redesign-draft.md) and the [published release notes](https://github.com/DefinitivedCode/RepoCreator/releases) for what is included in each download.
 
 ## Download
 
 [**Browse releases and download your build →**](https://github.com/DefinitivedCode/RepoCreator/releases)
 
-Published downloads are currently **prereleases**. Choose the package for your computer, read its notes and compare its checksum with the included `SHA256SUMS.txt`.
+Choose the package for your computer, read its release notes and compare its checksum with the included `SHA256SUMS.txt`.
 
 | Your computer             | Package to choose                                |
 | ------------------------- | ------------------------------------------------ |
@@ -61,18 +61,21 @@ Windows packages are unsigned at the operating-system level. Mac builds are ad-h
 
 ## From idea to first commit
 
-| Create & configure                                                                                                                                    | Continue & check                                                                                                                                                 |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Start a repository.** Create local Git projects or publish to GitHub. Every option is available, with a review before creation.                     | **Keep a project workspace.** Add existing repositories, reopen editors and terminals, and save commands with live output and stop controls.                     |
-| **Shape the files.** Choose technologies and stack presets, reuse project presets, and preview README, gitignore, license and optional project files. | **See what's missing.** Project Readiness inspects files without running programs and offers actionable findings. Full checks show a plan for explicit approval. |
-| **Give AI useful context.** Configure coding-agent instructions, specialists and skills. Prepare handoff prompts locally, without a model request.    | **Make it yours.** Light, dark and system themes, configurable accent colours, and Stable/Beta updates for supported installations.                              |
+| Create & configure                                                                                                                                     | Continue & check                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Get set up.** The first-run checklist shows what Git and your commit identity need. GitHub publishing is optional.                                   | **Return to a project.** The sidebar opens the Projects library, Presets and Settings. Import an existing Git repository to keep it in the library.    |
+| **Create from one page.** Set the name, location and destination, then customize Project Files and AI Agents. GitHub publishing asks for confirmation. | **Inspect the workspace.** Check Git status, branch and technology evidence. Open a detected editor, terminal or other tool from the workspace header. |
+| **Preview the result.** Search the generated-file tree and read the exact file contents and first-commit details.                                      | **Run when ready.** Review suggested commands, watch live output and revisit run history. Readiness shows findings and asks before a full check.       |
+| **Reuse your choices.** Browse Built-in and Yours in Presets, or save your current starting point as a custom preset.                                  | **Prepare an AI handoff.** Edit and copy a prompt from Handoff without starting a model request.                                                       |
 
 Selecting a technology describes your intended stack; it doesn't install a framework. AI configuration supports **Codex, Claude Code, GitHub Copilot, Cursor, Gemini CLI and OpenCode**. The tools themselves are optional.
 
 <details>
-<summary>Look inside Advanced mode</summary>
+<summary>Look inside New Project</summary>
 
-Choose README sections, ignore rules, a license and Git settings while checking the exact generated content. Changing the advanced-options preference never discards your configuration.
+Use the section index to move between Overview, Project Files and AI Agents on the same page. **Customize** opens the file or agent editor. In a narrower window, use **Back** to return to the recipe with your edits intact. Open **Preview files** if the result pane is tucked below the form. **Settings → General → Show advanced options by default** sets how much detail is expanded when space allows.
+
+The retained screenshot below illustrates the earlier file editor.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/configuration-dark.png">
@@ -84,7 +87,7 @@ Choose README sections, ignore rules, a license and Git settings while checking 
 
 ## Pick up where you left off
 
-Your project library brings existing and newly created repositories into one place. Inspect Git status, open an editor or terminal, and keep the commands you use close to the project. Opening a workspace never runs those commands automatically. v1.5.2 reduces repeated setup and Git inspection work and keeps required setup checks in place before creation.
+Your project library brings existing and newly created repositories into one place. Inspect Git status, open an editor or terminal, and keep the commands you use close to the project. Commands run when you choose **Run**, and **Run history** lets you revisit their output. **Plan with AI** opens the workspace's Handoff tab.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/workspace-dark.png">
@@ -125,10 +128,10 @@ This fixture intentionally has no lockfile, installed packages or local environm
 
 ## Your first project
 
-1. Open **Settings** to check Git and your commit identity.
+1. Complete the first-run checklist for Git and your commit identity. You can revisit it from **Settings → Setup**.
 2. Enter a project name and select a starting point such as **Experiment**.
 3. Pick a save location and **On this computer**.
-4. Select **Review project**, inspect the files, then **Create Project**.
+4. Inspect **Generated files** or open **Preview files**, then select **Create project**.
 
 You get a new child folder and an initial Git commit. Existing destinations are protected. Git and a commit identity are required; GitHub CLI and sign-in are needed only for optional publishing. Windows also needs Microsoft Edge WebView2, which the installer can provide. [Full getting-started guide →](docs/getting-started.md)
 

@@ -4,7 +4,7 @@ Repo Creator creates new Git repositories on your computer. Publishing to GitHub
 
 ## Download and install
 
-Published prereleases are available from [GitHub Releases](https://github.com/DefinitivedCode/RepoCreator/releases). Choose a version and download the asset for your computer. Read its notes and compare its SHA-256 checksum with `SHA256SUMS.txt` before opening it. A matching checksum checks file integrity; it does not replace a trusted publisher signature. Features and screenshots on `main` may be newer than the published package.
+Choose a version from GitHub Releases and download the package for your computer. Read its notes and compare its SHA-256 checksum with `SHA256SUMS.txt` before opening it. A matching checksum verifies file integrity. Use the signing information to assess publisher trust. Features and screenshots on `main` may be newer than the published package. [GitHub Releases](https://github.com/DefinitivedCode/RepoCreator/releases)
 
 | Platform            | Package                                                                                    |
 | ------------------- | ------------------------------------------------------------------------------------------ |
@@ -22,7 +22,7 @@ The repository and published downloads are public. For development test builds, 
 
 ## First launch and setup
 
-The first time you open Repo Creator with no projects, a welcome checklist replaces the main window. **Required** items are Git and your commit identity; **Optional** items are publishing to GitHub and editors. Each unfinished row has a button that fixes it in place, and **Create my first project** unlocks when the required items are ready. If you already have projects, Repo Creator checks quietly instead and never interrupts you. You can revisit it any time under **Settings → Setup**, where **Run setup again** shows the checklist on the next start without resetting anything else. Repo Creator never installs software: for Git or GitHub CLI it opens the official download page and shows a command you can copy.
+The first time you open Repo Creator with no projects, the welcome checklist shows whether Git and your commit identity are ready. GitHub publishing and development tools are optional. Use the fix on an unfinished row to complete it, then choose **Create my first project** or **Add an existing project**. Existing projects stay accessible while Repo Creator checks setup in the background. Revisit the checklist from **Settings → Setup**. **Run setup again** clears the completion flag and keeps your settings. The Git and GitHub CLI install actions open official pages and offer commands you can copy.
 
 ## Keyboard shortcuts
 
@@ -30,7 +30,7 @@ Ctrl+N (Command+N on macOS) starts a new project and Ctrl+, (Command+,) opens Se
 
 ## Check Git
 
-1. Open Repo Creator and select **Settings**.
+1. Open **Settings → Git & identity** from the sidebar.
 2. If Git is missing or older than 2.28, use **Install Git** (or **Update Git**) and install it from the official source.
 3. Return to the app and select **Recheck**. If it is still unavailable, reopen the app and see [Troubleshooting](troubleshooting.md).
 4. Settings shows the name and email Git already has, and where each came from. If either is missing, enter them under **Commit identity**. Git records them with every commit, so use an email you are comfortable recording in Git history; GitHub offers a [private no-reply address](https://docs.github.com/en/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address).
@@ -38,7 +38,7 @@ Ctrl+N (Command+N on macOS) starts a new project and Ctrl+, (Command+,) opens Se
    - **Use only for Repo Creator projects** (the default) saves it in Repo Creator and applies it inside each new project. Your global Git settings are not changed.
    - **Set as my Git default** shows the exact `git config --global` commands, the file they edit and any value they replace. Nothing changes until you select **Save to my Git configuration**.
 
-Local creation requires Git and a commit identity. While something is missing, the footer names it and offers a fix without losing what you have entered.
+Local creation requires Git and a commit identity. The footer names an unmet requirement. Activate **Create project** to see the checklist and its fix actions while keeping your form entries.
 
 ## Create your first local project
 
@@ -46,8 +46,8 @@ Local creation requires Git and a commit identity. While something is missing, t
 2. Add a short description if useful, then select **Experiment** as the starting point. It creates a lightweight README and safe file exclusions without choosing a license.
 3. Leave **AI coding assistant** set to **None**, or select a tool whose project instructions you want to generate. Installation of the assistant is not required.
 4. Choose **Browse…** and a parent folder you can write to, such as a folder inside Documents. Select **On this computer**.
-5. Select **Review project**. Check the destination and generated files, then choose **Create Project**.
-6. On success, use **Open Folder**. The screen shows the branch, initial commit and generated-file count. Expand **Generated files** to inspect the creation previews.
+5. Check the **Generated files** pane, or open **Preview files** from the footer in a narrower window. Use **Find generated files** to filter paths, select a file to preview it and choose **Expand preview** for a larger view. The pane also shows the branch, initial commit message and author. Select **Create project** when ready.
+6. On success, use **Open Folder** or **Open project workspace**. The screen shows the branch, initial commit and generated-file count. Expand **Generated files** to inspect the created contents.
 
 The project gets a new child folder. Repo Creator refuses to overwrite an existing folder or file with the same name. **Blank repository** creates only a Git repository with an empty initial commit.
 
@@ -55,7 +55,7 @@ The project gets a new child folder. Repo Creator refuses to overwrite an existi
 
 Install [GitHub CLI](https://cli.github.com/) first. In **Settings → GitHub**, select **Connect to GitHub**. A terminal window opens and shows a one-time code; enter it on github.com, then return to Repo Creator. The app checks again when you return to its window, or you can select **Check GitHub connection**. Repo Creator never asks for a password or token. If it cannot reach GitHub to check your sign-in, it says so and offers **Retry** instead of reporting that you are signed out.
 
-In Overview, set the destination to **GitHub**, choose an owner, and review **Private** or **Public** visibility. GitHub enforces account and organisation permissions. Creation still makes a local repository, then publishes its initial commit. GitHub projects use the verified account's no-reply commit email for that initial commit.
+In Overview, set the destination to **GitHub** and choose an owner and **Private** or **Public** visibility. **Create project** opens a confirmation with the repository name, visibility and branch. **Create on GitHub** makes the local repository and publishes its initial commit. GitHub enforces account and organisation permissions. The initial commit uses the verified account's no-reply email.
 
 Keep the app open while it creates the project. If publication fails after local creation, the local files and commit remain available. Read the displayed recovery guidance before retrying; see [publication recovery](troubleshooting.md#github-publication-failed).
 
@@ -75,13 +75,13 @@ change project configuration or generated files.
 
 ## Adjust the project
 
-Every section, including **Project Files** and **AI Agents**, is available to everyone. **Settings → General → Show advanced options by default** only changes how much detail pickers such as the technology selector show at first; it never discards configuration.
+**New Project** is one scrolling page. The section index takes you to **Overview**, **Project Files** or **AI Agents**. **Customize files** and **Customize AI agents** open in place when the content area is wide enough. In the focused editor, **Back** returns you to the section and keeps your changes. Use **Settings → General → Show advanced options by default** to open detailed pickers and wide editors by default.
 
 - **Project Files** controls README sections, ignore rules, project license text, optional `.editorconfig`/`.gitattributes`, Git branch/commit and opening actions. Preview before creation. A generated project's license is your choice and is separate from Repo Creator's MIT License.
 
 - **AI Agents** configures optional assistants, specialists and skills. It generates local instruction/configuration files; it does not run a model or install tools.
-- **Manage…** saves, updates, duplicates, imports and exports project presets. Applying a preset offers **Undo preset change**. Imports are reviewed before use and do not execute code.
-- **AI Handoff** prepares editable prompts locally. Missing details are omitted. Changing a template or style keeps your edits until **Regenerate**. Copying a prompt into another service shares the text you choose to send.
+- **Save as preset** beside Starting point saves your current choices under a new name. In **Presets**, use or duplicate a **Built-in** preset, or edit or delete one under **Yours**. **Manage…** opens the full preset studio with import, export and replace options. Applying a preset offers **Undo preset change**.
+- **Handoff prompt** in the result pane prepares an editable prompt before creation. The success screen and the workspace **Handoff** tab use the saved project context. Changing a template or style keeps your edits until **Regenerate**.
 
 README presets keep documentation concise: General uses selected sections with known details, Minimal includes the title and description, Custom also lets you author section Markdown, and None omits the file. Empty sections and comment-only placeholders are omitted. Selected technologies describe project intent; Repo Creator does not invent setup commands or source folders. The optional **Created with Repo Creator** footer is off by default. The preview shows the exact generated file.
 
