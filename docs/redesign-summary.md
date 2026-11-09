@@ -32,9 +32,11 @@ Maps the brief's acceptance criteria (section K, 1–25) to evidence. Status wor
 
 See [accessibility-checklist.md](accessibility-checklist.md) for the manual pass, all of which is not yet performed.
 
+Group 1 adds browser evidence for criteria 14 and 19. The preset tests compare generation-relevant fields before saving and at creation. The result tree tests compare selected preview content across both viewers. The editor and tree tests run in both themes at all three supported sizes. The current native preview-to-disk smoke could not attach to WebView2. See the [progress log](ui-redesign-progress.md#group-1--new-project-leftovers).
+
 ## Not done
 
 - Refreshed screenshots and the README rewrite: they come from the native release build and belong to release preparation (the release checklist lists them). `getting-started.md` and `project-workspace.md` were updated for the new UI.
-- Phase 5b leftovers: per-section Save as preset, result-pane file tree and the narrow-window focused editor view. From Phase 6: the Handoff tab, definition-list Overview with technology evidence, run-history list and Presets Edit opening a specific preset; see the progress log.
+- Phase 6 remainder: the Handoff tab, definition-list Overview with technology evidence, run-history list and Presets Edit opening a specific preset. See the progress log.
 - Phase 7 remainder: removing the legacy alias variables, G9 loading skeletons and inline error placement, the button-variant audit.
 - A full Tab-order and keyboard-trap audit of every dialog beyond the existing dialog tests.
