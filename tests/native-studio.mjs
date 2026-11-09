@@ -77,7 +77,7 @@ export async function configureNativeStudio({ page, invoke, verifyOverview }) {
   );
   await setMode(page, 'advanced');
   await nav.getByRole('button', { name: 'AI Agents', exact: true }).click();
-  await tabs.getByRole('tab', { name: 'Assistants', exact: true }).click();
+  // Assistants are the section's always-visible content now; no tab to click.
   for (const name of assistants)
     await expect(page.getByRole('checkbox', { name, exact: true })).toBeChecked();
   await expect

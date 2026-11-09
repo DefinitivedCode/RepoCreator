@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { prepare, navigate, fileTab, agentTab } from './fixtures';
+import { prepare, navigate, fileTab, agentTab, resultPreview } from './fixtures';
 
 async function contained(page: Page) {
   const geometry = await page.evaluate(() => ({
@@ -63,7 +63,8 @@ test('file editors show exact shared previews and retain useful layouts across s
     const columns = await page
       .locator('.file-editor-layout')
       .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
-    expect(columns).toBe(size.width > 1000 ? 2 : 1);
+    // Two columns fit only while the result pane is hidden (window up to 1250px).
+    expect(columns).toBe(size.width > 1000 && size.width <= 1250 ? 2 : 1);
   }
 });
 
@@ -89,13 +90,8 @@ test('assistant formats are discoverable and instruction editing has a persisten
   await page.screenshot({
     path: `artifacts/refinement-editors/instructions-${info.project.name}.png`,
   });
-  await navigate(page, 'Review');
-  await expect(page.locator('.review-summary-card')).toContainText('river-workbench');
-  await page
-    .getByRole('group', { name: 'Preview file' })
-    .getByRole('button', { name: 'AGENTS.md', exact: true })
-    .click();
-  await expect(page.getByLabel('AGENTS.md preview')).toBeVisible();
+  const pane = await resultPreview(page, 'AGENTS.md');
+  await expect(pane.getByLabel('AGENTS.md preview')).toBeVisible();
   await page.screenshot({ path: `artifacts/refinement-editors/review-${info.project.name}.png` });
   await contained(page);
 });

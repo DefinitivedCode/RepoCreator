@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { prepare, setMode } from './fixtures';
+import { agentTab, fileTab, prepare, setMode } from './fixtures';
 
 const nav = (page: import('@playwright/test').Page) =>
   page.getByRole('navigation', { name: 'Main navigation' });
@@ -75,11 +75,7 @@ test('navigation is disabled while a project is being created and returns afterw
 }) => {
   await prepare(page, false, 'simple');
   await page.getByLabel('Project name').fill('busy-lock');
-  await page
-    .getByRole('navigation', { name: 'Project setup' })
-    .getByRole('button', { name: 'Review', exact: true })
-    .click();
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   for (const name of ['New Project', 'Projects', 'Presets', 'Settings'])
     await expect(nav(page).getByRole('button', { name, exact: true })).toBeDisabled();
   await expect(page.getByText('busy-lock').first()).toBeVisible();
@@ -89,11 +85,7 @@ test('navigation is disabled while a project is being created and returns afterw
 test('choosing New project after a finished creation starts a fresh form', async ({ page }) => {
   await prepare(page, false, 'simple');
   await page.getByLabel('Project name').fill('first-one');
-  await page
-    .getByRole('navigation', { name: 'Project setup' })
-    .getByRole('button', { name: 'Review', exact: true })
-    .click();
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await expect(nav(page).getByRole('button', { name: 'Projects', exact: true })).toBeEnabled();
   await nav(page).getByRole('button', { name: 'New Project', exact: true }).click();
   await expect(page.getByLabel('Project name')).toHaveValue('');
@@ -135,7 +127,7 @@ test('the mode switch is gone; the preference lives in Settings and sets picker 
   await expect(page.getByRole('group', { name: 'Experience mode' })).toHaveCount(0);
   // Every section is available to everyone.
   const rail = page.getByRole('navigation', { name: 'Project setup' });
-  for (const name of ['Overview', 'Project Files', 'AI Agents', 'Review'])
+  for (const name of ['Overview', 'Project Files', 'AI Agents'])
     await expect(rail.getByRole('button', { name, exact: true })).toBeVisible();
   const picker = page.locator('.technology-selector').first();
   await expect(picker).toHaveAttribute('data-simple', 'true');
@@ -162,16 +154,10 @@ for (const mode of ['simple', 'advanced'] as const)
     await page.locator('.brief-details > summary').click();
     for (const label of ['Who is it for?', 'Additional context or constraints'])
       await expect(page.getByLabel(label)).toBeVisible();
-    // Project Files and AI Agents open and work.
-    await page
-      .getByRole('navigation', { name: 'Project setup' })
-      .getByRole('button', { name: 'Project Files', exact: true })
-      .click();
+    // Project Files and AI Agents open and work (Customize starts collapsed in simple mode).
+    await fileTab(page, 'README');
     await expect(page.getByRole('tablist', { name: 'Project file settings' })).toBeVisible();
-    await page
-      .getByRole('navigation', { name: 'Project setup' })
-      .getByRole('button', { name: 'AI Agents', exact: true })
-      .click();
+    await agentTab(page, 'Instructions');
     await expect(page.getByRole('tablist', { name: 'AI agent settings' })).toBeVisible();
   });
 

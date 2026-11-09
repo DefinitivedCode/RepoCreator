@@ -98,9 +98,19 @@ async function verifyOverview(mode) {
   await main.focus();
   await page.keyboard.press('Control+Home');
   await expect
-    .poll(() => main.evaluate((el) => Math.max(0, el.scrollHeight - el.clientHeight)), {
-      message: `${mode} normal local Overview should fit at default size`,
-    })
+    .poll(
+      () =>
+        main.evaluate((el) =>
+          Math.max(
+            0,
+            el.querySelector('[data-section="overview"]').getBoundingClientRect().bottom -
+              el.getBoundingClientRect().bottom,
+          ),
+        ),
+      {
+        message: `${mode} normal local Overview section should fit at default size`,
+      },
+    )
     .toBeLessThanOrEqual(1);
   await screenshot(`${mode}-overview-default`);
 }
@@ -149,13 +159,19 @@ async function verifyEmulatedScales() {
       });
       await expect.poll(() => page.evaluate(() => devicePixelRatio)).toBe(factor);
       await expect(
-        page.getByRole('button', { name: 'Review project', exact: true }),
+        page.getByRole('button', { name: 'Create project', exact: true }),
       ).toBeInViewport({ ratio: 1 });
       await expect
         .poll(() =>
           page
             .locator('.workspace-main')
-            .evaluate((el) => Math.max(0, el.scrollHeight - el.clientHeight)),
+            .evaluate((el) =>
+              Math.max(
+                0,
+                el.querySelector('[data-section="overview"]').getBoundingClientRect().bottom -
+                  el.getBoundingClientRect().bottom,
+              ),
+            ),
         )
         .toBeLessThanOrEqual(1);
       await screenshot(`simple-cdp-scale-${factor}`);
@@ -290,11 +306,7 @@ async function identityIfNeeded() {
 }
 async function createAndVerify(details) {
   await identityIfNeeded();
-  await page
-    .getByRole('navigation', { name: 'Project setup' })
-    .getByRole('button', { name: 'Review', exact: true })
-    .click();
-  const button = page.getByRole('button', { name: 'Create Project', exact: true });
+  const button = page.getByRole('button', { name: 'Create project', exact: true });
   await expect(button).toBeEnabled();
   // Native configuration persistence intentionally waits for a 600ms debounce.
   await page.waitForTimeout(850);
@@ -313,22 +325,22 @@ async function createAndVerify(details) {
   assert.equal(preferences.destination, 'local');
   assert.deepEqual(request.options.postActions, { folder: false, vscode: false, github: false });
   const preview = await invoke('preview_files', { request });
+  // The result pane (a drawer at the default window size) is the review.
+  const drawer = page.getByRole('button', { name: /^Preview files \(\d+\)$/ });
+  if ((await drawer.isVisible()) && (await drawer.getAttribute('aria-expanded')) !== 'true')
+    await drawer.click();
+  const pane = page.locator('.creation-context:visible').first();
   for (const file of preview) {
-    await page
-      .getByRole('group', { name: 'Preview file' })
-      .getByRole('button', { name: file.path, exact: true })
-      .click();
+    await pane.getByRole('button', { name: file.path, exact: true }).click();
     assert.equal(
-      await page.getByLabel(`${file.path} preview`, { exact: true }).textContent(),
+      await pane.getByLabel(`${file.path} preview`, { exact: true }).textContent(),
       file.content,
       `UI preview: ${file.path}`,
     );
   }
   if (!preview.length)
     await expect(
-      page.getByText('No files will be generated. Git will create an empty initial commit.', {
-        exact: true,
-      }),
+      pane.getByText('Empty repository · the first commit will contain no files.', { exact: true }),
     ).toBeVisible();
   assert.equal(await page.evaluate(() => window.injected), undefined);
   await screenshot(`${details.name}-review`);
@@ -577,11 +589,7 @@ try {
     check(byPath[required], required);
   await page.getByRole('button', { name: 'Create Another', exact: true }).click();
   await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('native-advanced');
-  await page
-    .getByRole('navigation', { name: 'Project setup' })
-    .getByRole('button', { name: 'Review', exact: true })
-    .click();
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await page.getByText('A project with this name already exists here.', { exact: true }).waitFor();
   assert.equal(git(['rev-parse', 'HEAD'], advanced.project), advanced.result.commit);
   const history = await invoke('list_recent_projects');

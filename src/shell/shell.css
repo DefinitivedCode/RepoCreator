@@ -245,3 +245,55 @@
 .library-page section + section {
   margin-top: var(--space-5);
 }
+
+/* New Project: one scrolling page of sections with an index beside it. */
+.setup-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-block: var(--space-5);
+  border-top: 1px solid var(--hairline);
+  scroll-margin-top: var(--space-3);
+}
+.setup-section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.setup-section > h2 {
+  margin: 0;
+  font: 600 var(--fs-title) / var(--lh-title) var(--font-ui);
+}
+.setup-section > h2:focus-visible {
+  outline: var(--focus-width) solid var(--accent-text);
+  outline-offset: var(--focus-offset);
+}
+.workspace-heading .page-title {
+  margin: 0;
+  font: 600 var(--fs-title) / var(--lh-title) var(--font-ui);
+}
+.setup-summary-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font: 400 var(--fs-body) / var(--lh-body) var(--font-ui);
+}
+.setup-summary-list dt {
+  color: var(--text-2);
+}
+.setup-summary-list dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.navigation-rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+@container app (min-width: 1051px) {
+  .workspace.with-context .file-editor-layout,
+  .workspace.with-context .agent-editor-layout.with-instruction-preview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

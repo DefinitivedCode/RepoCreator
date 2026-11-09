@@ -1,7 +1,8 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
+import { Disclosure } from './ui';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './icons';
-import { AdvancedPanel, FilePreview, IgnorePanel, type FileSection } from './ConfigurationPanels';
+import { AdvancedPanel, IgnorePanel, type FileSection } from './ConfigurationPanels';
 import { PresetDialog } from './PresetDialog';
 import { FocusedFilePreview } from './FocusedFilePreview';
 import { GeneratedFilesDialog } from './GeneratedFilesDialog';
@@ -13,7 +14,7 @@ import { BlockerPopover, ConfirmPublish } from './create/CreateFlow';
 import { Projects } from './ProjectWorkspace';
 import type { ProjectCommand } from './workspaceTypes';
 import { RepositoryState } from './RepositoryState';
-import { Overview, ProjectSummary, SetupPanel, Context } from './WorkspaceFields';
+import { Overview, SetupPanel, Context } from './WorkspaceFields';
 import { Sidebar } from './shell/Sidebar';
 import { initialRoute, routeReducer, type SettingsTarget } from './shell/route';
 import { TabList, panelIdOf, tabId } from './ui/Tabs';
@@ -23,19 +24,17 @@ import './forced-colors.css';
 import { useCreator } from './useCreator';
 import { useUpdates } from './useUpdates';
 import { configurationOf } from './validation';
-import { isSetupBlocker, requiredSetupMet, summarizeBlockers, type FixTarget } from './blockers';
+import { requiredSetupMet, summarizeBlockers, type FixTarget } from './blockers';
 import { SetupChecklist } from './setup/SetupChecklist';
 import type { RecentProject } from './workspaceTypes';
 import type { Configuration, Readme } from './types';
 import { normalizeProjectName } from './projectName';
 
-export type Section = 'overview' | 'files' | 'agents' | 'review' | 'handoff';
+export type Section = 'overview' | 'files' | 'agents';
 const labels: Record<Section, string> = {
   overview: 'Overview',
   files: 'Project Files',
   agents: 'AI Agents',
-  review: 'Review',
-  handoff: 'AI Handoff',
 };
 
 export default function App() {
@@ -48,7 +47,9 @@ export default function App() {
   const { page, tab: settingsTab, projectId: selectedProjectId } = route;
   const [presetOverride, setPresetOverride] = useState<Configuration>();
   const [fileSection, setFileSection] = useState<FileSection | 'ignore'>('readme');
-  const [agentSection, setAgentSection] = useState<AgentSection>('assistants');
+  const [agentSection, setAgentSection] = useState<AgentSection>('instructions');
+  const [filesOpen, setFilesOpen] = useState<boolean | undefined>();
+  const [agentsOpen, setAgentsOpen] = useState<boolean | undefined>();
   const [presetId, setPresetId] = useState('');
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(true);
@@ -59,7 +60,6 @@ export default function App() {
   const createButton = useRef<HTMLButtonElement>(null);
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ configuration: Configuration; id: string } | null>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
   // First run: no completed setup and no projects yet. People upgrading with projects
   // are never interrupted: setup completes silently when the required items pass.
   const [hasProjects, setHasProjects] = useState<boolean | null>(null);
@@ -103,14 +103,12 @@ export default function App() {
     return () => window.removeEventListener('focus', onFocus);
   }, [firstRun, creator.checking, creator.refresh]);
   const simple = preferences?.experienceMode !== 'advanced';
-  const contextualFiles = section === 'files' || section === 'agents' || section === 'review';
-  const showContext = contextOpen && !contextualFiles;
+  const showContext = contextOpen;
   const allPresets = [...(catalog?.builtInPresets ?? []), ...(preferences?.customPresets ?? [])];
   const preset = allPresets.find((p) => p.id === presetId);
   const presetName = preset?.name ?? 'Last used settings';
   const requiredBlockers = creator.blockers.filter((blocker) => blocker.required);
   const summary = summarizeBlockers(creator.blockers);
-  const firstSetupBlocker = requiredBlockers.find(isSetupBlocker);
   // An inline fix is shown only when one thing needs doing; several get a list.
   const inlineFix = requiredBlockers.length <= 1 ? summary.first?.fix : undefined;
   function openSettings(tab?: SettingsTarget) {
@@ -123,13 +121,39 @@ export default function App() {
     else if (target === 'switch-local') void creator.destination('local');
     else void creator.refresh(form?.destination === 'github');
   }
+  // One scrolling page: the index scrolls to a section and moves focus to its heading.
+  const sectionRefs = useRef<Partial<Record<Section, HTMLElement | null>>>({});
+  const headingRefs = useRef<Partial<Record<Section, HTMLHeadingElement | null>>>({});
+  const scrollLock = useRef(0);
   function navigate(next: Section) {
     setSection(next);
+    scrollLock.current = Date.now();
     requestAnimationFrame(() => {
-      heading.current?.focus();
-      document.querySelector('.workspace-main')?.scrollTo(0, 0);
+      if (next === 'overview') document.querySelector('.workspace-main')?.scrollTo(0, 0);
+      else sectionRefs.current[next]?.scrollIntoView({ block: 'start' });
+      headingRefs.current[next]?.focus({ preventScroll: true });
     });
   }
+  // The index follows the scroll position (scroll spy), except right after choosing an item.
+  const onNewProject = page === 'new' && state.kind === 'form' && !!form;
+  useEffect(() => {
+    const root = document.querySelector<HTMLElement>('.workspace-main');
+    if (!onNewProject || !root) return;
+    const onScroll = () => {
+      if (Date.now() - scrollLock.current < 500) return;
+      const order: Section[] = ['overview', 'files', 'agents'];
+      const top = root.getBoundingClientRect().top + 96;
+      const atEnd = root.scrollTop + root.clientHeight >= root.scrollHeight - 4;
+      let current: Section = 'overview';
+      for (const id of order) {
+        const element = sectionRefs.current[id];
+        if (element && element.getBoundingClientRect().top <= top) current = id;
+      }
+      setSection(atEnd && root.scrollTop > 0 ? 'agents' : current);
+    };
+    root.addEventListener('scroll', onScroll, { passive: true });
+    return () => root.removeEventListener('scroll', onScroll);
+  }, [onNewProject]);
   // Optional shortcuts: Ctrl/Cmd+N starts a project and Ctrl/Cmd+, opens Settings. Every
   // action also has a visible control, so these are never the only way.
   const shortcutActions = useRef({ create: () => {}, settings: () => {} });
@@ -333,8 +357,7 @@ export default function App() {
                 setBlockersOpen(true);
                 return;
               }
-              if (section !== 'review') navigate('review');
-              else if (form.destination === 'github') setConfirmOpen(true);
+              if (form.destination === 'github') setConfirmOpen(true);
               else void creator.execute(false, presetName);
             }}
           >
@@ -346,17 +369,11 @@ export default function App() {
                     key={s}
                     type="button"
                     className={`nav-item ${section === s ? 'active' : ''}`}
-                    aria-current={section === s ? 'page' : undefined}
+                    aria-current={section === s ? 'location' : undefined}
                     onClick={() => navigate(s)}
                   >
                     <Icon
-                      name={
-                        s === 'files' || s === 'review'
-                          ? 'file'
-                          : s === 'agents' || s === 'handoff'
-                            ? 'code'
-                            : 'folder'
-                      }
+                      name={s === 'files' ? 'file' : s === 'agents' ? 'code' : 'folder'}
                       size={15}
                     />
                     {labels[s]}
@@ -366,30 +383,26 @@ export default function App() {
               <main className="workspace-main" aria-label="Repository configuration" tabIndex={0}>
                 <div className="workspace-heading">
                   <div>
-                    <h2 ref={heading} tabIndex={-1}>
-                      {labels[section]}
-                    </h2>
+                    <h1 className="page-title">New project</h1>
                   </div>
-                  {!contextualFiles && (
-                    <div className="workspace-heading-actions">
-                      <button
-                        type="button"
-                        className="text-button compact-preview-trigger"
-                        aria-haspopup="dialog"
-                        onClick={() => setPreviewPath('README.md')}
-                      >
-                        <Icon name="file" size={14} /> Preview files
-                      </button>
-                      <button
-                        type="button"
-                        className="text-button context-toggle"
-                        aria-pressed={contextOpen}
-                        onClick={() => setContextOpen(!contextOpen)}
-                      >
-                        {contextOpen ? 'Hide details' : 'Show details'}
-                      </button>
-                    </div>
-                  )}
+                  <div className="workspace-heading-actions">
+                    <button
+                      type="button"
+                      className="text-button compact-preview-trigger"
+                      aria-haspopup="dialog"
+                      onClick={() => setPreviewPath('README.md')}
+                    >
+                      <Icon name="file" size={14} /> Preview files
+                    </button>
+                    <button
+                      type="button"
+                      className="text-button context-toggle"
+                      aria-pressed={contextOpen}
+                      onClick={() => setContextOpen(!contextOpen)}
+                    >
+                      {contextOpen ? 'Hide details' : 'Show details'}
+                    </button>
+                  </div>
                 </div>
                 {requiredBlockers.length > 1 && (
                   <div
@@ -426,27 +439,73 @@ export default function App() {
                   </div>
                 )}
                 <fieldset disabled={creator.picking || creator.busy} className="workspace-fields">
-                  {section === 'overview' && (
-                    <>
-                      <Overview
-                        creator={creator}
-                        simple={simple}
-                        presetId={presetId}
-                        onApply={apply}
-                        onManage={() => setPresetsOpen(true)}
-                        onAgents={() => navigate('agents')}
-                        canUndo={!!undo}
-                        onUndo={() => {
-                          if (!undo) return;
-                          creator.configure(undo.configuration, false);
-                          setPresetId(undo.id);
-                          setUndo(null);
-                        }}
-                      />
-                    </>
-                  )}
-                  {section === 'files' && (
-                    <>
+                  <section
+                    className="setup-section"
+                    data-section="overview"
+                    aria-labelledby="setup-heading-overview"
+                    ref={(element) => {
+                      sectionRefs.current.overview = element;
+                    }}
+                  >
+                    <h2
+                      id="setup-heading-overview"
+                      ref={(element) => {
+                        headingRefs.current.overview = element;
+                      }}
+                      tabIndex={-1}
+                    >
+                      {labels.overview}
+                    </h2>
+                    <Overview
+                      creator={creator}
+                      simple={simple}
+                      presetId={presetId}
+                      onApply={apply}
+                      onManage={() => setPresetsOpen(true)}
+                      onAgents={() => navigate('agents')}
+                      canUndo={!!undo}
+                      onUndo={() => {
+                        if (!undo) return;
+                        creator.configure(undo.configuration, false);
+                        setPresetId(undo.id);
+                        setUndo(null);
+                      }}
+                    />
+                  </section>
+                  <section
+                    className="setup-section"
+                    data-section="files"
+                    aria-labelledby="setup-heading-files"
+                    ref={(element) => {
+                      sectionRefs.current.files = element;
+                    }}
+                  >
+                    <h2
+                      id="setup-heading-files"
+                      ref={(element) => {
+                        headingRefs.current.files = element;
+                      }}
+                      tabIndex={-1}
+                    >
+                      {labels.files}
+                    </h2>
+                    <dl className="setup-summary-list">
+                      <dt>README</dt>
+                      <dd>{form.readme[0].toUpperCase() + form.readme.slice(1)}</dd>
+                      <dt>License</dt>
+                      <dd>{form.options.license === 'none' ? 'None' : form.options.license}</dd>
+                      <dt>First commit</dt>
+                      <dd>
+                        <code>{form.options.initialBranch}</code> · {form.options.commitMessage}
+                      </dd>
+                    </dl>
+                    <Disclosure
+                      title="Customize files"
+                      lazy
+                      summary="README, .gitignore, license, extra files, Git settings"
+                      open={filesOpen ?? !simple}
+                      onToggle={setFilesOpen}
+                    >
                       <Subnav
                         base="file-settings"
                         label="Project file settings"
@@ -458,7 +517,10 @@ export default function App() {
                           ['additional', 'Additional Files'],
                           ['git', 'Git Settings'],
                         ]}
-                        onChange={(v) => setFileSection(v as typeof fileSection)}
+                        onChange={(v) => {
+                          setFileSection(v as typeof fileSection);
+                          setSection('files');
+                        }}
                       />
                       <div
                         role="tabpanel"
@@ -519,21 +581,46 @@ export default function App() {
                           </section>
                         )}
                       </div>
-                    </>
-                  )}
-                  {section === 'agents' && (
-                    <>
+                    </Disclosure>
+                  </section>
+                  <section
+                    className="setup-section"
+                    data-section="agents"
+                    aria-labelledby="setup-heading-agents"
+                    ref={(element) => {
+                      sectionRefs.current.agents = element;
+                    }}
+                  >
+                    <h2
+                      id="setup-heading-agents"
+                      ref={(element) => {
+                        headingRefs.current.agents = element;
+                      }}
+                      tabIndex={-1}
+                    >
+                      {labels.agents}
+                    </h2>
+                    <AgentStudio creator={creator} section="assistants" />
+                    <Disclosure
+                      title="Customize AI agents"
+                      lazy
+                      summary="Instructions, specialists and skills, advanced"
+                      open={agentsOpen ?? !simple}
+                      onToggle={setAgentsOpen}
+                    >
                       <Subnav
                         base="agent-settings"
                         label="AI agent settings"
                         value={agentSection}
                         items={[
-                          ['assistants', 'Assistants'],
                           ['instructions', 'Instructions'],
                           ['specialists', 'Specialists & Skills'],
                           ['advanced', 'Advanced'],
                         ]}
-                        onChange={(v) => setAgentSection(v as AgentSection)}
+                        onChange={(v) => {
+                          setAgentSection(v as AgentSection);
+                          setSection('agents');
+                        }}
                       />
                       <div
                         role="tabpanel"
@@ -541,7 +628,7 @@ export default function App() {
                         aria-labelledby={tabId('agent-settings', agentSection)}
                         className={`agent-editor-layout ${agentSection === 'instructions' ? 'with-instruction-preview' : ''}`}
                       >
-                        <AgentStudio creator={creator} section={agentSection} />
+                        <AgentStudio creator={creator} section={agentSection} embedded />
                         {agentSection === 'instructions' && (
                           <FocusedFilePreview
                             creator={creator}
@@ -550,42 +637,8 @@ export default function App() {
                           />
                         )}
                       </div>
-                    </>
-                  )}
-                  {section === 'review' && (
-                    <>
-                      <div className="review-editor-layout">
-                        <section className="review-summary-card">
-                          <h3>Ready to create</h3>
-                          <ProjectSummary creator={creator} presetName={presetName} />
-                          <p className="help">Creates a new folder and initial commit.</p>
-                        </section>
-                        <FilePreview
-                          name={normalizeProjectName(form.name) || 'project-name'}
-                          files={creator.files}
-                          loading={creator.previewing}
-                          error={creator.previewError}
-                          expanded
-                        />
-                      </div>
-                      {firstSetupBlocker?.fix && (
-                        <button type="button" onClick={() => runFix(firstSetupBlocker.fix!.target)}>
-                          {firstSetupBlocker.title}
-                        </button>
-                      )}
-                    </>
-                  )}
-                  {section === 'handoff' && (
-                    <HandoffPanel
-                      form={form}
-                      files={creator.files}
-                      parentPath={preferences.parentPath}
-                      presetName={presetName}
-                      simple={simple}
-                      onTemplateChange={(id) => creator.update('handoffTemplate', id)}
-                      copy={creator.copy}
-                    />
-                  )}
+                    </Disclosure>
+                  </section>
                 </fieldset>
                 {creator.error && (
                   <div className="error-banner" role="alert">
@@ -712,7 +765,7 @@ export default function App() {
                 aria-disabled={!creator.ready || undefined}
                 aria-describedby="creation-reason"
               >
-                {section === 'review' ? 'Create Project' : 'Review project'}
+                Create project
                 <Icon name="arrow" size={14} />
               </button>
             </footer>

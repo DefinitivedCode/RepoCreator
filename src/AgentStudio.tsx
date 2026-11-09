@@ -10,9 +10,12 @@ export type AgentSection = 'assistants' | 'instructions' | 'specialists' | 'adva
 export function AgentStudio({
   creator,
   section = 'assistants',
+  embedded = false,
 }: {
   creator: Creator;
   section?: AgentSection;
+  /** Rendered under another instance's heading and master toggle (the Customize region). */
+  embedded?: boolean;
 }) {
   const [search, setSearch] = useState('');
   const [presetName, setPresetName] = useState('');
@@ -126,335 +129,361 @@ export function AgentStudio({
       setError(appError(value).message);
     }
   }
+  // A plain container inside Customize, a disclosure panel on its own.
+  const Wrapper = (embedded ? 'div' : 'details') as 'details';
   return (
-    <details className="disclosure agent-panel workspace-panel" data-ai-section={section} open>
-      <summary>
-        <Icon name="code" size={15} />
-        <span>AI Agents</span>
-        <span className="summary-meta">
-          {studio.enabled ? `${studio.agents.length} selected` : 'Off'}
-        </span>
-        <Icon name="chevron" size={14} />
-      </summary>
+    <Wrapper
+      className={`${embedded ? '' : 'disclosure '}agent-panel workspace-panel`}
+      data-ai-section={section}
+      {...(embedded ? {} : { open: true })}
+    >
+      {!embedded && (
+        <summary>
+          <Icon name="code" size={15} />
+          <span>AI Agents</span>
+          <span className="summary-meta">
+            {studio.enabled ? `${studio.agents.length} selected` : 'Off'}
+          </span>
+          <Icon name="chevron" size={14} />
+        </summary>
+      )}
       <div className="disclosure-body">
-        <label className="check-label">
-          <input
-            type="checkbox"
-            checked={studio.enabled}
-            onChange={(event) =>
-              update({
-                ...studio,
-                enabled: event.target.checked,
-                agents: event.target.checked && !studio.agents.length ? ['codex'] : studio.agents,
-              })
-            }
-          />
-          Generate AI agent files
-        </label>
+        {!embedded && (
+          <label className="check-label">
+            <input
+              type="checkbox"
+              checked={studio.enabled}
+              onChange={(event) =>
+                update({
+                  ...studio,
+                  enabled: event.target.checked,
+                  agents: event.target.checked && !studio.agents.length ? ['codex'] : studio.agents,
+                })
+              }
+            />
+            Generate AI agent files
+          </label>
+        )}
         {!studio.enabled ? (
-          <p className="help">No AI instructions or configuration files will be generated.</p>
+          embedded ? (
+            <p className="help">Turn on AI agent files above to edit these settings.</p>
+          ) : (
+            <p className="help">No AI instructions or configuration files will be generated.</p>
+          )
         ) : (
           <>
-            <section className="settings-section" hidden={section !== 'assistants'}>
-              <h3>Project instruction formats</h3>
-              <p className="help">Choose the assistants you use. No installation is needed.</p>
-              <div className="checkbox-grid assistant-options">
-                {source.agents.map((agent) => (
-                  <label
-                    className={`check-label assistant-option ${studio.agents.includes(agent.id) ? 'selected' : ''}`}
-                    key={agent.id}
+            {!(section !== 'assistants') && (
+              <section className="settings-section">
+                <h3>Project instruction formats</h3>
+                <p className="help">Choose the assistants you use. No installation is needed.</p>
+                <div className="checkbox-grid assistant-options">
+                  {source.agents.map((agent) => (
+                    <label
+                      className={`check-label assistant-option ${studio.agents.includes(agent.id) ? 'selected' : ''}`}
+                      key={agent.id}
+                    >
+                      <input
+                        type="checkbox"
+                        aria-label={agent.name}
+                        checked={studio.agents.includes(agent.id)}
+                        onChange={() =>
+                          update({
+                            ...studio,
+                            agents: studio.agents.includes(agent.id)
+                              ? studio.agents.filter((id) => id !== agent.id)
+                              : [...studio.agents, agent.id],
+                          })
+                        }
+                      />
+                      <span>
+                        <strong>{agent.name}</strong>
+                        <small>{agent.description}</small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {!studio.agents.length && (
+                  <p className="inline-error">
+                    Select at least one coding agent, or turn off AI files.
+                  </p>
+                )}
+              </section>
+            )}
+            {!!['instructions', 'advanced'].includes(section) && (
+              <section className="settings-section instruction-settings">
+                <div className="field">
+                  <label htmlFor="instruction-preset">Instruction preset</label>
+                  <select
+                    id="instruction-preset"
+                    value={selectedId}
+                    onChange={(event) => load(event.target.value)}
                   >
-                    <input
-                      type="checkbox"
-                      aria-label={agent.name}
-                      checked={studio.agents.includes(agent.id)}
-                      onChange={() =>
-                        update({
-                          ...studio,
-                          agents: studio.agents.includes(agent.id)
-                            ? studio.agents.filter((id) => id !== agent.id)
-                            : [...studio.agents, agent.id],
-                        })
-                      }
-                    />
-                    <span>
-                      <strong>{agent.name}</strong>
-                      <small>{agent.description}</small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-              {!studio.agents.length && (
-                <p className="inline-error">
-                  Select at least one coding agent, or turn off AI files.
-                </p>
-              )}
-            </section>
-            <section
-              className="settings-section instruction-settings"
-              hidden={!['instructions', 'advanced'].includes(section)}
-            >
-              <div className="field">
-                <label htmlFor="instruction-preset">Instruction preset</label>
-                <select
-                  id="instruction-preset"
-                  value={selectedId}
-                  onChange={(event) => load(event.target.value)}
-                >
-                  <optgroup label="Built-in">
-                    {source.presets.map((preset) => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                  {!!savedPresets.length && (
-                    <optgroup label="Saved instructions">
-                      {savedPresets.map((preset) => (
+                    <optgroup label="Built-in">
+                      {source.presets.map((preset) => (
                         <option key={preset.id} value={preset.id}>
                           {preset.name}
                         </option>
                       ))}
                     </optgroup>
-                  )}
-                </select>
-                <p className="help">
-                  {selectedBuiltIn?.description ?? 'Your saved, editable development instructions.'}
-                </p>
-              </div>
-              <div className="inline-actions studio-actions">
-                <button type="button" onClick={() => load(selectedId, true)}>
-                  Reset preset rules
-                </button>
-                <button type="button" onClick={() => void importPreset()}>
-                  Import preset…
-                </button>
-                <button type="button" onClick={() => void exportInstructions()}>
-                  Export preset…
-                </button>
-                {selectedSaved && (
-                  <button
-                    type="button"
-                    className="text-button danger"
-                    onClick={() => setDeleting(true)}
-                  >
-                    Delete saved preset
+                    {!!savedPresets.length && (
+                      <optgroup label="Saved instructions">
+                        {savedPresets.map((preset) => (
+                          <option key={preset.id} value={preset.id}>
+                            {preset.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <p className="help">
+                    {selectedBuiltIn?.description ??
+                      'Your saved, editable development instructions.'}
+                  </p>
+                </div>
+                <div className="inline-actions studio-actions">
+                  <button type="button" onClick={() => load(selectedId, true)}>
+                    Reset preset rules
                   </button>
-                )}
-              </div>
-              {deleting && (
-                <div className="delete-confirm">
-                  <p>Delete “{selectedSaved?.name}”? Current instructions will be kept.</p>
-                  <div className="inline-actions">
-                    <button type="button" className="danger" onClick={() => void deletePreset()}>
-                      Delete instruction preset
+                  <button type="button" onClick={() => void importPreset()}>
+                    Import preset…
+                  </button>
+                  <button type="button" onClick={() => void exportInstructions()}>
+                    Export preset…
+                  </button>
+                  {selectedSaved && (
+                    <button
+                      type="button"
+                      className="text-button danger"
+                      onClick={() => setDeleting(true)}
+                    >
+                      Delete saved preset
                     </button>
-                    <button type="button" onClick={() => setDeleting(false)}>
-                      Cancel
+                  )}
+                </div>
+                {deleting && (
+                  <div className="delete-confirm">
+                    <p>Delete “{selectedSaved?.name}”? Current instructions will be kept.</p>
+                    <div className="inline-actions">
+                      <button type="button" className="danger" onClick={() => void deletePreset()}>
+                        Delete instruction preset
+                      </button>
+                      <button type="button" onClick={() => setDeleting(false)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <details className="studio-subsection development-rules" open>
+                  <summary>
+                    Development rules <span className="help">{profile.rules.length} enabled</span>
+                  </summary>
+                  <div className="studio-section-body">
+                    <label className="field">
+                      <span className="control-label">Find development rules</span>
+                      <input
+                        type="search"
+                        value={search}
+                        placeholder="Search rules…"
+                        onChange={(event) => setSearch(event.target.value)}
+                      />
+                    </label>
+                    {[...new Set(source.rules.map((rule) => rule.group))].map((group) => {
+                      const rules = source.rules.filter(
+                        (rule) =>
+                          rule.group === group &&
+                          `${rule.label} ${rule.text}`.toLowerCase().includes(search.toLowerCase()),
+                      );
+                      return rules.length ? (
+                        <section className="studio-rule-group" key={group}>
+                          <h3>{group}</h3>
+                          <div className="checkbox-grid">
+                            {rules.map((rule) => (
+                              <label
+                                className="check-label"
+                                key={rule.id}
+                                title={profile.wording[rule.id] ?? rule.text}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={profile.rules.includes(rule.id)}
+                                  onChange={() =>
+                                    setProfile({
+                                      ...profile,
+                                      rules: profile.rules.includes(rule.id)
+                                        ? profile.rules.filter((id) => id !== rule.id)
+                                        : [...profile.rules, rule.id],
+                                    })
+                                  }
+                                />
+                                {rule.label}
+                              </label>
+                            ))}
+                          </div>
+                        </section>
+                      ) : null;
+                    })}
+                    <label className="field">
+                      <span className="control-label">Working approach</span>
+                      <select
+                        value={profile.workflow}
+                        onChange={(event) =>
+                          setProfile({ ...profile, workflow: event.target.value as Workflow })
+                        }
+                      >
+                        <option value="balanced">Balanced</option>
+                        <option value="autonomous">Autonomous within the requested scope</option>
+                        <option value="review-first">Review and propose an approach first</option>
+                      </select>
+                    </label>
+                  </div>
+                </details>
+                <details className="studio-subsection technology-guidance" open>
+                  <summary>
+                    Technology guidance{' '}
+                    <span className="help">{profile.technologies.length} selected</span>
+                  </summary>
+                  <div className="studio-section-body">
+                    <p className="help">
+                      Suggestions from the project preset. These describe intended technologies, not
+                      an existing scaffold.
+                    </p>
+                    <div className="checkbox-grid">
+                      {source.technologies.map((technology) => (
+                        <label
+                          className="check-label"
+                          key={technology.id}
+                          title={
+                            profile.technologyWording[technology.id] ?? technology.instructions
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={profile.technologies.includes(technology.id)}
+                            onChange={() =>
+                              setProfile({
+                                ...profile,
+                                technologies: profile.technologies.includes(technology.id)
+                                  ? profile.technologies.filter((id) => id !== technology.id)
+                                  : [...profile.technologies, technology.id],
+                              })
+                            }
+                          />
+                          {technology.name}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+              </section>
+            )}
+            {!(section !== 'instructions') && (
+              <section className="settings-section">
+                <div className="field">
+                  <label htmlFor="custom-instructions">
+                    Additional project instructions <span className="optional">user-authored</span>
+                  </label>
+                  <textarea
+                    id="custom-instructions"
+                    className="mono"
+                    rows={5}
+                    maxLength={65_536}
+                    value={profile.customText}
+                    onChange={(event) => setProfile({ ...profile, customText: event.target.value })}
+                    placeholder="Your own Markdown instructions…"
+                  />
+                </div>
+                <div className="inline-actions studio-actions">
+                  <button type="button" onClick={() => void importMarkdown()}>
+                    Import Markdown…
+                  </button>
+                  <span className="help">UTF-8 · up to 64 KiB</span>
+                </div>
+                {imported !== null && (
+                  <div className="delete-confirm">
+                    <p>
+                      Instructions already contain text. Append the imported Markdown or replace the
+                      current text?
+                    </p>
+                    <div className="inline-actions studio-actions">
+                      <button type="button" onClick={() => applyImport(true)}>
+                        Append imported text
+                      </button>
+                      <button type="button" onClick={() => applyImport(false)}>
+                        Replace current text
+                      </button>
+                      <button type="button" onClick={() => setImported(null)}>
+                        Cancel import
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="field">
+                  <label htmlFor="save-instructions-name">Save instructions as</label>
+                  <div className="inline-actions">
+                    <input
+                      id="save-instructions-name"
+                      maxLength={60}
+                      value={presetName}
+                      onChange={(event) => setPresetName(event.target.value)}
+                      placeholder="e.g. My development rules"
+                    />
+                    <button
+                      type="button"
+                      disabled={!presetName.trim()}
+                      onClick={() => void saveInstructions()}
+                    >
+                      Save instructions
                     </button>
                   </div>
                 </div>
-              )}
-              <details className="studio-subsection development-rules" open>
+              </section>
+            )}
+            {!(section !== 'specialists') && (
+              <div>
+                <SpecialistEditor studio={studio} update={update} creator={creator} />
+              </div>
+            )}
+            {!(section !== 'specialists') && (
+              <details className="studio-subsection" open>
                 <summary>
-                  Development rules <span className="help">{profile.rules.length} enabled</span>
-                </summary>
-                <div className="studio-section-body">
-                  <label className="field">
-                    <span className="control-label">Find development rules</span>
-                    <input
-                      type="search"
-                      value={search}
-                      placeholder="Search rules…"
-                      onChange={(event) => setSearch(event.target.value)}
-                    />
-                  </label>
-                  {[...new Set(source.rules.map((rule) => rule.group))].map((group) => {
-                    const rules = source.rules.filter(
-                      (rule) =>
-                        rule.group === group &&
-                        `${rule.label} ${rule.text}`.toLowerCase().includes(search.toLowerCase()),
-                    );
-                    return rules.length ? (
-                      <section className="studio-rule-group" key={group}>
-                        <h3>{group}</h3>
-                        <div className="checkbox-grid">
-                          {rules.map((rule) => (
-                            <label
-                              className="check-label"
-                              key={rule.id}
-                              title={profile.wording[rule.id] ?? rule.text}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={profile.rules.includes(rule.id)}
-                                onChange={() =>
-                                  setProfile({
-                                    ...profile,
-                                    rules: profile.rules.includes(rule.id)
-                                      ? profile.rules.filter((id) => id !== rule.id)
-                                      : [...profile.rules, rule.id],
-                                  })
-                                }
-                              />
-                              {rule.label}
-                            </label>
-                          ))}
-                        </div>
-                      </section>
-                    ) : null;
-                  })}
-                  <label className="field">
-                    <span className="control-label">Working approach</span>
-                    <select
-                      value={profile.workflow}
-                      onChange={(event) =>
-                        setProfile({ ...profile, workflow: event.target.value as Workflow })
-                      }
-                    >
-                      <option value="balanced">Balanced</option>
-                      <option value="autonomous">Autonomous within the requested scope</option>
-                      <option value="review-first">Review and propose an approach first</option>
-                    </select>
-                  </label>
-                </div>
-              </details>
-              <details className="studio-subsection technology-guidance" open>
-                <summary>
-                  Technology guidance{' '}
-                  <span className="help">{profile.technologies.length} selected</span>
+                  Agent skills <span className="help">optional</span>
                 </summary>
                 <div className="studio-section-body">
                   <p className="help">
-                    Suggestions from the project preset. These describe intended technologies, not
-                    an existing scaffold.
+                    One shared .agents/skills directory, currently generated for Codex and OpenCode.
+                    Skills are task workflows, not always-on rules.
                   </p>
                   <div className="checkbox-grid">
-                    {source.technologies.map((technology) => (
-                      <label
-                        className="check-label"
-                        key={technology.id}
-                        title={profile.technologyWording[technology.id] ?? technology.instructions}
-                      >
+                    {source.skills.map((skill) => (
+                      <label className="check-label" key={skill.id} title={skill.description}>
                         <input
                           type="checkbox"
-                          checked={profile.technologies.includes(technology.id)}
+                          checked={studio.skills.includes(skill.id)}
                           onChange={() =>
-                            setProfile({
-                              ...profile,
-                              technologies: profile.technologies.includes(technology.id)
-                                ? profile.technologies.filter((id) => id !== technology.id)
-                                : [...profile.technologies, technology.id],
+                            update({
+                              ...studio,
+                              skills: studio.skills.includes(skill.id)
+                                ? studio.skills.filter((id) => id !== skill.id)
+                                : [...studio.skills, skill.id],
                             })
                           }
                         />
-                        {technology.name}
+                        {skill.name}
                       </label>
                     ))}
                   </div>
+                  {!studio.agents.some((agent) => ['codex', 'opencode'].includes(agent)) &&
+                    !!studio.skills.length && (
+                      <p className="help">Select Codex or OpenCode to generate these skills.</p>
+                    )}
                 </div>
               </details>
-            </section>
-            <section className="settings-section" hidden={section !== 'instructions'}>
-              <div className="field">
-                <label htmlFor="custom-instructions">
-                  Additional project instructions <span className="optional">user-authored</span>
-                </label>
-                <textarea
-                  id="custom-instructions"
-                  className="mono"
-                  rows={5}
-                  maxLength={65_536}
-                  value={profile.customText}
-                  onChange={(event) => setProfile({ ...profile, customText: event.target.value })}
-                  placeholder="Your own Markdown instructions…"
-                />
+            )}
+            {!(section !== 'advanced') && (
+              <div>
+                <StudioAdvanced studio={studio} update={update} source={source} />
               </div>
-              <div className="inline-actions studio-actions">
-                <button type="button" onClick={() => void importMarkdown()}>
-                  Import Markdown…
-                </button>
-                <span className="help">UTF-8 · up to 64 KiB</span>
-              </div>
-              {imported !== null && (
-                <div className="delete-confirm">
-                  <p>
-                    Instructions already contain text. Append the imported Markdown or replace the
-                    current text?
-                  </p>
-                  <div className="inline-actions studio-actions">
-                    <button type="button" onClick={() => applyImport(true)}>
-                      Append imported text
-                    </button>
-                    <button type="button" onClick={() => applyImport(false)}>
-                      Replace current text
-                    </button>
-                    <button type="button" onClick={() => setImported(null)}>
-                      Cancel import
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div className="field">
-                <label htmlFor="save-instructions-name">Save instructions as</label>
-                <div className="inline-actions">
-                  <input
-                    id="save-instructions-name"
-                    maxLength={60}
-                    value={presetName}
-                    onChange={(event) => setPresetName(event.target.value)}
-                    placeholder="e.g. My development rules"
-                  />
-                  <button
-                    type="button"
-                    disabled={!presetName.trim()}
-                    onClick={() => void saveInstructions()}
-                  >
-                    Save instructions
-                  </button>
-                </div>
-              </div>
-            </section>
-            <div hidden={section !== 'specialists'}>
-              <SpecialistEditor studio={studio} update={update} creator={creator} />
-            </div>
-            <details className="studio-subsection" hidden={section !== 'specialists'} open>
-              <summary>
-                Agent skills <span className="help">optional</span>
-              </summary>
-              <div className="studio-section-body">
-                <p className="help">
-                  One shared .agents/skills directory, currently generated for Codex and OpenCode.
-                  Skills are task workflows, not always-on rules.
-                </p>
-                <div className="checkbox-grid">
-                  {source.skills.map((skill) => (
-                    <label className="check-label" key={skill.id} title={skill.description}>
-                      <input
-                        type="checkbox"
-                        checked={studio.skills.includes(skill.id)}
-                        onChange={() =>
-                          update({
-                            ...studio,
-                            skills: studio.skills.includes(skill.id)
-                              ? studio.skills.filter((id) => id !== skill.id)
-                              : [...studio.skills, skill.id],
-                          })
-                        }
-                      />
-                      {skill.name}
-                    </label>
-                  ))}
-                </div>
-                {!studio.agents.some((agent) => ['codex', 'opencode'].includes(agent)) &&
-                  !!studio.skills.length && (
-                    <p className="help">Select Codex or OpenCode to generate these skills.</p>
-                  )}
-              </div>
-            </details>
-            <div hidden={section !== 'advanced'}>
-              <StudioAdvanced studio={studio} update={update} source={source} />
-            </div>
+            )}
             <p className="help">
               All generated AI files appear in Review. Instructions are saved as data and are never
               executed by Repo Creator.
@@ -477,6 +506,6 @@ export function AgentStudio({
           </p>
         )}
       </div>
-    </details>
+    </Wrapper>
   );
 }

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { prepare, navigate, fileTab, agentTab, createProject } from './fixtures';
+import { prepare, navigate, fileTab, agentTab, createProject, openHandoff } from './fixtures';
 
 // The same fixture and viewports produce comparable audit captures before/after changes.
 test('visual audit of creation, settings and dialogs', async ({ page }, info) => {
@@ -27,7 +27,7 @@ test('visual audit of creation, settings and dialogs', async ({ page }, info) =>
   await page.getByLabel('Description').fill('A small desktop tool for local projects');
   await page.getByLabel('Starting point').selectOption('tauri');
   await page.getByLabel('AI coding assistant').selectOption('codex');
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeEnabled();
   await page.setViewportSize({ width: 1440, height: 900 });
   await capture('overview-wide');
   await page.setViewportSize({ width: 1100, height: 740 });
@@ -52,10 +52,9 @@ test('visual audit of creation, settings and dialogs', async ({ page }, info) =>
   await agentTab(page, 'Advanced');
   await page.getByText('Advanced AI configuration', { exact: true }).click();
   await capture('advanced');
-  await navigate(page, 'AI Handoff');
+  await openHandoff(page);
   await capture('handoff');
-  await navigate(page, 'Review');
-  await capture('review');
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Presets', exact: true }).click();
   await capture('presets');
   await page.getByRole('button', { name: 'Manage presets', exact: true }).click();
@@ -98,7 +97,7 @@ test('disclosures, enlarged previews and accents remain accessible at desktop wi
   await page
     .getByRole('textbox', { name: 'Project name', exact: true })
     .fill('accessible-workbench');
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeEnabled();
   const details = page.locator('.brief-details');
   const summary = details.locator('summary');
   await summary.focus();

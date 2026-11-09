@@ -8,7 +8,6 @@ const created = async (page: Page) =>
 
 async function toReview(page: Page, name: string) {
   await page.getByLabel('Project name').fill(name);
-  await navigate(page, 'Review');
 }
 
 test('an unavailable Create button stays focusable and opens a popover with a fix for each blocker', async ({
@@ -19,7 +18,7 @@ test('an unavailable Create button stays focusable and opens a popover with a fi
   });
   await prepare(page, false, 'simple', false);
   await page.getByLabel('Project name').fill('needs-identity');
-  const button = page.getByRole('button', { name: 'Review project', exact: true });
+  const button = page.getByRole('button', { name: 'Create project', exact: true });
   await expect(button).toHaveAttribute('aria-disabled', 'true');
   await expect(button).not.toHaveAttribute('disabled', '');
   await button.focus();
@@ -53,7 +52,7 @@ test('a ready Create button has no popover and a local project is created withou
 }) => {
   await prepare(page, false, 'simple');
   await toReview(page, 'local-only');
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await created(page)).toHaveLength(1);
@@ -65,7 +64,7 @@ test('publishing to GitHub asks first, names the repository, and Cancel creates 
   await prepare(page, false, 'advanced');
   await page.getByRole('button', { name: 'GitHub', exact: true }).click();
   await toReview(page, 'octo-notes');
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Create on GitHub?' });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('octocat/octo-notes');
@@ -76,10 +75,10 @@ test('publishing to GitHub asks first, names the repository, and Cancel creates 
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   expect(await created(page)).toHaveLength(0);
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   expect(await created(page)).toHaveLength(0);
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await dialog.getByRole('button', { name: 'Create on GitHub' }).click();
   await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
   const [request] = await created(page);
@@ -91,7 +90,7 @@ test('a public repository is called out in the confirmation', async ({ page }) =
   await page.getByRole('button', { name: 'GitHub', exact: true }).click();
   await page.getByRole('radio', { name: 'Public' }).check();
   await toReview(page, 'open-notes');
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Create on GitHub?' });
   await expect(dialog).toContainText('Public. Anyone on the internet can see it.');
   await dialog.getByRole('button', { name: 'Cancel' }).click();

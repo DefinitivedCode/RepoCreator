@@ -219,8 +219,6 @@ test.describe('redesign baseline', () => {
         await at(`new-agents-${tab.toLowerCase().replace(/[^a-z]+/g, '-')}`, () =>
           agentTab(page, tab),
         );
-      await at('new-review', () => navigate(page, 'Review'));
-      await at('new-handoff', () => navigate(page, 'AI Handoff'));
       await at('generated-files-dialog', async () => {
         await navigate(page, 'Overview');
         await page
@@ -293,8 +291,7 @@ test.describe('redesign baseline', () => {
       await shoot(page, scheme, size.name, 'success', async () => {
         await main(page, 'New Project').click();
         await page.getByLabel('Project name').fill('river-notes');
-        await navigate(page, 'Review');
-        await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+        await page.getByRole('button', { name: 'Create project', exact: true }).click();
         await page.getByText('river-notes').first().waitFor();
       });
       break;

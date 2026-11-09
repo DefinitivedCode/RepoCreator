@@ -457,20 +457,6 @@ export function Context({
           }[fileSection ?? 'readme'] ?? 'README.md')
         : selectedFile;
   const preview = files.find((file) => file.path === preferred) ?? files[0];
-  if (section === 'handoff')
-    return (
-      <div className="creation-context">
-        <div className="context-heading">
-          <Icon name="lock" size={16} />
-          <h3>Local project context</h3>
-        </div>
-        <p className="help">Review your prompt before copying or exporting it.</p>
-        <div className="context-note">
-          <Icon name="check" size={14} />
-          <span>Assembled on this computer. Nothing is sent to an AI service.</span>
-        </div>
-      </div>
-    );
   return (
     <div className="creation-context">
       <div className="context-heading">

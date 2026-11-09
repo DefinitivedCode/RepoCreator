@@ -18,7 +18,7 @@ test('creation status bar contains and aligns Git readiness, summary, validation
   await expect(footer.getByRole('status')).toHaveText('Enter a project name.');
   await page.getByLabel('Project name', { exact: true }).fill('field-notes');
   await page.getByRole('button', { name: 'GitHub', exact: true }).click();
-  await expect(footer.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
+  await expect(footer.getByRole('button', { name: 'Create project', exact: true })).toBeEnabled();
   await expect(footer).toContainText('Private GitHub repository');
   for (const size of [
     { width: 820, height: 580 },
@@ -59,13 +59,9 @@ test('creation status bar contains and aligns Git readiness, summary, validation
   await footer.getByRole('button', { name: 'Git ready', exact: true }).focus();
   await page.keyboard.press('Tab');
   await expect(action).toBeFocused();
-  await action.click();
-  await expect(action).toHaveText('Create Project');
+  // The label is constant; nothing is created until the confirmation for GitHub is accepted.
+  await expect(action).toHaveText('Create project');
   await expect(footer.getByRole('button', { name: 'Git ready', exact: true })).toHaveCount(1);
-  await page
-    .getByRole('navigation', { name: 'Project setup' })
-    .getByRole('button', { name: 'Overview', exact: true })
-    .click();
   await page.getByLabel('Project name', { exact: true }).fill('');
   await expect(footer.getByRole('status')).toHaveText('Enter a project name.');
   await expect(action).toBeDisabled();

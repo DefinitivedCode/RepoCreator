@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { navigate, prepare } from './fixtures';
+import { navigate, overviewHeight, overviewOverflow, prepare } from './fixtures';
 
 const output = 'artifacts/refinement-creation-tests';
 test('stack switching preserves manual choices through picker remounts, undo and saved settings', async ({
@@ -72,9 +72,7 @@ test('natural project names show the final slug and preserve the README title in
     page.getByText('Repository name: my-amazing-project', { exact: true }),
   ).toBeVisible();
   await expect(page.locator('.context-code')).toContainText('# My Amazing Project');
-  await page.getByRole('button', { name: 'Review project', exact: true }).click();
-  await expect(page.locator('.project-summary')).toContainText('my-amazing-project');
-  await page.getByRole('button', { name: 'Create Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Repository created' })).toBeVisible();
   const requests = await page.evaluate(() => {
     const calls = (window as any).testCalls;
@@ -99,7 +97,7 @@ test('technology picker retains multi-selection, stacks, custom context and focu
   await prepare(page, false, 'simple');
   const main = page.getByRole('main', { name: 'Repository configuration' });
   await page.getByLabel('Project name').fill('multi-component');
-  const initialHeight = await main.evaluate((element) => element.scrollHeight);
+  const initialHeight = await overviewHeight(page);
   const browse = page.getByRole('button', { name: 'Browse technologies' });
   await browse.click();
   const picker = page.getByRole('dialog', { name: 'Choose technologies' });
@@ -138,9 +136,9 @@ test('technology picker retains multi-selection, stacks, custom context and focu
   await expect(picker).not.toBeVisible();
   await expect(browse).toBeFocused();
   await expect(page.getByRole('button', { name: 'Remove Rust', exact: true })).toBeVisible();
-  expect(await main.evaluate((element) => element.scrollHeight)).toBeLessThanOrEqual(
-    initialHeight + 40,
-  );
+  // The old measure was the pane's scrollHeight, which has slack in a tall window; this is the
+  // Overview section's real height, so selected stacks may add two chip rows (about 64px).
+  expect(await overviewHeight(page)).toBeLessThanOrEqual(initialHeight + 80);
   await expect
     .poll(() =>
       page.evaluate(
@@ -232,10 +230,7 @@ test('creation and bounded technology picker remain readable at default minimum 
   ] as const) {
     await page.setViewportSize({ width, height });
     const main = page.getByRole('main', { name: 'Repository configuration' });
-    if (name !== 'minimum')
-      expect(
-        await main.evaluate((element) => element.scrollHeight - element.clientHeight),
-      ).toBeLessThanOrEqual(2);
+    if (name !== 'minimum') expect(await overviewOverflow(page)).toBeLessThanOrEqual(2);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
     ).toBeLessThanOrEqual(0);

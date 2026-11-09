@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { prepare, createProject } from './fixtures';
+import { prepare, createProject, overviewOverflow } from './fixtures';
 import type { RecentProject, ProjectCommand } from '../src/workspaceTypes';
 import type { ReadinessReport } from '../src/readinessModel';
 
@@ -1318,12 +1318,8 @@ test('workspace layout keeps the default Simple creation screen contained and fi
 }, testInfo) => {
   await prepare(page, false, 'simple');
   await page.getByLabel('Project name').fill('river-workbench');
-  await expect(page.getByRole('button', { name: 'Review project', exact: true })).toBeEnabled();
-  expect(
-    await page
-      .locator('.workspace-main')
-      .evaluate((element) => element.scrollHeight - element.clientHeight),
-  ).toBeLessThanOrEqual(1);
+  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeEnabled();
+  expect(await overviewOverflow(page)).toBeLessThanOrEqual(1);
   mkdirSync('artifacts/workspace-ui', { recursive: true });
   await page.screenshot({
     animations: 'disabled',

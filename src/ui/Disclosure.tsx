@@ -8,6 +8,7 @@ export function Disclosure({
   open,
   defaultOpen = false,
   onToggle,
+  lazy = false,
   children,
 }: {
   title: string;
@@ -15,6 +16,8 @@ export function Disclosure({
   open?: boolean;
   defaultOpen?: boolean;
   onToggle?: (open: boolean) => void;
+  /** Render the body only while open (for heavy or field-rich content). */
+  lazy?: boolean;
   children: ReactNode;
 }) {
   const [inner, setInner] = useState(defaultOpen);
@@ -39,7 +42,7 @@ export function Disclosure({
         {summary && <span className="ui-disclosure-summary">{summary}</span>}
       </button>
       <div className="ui-disclosure-body" id={bodyId} hidden={!expanded}>
-        {children}
+        {(expanded || !lazy) && children}
       </div>
     </div>
   );
