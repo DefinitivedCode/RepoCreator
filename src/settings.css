@@ -1,0 +1,14 @@
+/* Settings page (Phase 7): one 720px measure, top-aligned, status shown once. */
+.desktop-app .settings-page > *,
+.desktop-app .settings-page .setup-settings-panel,
+.desktop-app .settings-page > .setup-checklist {
+  max-width: 720px;
+}
+.desktop-app .settings-page .appearance-settings,
+.desktop-app .settings-page .update-settings {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 720px;
+}
+.desktop-app .settings-page .appearance-preview-column {
+  max-width: 360px;
+}

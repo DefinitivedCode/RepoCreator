@@ -18,7 +18,7 @@
   --focus: #565660;
   --error: #a33023;
   --error-bg: #fff2ed;
-  --radius: 4px;
+  --radius: 6px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-appearance='light']) {
@@ -171,14 +171,14 @@ h2 {
   letter-spacing: -0.25px;
 }
 h3 {
-  font-size: 0.6875rem;
+  font-size: 12px;
   font-weight: 650;
 }
 code,
 pre,
 .mono {
   font-family: 'Cascadia Mono', Consolas, monospace;
-  font-size: 0.6875rem;
+  font-size: 12px;
 }
 .app {
   height: 100dvh;
@@ -204,7 +204,7 @@ pre,
   width: 85px;
   min-height: 26px;
   padding: 2px 5px;
-  font-size: 0.6875rem;
+  font-size: 12px;
   background: transparent;
   border-color: transparent;
 }
@@ -253,7 +253,7 @@ pre,
 }
 .field > label,
 .control-label {
-  font-size: 0.6875rem;
+  font-size: 12px;
   font-weight: 600;
 }
 .main-fields {
@@ -266,14 +266,14 @@ pre,
   gap: 13px;
 }
 .optional {
-  font-size: 0.625rem;
+  font-size: 12px;
   color: var(--muted);
   font-weight: 400;
   margin-left: 4px;
 }
 .help {
   color: var(--muted);
-  font-size: 0.65625rem;
+  font-size: 12px;
   line-height: 1.5;
 }
 .text-button,
@@ -283,8 +283,8 @@ pre,
   min-height: 24px;
   padding: 2px 3px;
   color: var(--muted);
-  font-size: 0.65625rem;
-  border-radius: 3px;
+  font-size: 12px;
+  border-radius: 6px;
 }
 .text-button:hover:not(:disabled) {
   color: var(--text);
@@ -332,11 +332,11 @@ pre,
 .segmented button {
   min-height: 27px;
   padding: 4px 14px;
-  font-size: 0.6875rem;
+  font-size: 12px;
   background: transparent;
   border-color: transparent;
   color: var(--muted);
-  border-radius: 2px;
+  border-radius: 6px;
 }
 .segmented button[aria-pressed='true'] {
   border-color: var(--border);
@@ -346,7 +346,7 @@ pre,
 .visibility {
   display: flex;
   gap: 12px;
-  font-size: 0.6875rem;
+  font-size: 12px;
 }
 .visibility label {
   display: flex;
@@ -381,12 +381,12 @@ pre,
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 7px 9px;
-  font-size: 0.6875rem;
+  font-size: 12px;
 }
 .location-control > button {
   border: none;
   border-left: 1px solid var(--border);
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 6px 6px 0;
   padding: 4px 11px;
   min-height: 31px;
 }
@@ -402,7 +402,7 @@ pre,
 .recent-select select {
   min-height: 21px;
   max-width: 100%;
-  font-size: 0.625rem;
+  font-size: 12px;
   border-color: transparent;
   background: transparent;
   padding: 0 3px;
@@ -428,7 +428,7 @@ pre,
   gap: 8px;
   padding: 8px 0;
   cursor: pointer;
-  font-size: 0.71875rem;
+  font-size: 12px;
   font-weight: 600;
 }
 .disclosure > summary::-webkit-details-marker {
@@ -444,7 +444,7 @@ pre,
 }
 .summary-meta {
   color: var(--muted);
-  font-size: 0.625rem;
+  font-size: 12px;
   font-weight: 400;
   margin-left: auto;
 }
@@ -472,7 +472,7 @@ pre,
 .ignore-group h3 {
   color: var(--muted);
   margin-bottom: 7px;
-  font-size: 0.625rem;
+  font-size: 12px;
 }
 .checkbox-grid {
   display: grid;
@@ -484,7 +484,7 @@ pre,
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  font-size: 0.6875rem;
+  font-size: 12px;
   line-height: 1.5;
   min-width: 0;
 }
@@ -516,7 +516,7 @@ pre,
   white-space: pre-wrap;
 }
 .preview-label {
-  font-size: 0.65625rem;
+  font-size: 12px;
   font-weight: 600;
   margin-top: 4px;
 }
@@ -537,7 +537,7 @@ pre,
 .empty-preview {
   padding: 10px;
   background: var(--secondary);
-  font-size: 0.6875rem;
+  font-size: 12px;
   color: var(--muted);
   border-radius: var(--radius);
 }
@@ -548,7 +548,7 @@ pre,
 }
 .file-tabs button {
   min-height: 25px;
-  font-size: 0.625rem;
+  font-size: 12px;
   padding: 3px 7px;
   background: transparent;
   border-color: transparent;
@@ -576,7 +576,7 @@ pre,
 }
 .studio-subsection > summary {
   padding: 9px 0;
-  font-size: 0.6875rem;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -658,7 +658,7 @@ pre,
   align-items: center;
   gap: 6px;
   min-height: 25px;
-  font-size: 0.65625rem;
+  font-size: 12px;
 }
 .preview-caption {
   display: flex;
@@ -699,7 +699,7 @@ pre,
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.65625rem;
+  font-size: 12px;
   color: var(--muted);
 }
 .create-button {
@@ -708,7 +708,7 @@ pre,
 }
 .inline-error {
   color: var(--error);
-  font-size: 0.65625rem;
+  font-size: 12px;
   line-height: 1.5;
 }
 .config-error {
@@ -719,7 +719,7 @@ pre,
   background: var(--error-bg);
   padding: 10px 12px;
   margin-top: 13px;
-  font-size: 0.6875rem;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .error-banner strong {
@@ -731,7 +731,7 @@ pre,
 }
 .notice {
   color: var(--muted);
-  font-size: 0.6875rem;
+  font-size: 12px;
   margin-top: 12px;
   overflow-wrap: anywhere;
 }
@@ -755,13 +755,13 @@ pre,
 }
 .setup-panel strong {
   width: 100%;
-  font-size: 0.6875rem;
+  font-size: 12px;
   font-weight: 600;
 }
 .setup-commands {
   display: block;
   width: 100%;
-  font-size: 0.625rem;
+  font-size: 12px;
   line-height: 1.8;
   overflow-wrap: anywhere;
 }
@@ -827,7 +827,7 @@ pre,
   margin: 19px 0;
   border-top: 1px solid var(--separator);
   border-bottom: 1px solid var(--separator);
-  font-size: 0.6875rem;
+  font-size: 12px;
 }
 .result-details dt {
   color: var(--muted);
@@ -859,15 +859,15 @@ pre,
   background: var(--secondary);
   border: 1px solid var(--separator);
   padding: 1px 4px;
-  font-size: 0.625rem;
-  border-radius: 2px;
+  font-size: 12px;
+  border-radius: 6px;
 }
 .result-link {
   border: 0;
   background: none;
   padding: 0;
   min-height: auto;
-  font-size: 0.6875rem;
+  font-size: 12px;
   white-space: normal;
   text-align: left;
   overflow-wrap: anywhere;
@@ -941,7 +941,7 @@ pre,
   margin-top: 8px;
   background: var(--secondary);
   border-radius: var(--radius);
-  font-size: 0.6875rem;
+  font-size: 12px;
 }
 .delete-confirm .inline-actions {
   margin-top: 8px;
@@ -1043,10 +1043,10 @@ pre,
 }
 .version {
   color: var(--muted);
-  font-size: 0.6875rem;
+  font-size: 12px;
   border: 1px solid var(--border);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 6px;
 }
 .mode-switch button {
   min-height: 30px;
@@ -1081,8 +1081,7 @@ pre,
 .nav-caption,
 .eyebrow {
   color: var(--muted);
-  font-size: 0.625rem;
-  letter-spacing: 1px;
+  font-size: 12px;
   font-weight: 600;
 }
 .nav-caption {
@@ -1116,7 +1115,7 @@ pre,
   display: flex;
   gap: 7px;
   align-items: center;
-  font-size: 0.6875rem;
+  font-size: 12px;
 }
 .status-dot {
   width: 6px;
@@ -1130,7 +1129,7 @@ pre,
   line-height: 1.6;
 }
 .desktop-app .nav-note {
-  font-size: 0.6875rem;
+  font-size: 12px;
 }
 .workspace-main {
   min-width: 0;
@@ -1336,7 +1335,7 @@ pre,
   overflow-wrap: anywhere;
 }
 .desktop-app .context-files code {
-  font-size: 0.6875rem;
+  font-size: 12px;
 }
 .context-code {
   max-height: 300px;
@@ -1347,11 +1346,11 @@ pre,
   line-height: 1.6;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--background);
 }
 .desktop-app .context-code {
-  font-size: 0.6875rem;
+  font-size: 12px;
 }
 .context-bottom {
   margin-top: 26px;
@@ -1363,7 +1362,7 @@ pre,
   grid-template-columns: 135px minmax(0, 1fr);
   gap: 12px 18px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 20px;
   margin: 0 0 4px;
   background: var(--surface);
@@ -1386,7 +1385,7 @@ pre,
   padding: 8px;
   background: var(--secondary);
   border: 1px solid var(--separator);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 .file-preview .preview-caption {
   margin: 6px 0 0;
@@ -1458,7 +1457,7 @@ pre,
 }
 .recent-project {
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -1513,7 +1512,7 @@ pre,
     grid-template-columns: 115px minmax(0, 1fr);
   }
   .nav-item {
-    font-size: 0.6875rem;
+    font-size: 12px;
     padding: 7px 4px;
     gap: 4px;
     white-space: normal;
@@ -1551,7 +1550,7 @@ pre,
     padding: 10px 12px;
   }
   .footer-summary {
-    font-size: 0.6875rem;
+    font-size: 12px;
   }
   .desktop-app .create-button {
     padding: 7px 12px;
@@ -1746,7 +1745,7 @@ pre,
 .result-files,
 .completion-handoff {
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--surface);
   min-width: 0;
 }

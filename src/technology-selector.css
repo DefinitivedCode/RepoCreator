@@ -38,7 +38,7 @@
   min-height: 25px;
   padding: 3px 7px;
   font-size: 12px;
-  border-radius: 3px;
+  border-radius: 6px;
   display: flex;
   gap: 6px;
   align-items: center;
@@ -58,7 +58,7 @@ dialog.technology-dialog {
   padding: 0;
   margin: auto;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--surface);
   color: var(--text);
   box-shadow: 0 16px 70px #0005;
@@ -114,7 +114,7 @@ dialog.technology-dialog[open] {
   gap: 8px;
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 6px;
   padding-left: 9px;
   background: var(--background);
 }
@@ -169,7 +169,7 @@ dialog.technology-dialog[open] {
   flex-shrink: 0;
 }
 .technology-categories button span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   flex-shrink: 0;
 }
@@ -207,7 +207,7 @@ dialog.technology-dialog[open] {
   min-height: 36px;
   padding: 7px 9px;
   text-align: left;
-  border-radius: 3px;
+  border-radius: 6px;
   font-weight: 450;
   background: var(--surface);
 }

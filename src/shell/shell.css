@@ -50,7 +50,6 @@
   background: var(--selected-background);
   color: var(--selected-text);
   font-weight: 600;
-  box-shadow: inset 3px 0 var(--accent);
 }
 .sidebar-item[data-primary]:not([aria-current='page']) {
   color: var(--accent-text);

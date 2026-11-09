@@ -26,7 +26,7 @@
   --success-bg: #edf6ef;
   --warning: #835d13;
   --warning-bg: #fbf3df;
-  --radius: 3px;
+  --radius: 6px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-appearance='light']) {
@@ -99,7 +99,7 @@
 .version {
   border: 0;
   padding: 0;
-  font-size: 10px;
+  font-size: 12px;
 }
 .app-navigation {
   display: flex;
@@ -128,12 +128,12 @@
 .header-actions .mode-switch button {
   min-height: 28px;
   padding: 3px 9px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .desktop-app .appearance-control select {
   width: 72px;
   padding-inline: 4px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .workspace,
 .workspace.with-context {
@@ -148,21 +148,16 @@
   gap: 6px;
 }
 .nav-caption {
-  font-size: 10px;
-  letter-spacing: 1.3px;
+  font-size: 12px;
   margin-bottom: 13px;
 }
 .nav-item {
   padding: 10px 9px;
   min-height: 38px;
-  border-left-width: 2px;
-  border-radius: 0 3px 3px 0;
 }
 .nav-item.active {
   color: var(--selected-text);
-  border-left-color: var(--accent);
   border-color: transparent;
-  border-left-color: var(--accent);
   background: var(--selected-background);
   font-weight: 650;
 }
@@ -172,13 +167,13 @@
   border: 0;
   padding: 6px 0;
   margin-top: auto;
-  font-size: 11px;
+  font-size: 12px;
 }
 .nav-status .status-dot {
   background: var(--muted);
 }
 .desktop-app .nav-note {
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 5px;
   line-height: 1.5;
 }
@@ -196,11 +191,10 @@
   margin-top: 3px;
 }
 .eyebrow {
-  font-size: 9px;
-  letter-spacing: 1.2px;
+  font-size: 12px;
 }
 .workspace-heading .context-toggle {
-  font-size: 11px;
+  font-size: 12px;
 }
 .workspace-fields {
   gap: 16px;
@@ -229,7 +223,7 @@
   font-weight: 650;
 }
 .context-panel .context-facts {
-  font-size: 11px;
+  font-size: 12px;
 }
 .context-panel .context-files {
   gap: 10px;
@@ -238,7 +232,7 @@
   color: var(--accent);
 }
 .context-panel h4 {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 .context-panel .context-code {
@@ -303,7 +297,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .sort-control select {
@@ -321,7 +315,7 @@
   min-width: 0;
   padding: 19px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--surface);
 }
 .project-card-heading {
@@ -343,7 +337,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 3px;
+  border-radius: 6px;
 }
 .project-name {
   border: 0;
@@ -361,7 +355,7 @@
   opacity: 0.5;
 }
 .project-card .path {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
@@ -394,11 +388,11 @@
   gap: 7px;
 }
 .project-card-footer button {
-  font-size: 11px;
+  font-size: 12px;
 }
 .library-note {
   margin-top: 22px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .empty-workspace {
   display: flex;
@@ -424,7 +418,7 @@
 .library-back {
   margin-inline: 0;
   padding: 0;
-  font-size: 11px;
+  font-size: 12px;
   margin-bottom: 20px;
   display: flex;
 }
@@ -444,7 +438,7 @@
 }
 .project-workspace-heading .path {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 4px;
   overflow-wrap: anywhere;
 }
@@ -457,8 +451,8 @@
   background: var(--surface);
   border: 1px solid var(--separator);
   padding: 6px 9px;
-  border-radius: 3px;
-  font-size: 11px;
+  border-radius: 6px;
+  font-size: 12px;
 }
 .workspace-tabs {
   display: flex;
@@ -489,7 +483,7 @@
 .workspace-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 22px;
   min-width: 0;
 }
@@ -523,7 +517,7 @@
   overflow-wrap: anywhere;
 }
 .workspace-facts .result-link {
-  font-size: 11px;
+  font-size: 12px;
   padding: 0;
   white-space: normal;
   text-align: left;
@@ -587,7 +581,7 @@
 }
 .tool-item > button small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   margin-top: 6px;
   font-weight: 400;
@@ -599,7 +593,7 @@
   align-items: center;
   gap: 5px;
   margin-top: 7px;
-  font-size: 10px;
+  font-size: 12px;
   text-decoration: none;
 }
 .tool-item > a:hover {
@@ -638,7 +632,7 @@
   padding: 18px;
   background: var(--error-bg);
   border: 1px solid var(--error);
-  border-radius: 3px;
+  border-radius: 6px;
   margin-bottom: 22px;
 }
 .missing-project > svg {
@@ -662,7 +656,7 @@
   min-height: 30px;
 }
 .command-presets > button {
-  font-size: 11px;
+  font-size: 12px;
 }
 .command-layout {
   display: grid;
@@ -678,7 +672,7 @@
   background: var(--surface);
   padding: 17px;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 6px;
   min-width: 0;
 }
 .command-card-heading {
@@ -688,13 +682,12 @@
   margin-bottom: 7px;
 }
 .command-category {
-  text-transform: uppercase;
-  font-size: 9px;
-  letter-spacing: 1px;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--muted);
 }
 .unreviewed-label {
-  font-size: 9px;
+  font-size: 12px;
   color: var(--warning);
   margin-left: auto;
 }
@@ -722,7 +715,7 @@
 .command-card-actions button {
   min-height: 28px;
   padding: 4px 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .command-card-actions .inline-actions {
   flex-wrap: wrap;
@@ -744,7 +737,7 @@
 .command-output {
   border: 1px solid var(--border);
   background: var(--surface);
-  border-radius: 4px;
+  border-radius: 6px;
   position: sticky;
   top: 0;
   min-width: 0;
@@ -765,7 +758,7 @@
 .output-toolbar > select {
   width: auto;
   max-width: 75%;
-  font-size: 11px;
+  font-size: 12px;
   min-height: 30px;
 }
 .run-summary {
@@ -773,7 +766,7 @@
   gap: 10px;
   align-items: center;
   padding: 12px 15px;
-  font-size: 10px;
+  font-size: 12px;
   flex-wrap: wrap;
   color: var(--muted);
 }
@@ -807,7 +800,7 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   background: var(--background);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
 }
 .output-actions {
@@ -818,7 +811,7 @@
 }
 .output-actions button,
 .output-terminal button {
-  font-size: 10px;
+  font-size: 12px;
   min-height: 27px;
 }
 .output-terminal {
@@ -831,7 +824,7 @@
   justify-content: space-between;
 }
 .output-terminal .help {
-  font-size: 10px;
+  font-size: 12px;
 }
 .output-empty {
   min-height: 230px;
@@ -848,7 +841,7 @@
   max-height: calc(100dvh - 48px);
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 24px;
   background: var(--surface);
   color: var(--text);
@@ -901,7 +894,7 @@
   gap: 12px;
   border: 1px solid var(--separator);
   padding: 14px;
-  border-radius: 3px;
+  border-radius: 6px;
 }
 .suggested-command > input {
   margin-top: 3px;
@@ -917,7 +910,7 @@
   overflow-wrap: anywhere;
 }
 .suggested-command small {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
@@ -940,7 +933,7 @@
 }
 .preset-details {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
 }
 .preset-details > span {
@@ -972,7 +965,7 @@
   gap: 8px;
 }
 .compact-launcher .tool-item > button > span {
-  font-size: 11px;
+  font-size: 12px;
 }
 .compact-launcher .tool-item > button > svg:last-child {
   display: none;
@@ -981,7 +974,7 @@
   display: none;
 }
 .compact-launcher .tool-item > a {
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 5px;
 }
 @container app (max-width: 1030px) {
@@ -1039,18 +1032,18 @@
   }
   .app-navigation > button {
     padding-inline: 9px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .header-actions {
     gap: 4px;
   }
   .header-actions .mode-switch button {
     padding: 3px 6px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .desktop-app .appearance-control select {
     width: 61px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .workspace-main {
     padding: 20px;
@@ -1130,7 +1123,7 @@
     font-size: 23px;
   }
   .page-heading > button {
-    font-size: 11px;
+    font-size: 12px;
     min-height: 34px;
   }
   .library-toolbar {
@@ -1154,7 +1147,7 @@
     gap: 10px;
   }
   .workspace-tabs > button {
-    font-size: 11px;
+    font-size: 12px;
   }
   .view-heading {
     flex-wrap: wrap;

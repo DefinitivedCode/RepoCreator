@@ -584,19 +584,6 @@ export function SetupPanel({
     email: creator.preferences?.identityOverride?.email ?? '',
   });
   const [identityMode, setIdentityMode] = useState<IdentityMode>('project');
-  // Git and identity are ready when no Git or identity blocker is outstanding.
-  const gitReady =
-    !!creator.environment &&
-    !creator.blockers.some((blocker) =>
-      [
-        'setup-check',
-        'git-missing',
-        'git-old',
-        'identity-name',
-        'identity-email',
-        'identity-invalid',
-      ].includes(blocker.id),
-    );
   return (
     <div className="setup-settings">
       <div className="setup-summary">
@@ -610,18 +597,15 @@ export function SetupPanel({
                   ? 'Application appearance'
                   : 'Development environment'}
             </strong>
+            {/* Readiness is stated once, in the page heading; this line only describes the tab. */}
             <span>
               {tab === 'updates'
                 ? 'Choose when and how to update'
                 : tab === 'appearance'
                   ? 'Theme and accent for this device'
-                  : !creator.environment
-                    ? creator.checking
-                      ? 'Checking your computer…'
-                      : 'Computer checks are unavailable.'
-                    : gitReady
-                      ? 'Ready for local projects'
-                      : 'Complete Git setup to create a project'}
+                  : !creator.environment && !creator.checking
+                    ? 'Computer checks are unavailable.'
+                    : 'Checks for Git, GitHub and your editor'}
             </span>
           </div>
         </div>

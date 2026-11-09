@@ -23,3 +23,36 @@ test('only the new primitives and tokens are gated', async () => {
   assert.equal(gated('src/styles.css'), false);
   assert.equal(gated('src/workspace.css'), false);
 });
+
+test('the style gate flags side stripes on selected items but not tab underlines', async () => {
+  const { ruleViolations } = await import('./audit-styles.mjs');
+  const flagged = ruleViolations(
+    'src/x.css',
+    ".a[aria-current='page'] {\n  box-shadow: inset 3px 0 var(--accent);\n}\n.b.active { border-left: 2px solid var(--accent); }\n.c.selected { border-left-color: var(--accent); }",
+  );
+  assert.equal(flagged.length, 3);
+  const allowed = ruleViolations(
+    'src/x.css',
+    ".tab[aria-selected='true'] { box-shadow: inset 0 -2px var(--accent); }\n.err { border-left: 2px solid red; }\n.d.active { border-left: 0; }",
+  );
+  assert.deepEqual(allowed, []);
+});
+
+test('the style gate flags all-caps text and pressed-state navigation', async () => {
+  const { ruleViolations, pressedNavigation } = await import('./audit-styles.mjs');
+  assert.equal(ruleViolations('src/x.css', '.eyebrow { text-transform: uppercase; }').length, 1);
+  assert.equal(ruleViolations('src/x.css', '.x { text-transform: capitalize; }').length, 0);
+  assert.equal(
+    pressedNavigation('src/x.tsx', '<button className="nav-item" aria-pressed={on}>').length,
+    1,
+  );
+  assert.equal(
+    pressedNavigation('src/x.tsx', '<button className="chip" aria-pressed={on}>').length,
+    0,
+  );
+});
+
+test('font sizes and radii are held repo-wide', () => {
+  const result = audit();
+  assert.deepEqual(result.gateViolations, []);
+});

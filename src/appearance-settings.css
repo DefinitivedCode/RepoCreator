@@ -36,7 +36,7 @@
   gap: 9px 6px;
   padding: 9px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
   background: var(--surface);
@@ -73,7 +73,7 @@
   height: 46px;
   overflow: hidden;
   border: 1px solid #7775;
-  border-radius: 2px;
+  border-radius: 6px;
   background: #f7f7f5;
 }
 .appearance-theme-thumbnail > i {
@@ -126,7 +126,7 @@
   min-height: 36px;
   padding: 8px 9px;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
 }
@@ -159,7 +159,7 @@
   cursor: pointer;
   padding: 3px;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 6px;
 }
 .appearance-hex-field {
   max-width: 170px;
@@ -178,7 +178,7 @@
   gap: 6px 16px;
 }
 .appearance-reset > span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .appearance-preview-column {
@@ -193,7 +193,7 @@
 }
 .appearance-preview {
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
   overflow: hidden;
   background: var(--surface);
   color: var(--text);
@@ -215,7 +215,7 @@
   padding: 0 14px;
   border-bottom: 1px solid var(--separator);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .appearance-preview-tabs > span {
   padding: 10px 0;
@@ -247,7 +247,7 @@
   gap: 8px;
   padding: 10px;
   border: 1px solid var(--accent-border, var(--border));
-  border-radius: 3px;
+  border-radius: 6px;
   background: var(--accent-surface, var(--secondary));
   font-size: 12px;
 }
@@ -261,7 +261,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--success, var(--muted));
 }
 .appearance-preview .appearance-preview-button {
@@ -280,7 +280,7 @@
 .appearance-preview-caption {
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 @container app (max-width: 800px) {
   .appearance-settings {

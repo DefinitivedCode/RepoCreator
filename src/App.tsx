@@ -18,6 +18,7 @@ import { Sidebar } from './shell/Sidebar';
 import { initialRoute, routeReducer, type SettingsTarget } from './shell/route';
 import { TabList, panelIdOf, tabId } from './ui/Tabs';
 import './shell/shell.css';
+import './settings.css';
 import { useCreator } from './useCreator';
 import { useUpdates } from './useUpdates';
 import { configurationOf } from './validation';
@@ -315,7 +316,7 @@ export default function App() {
           >
             <div className={`workspace ${showContext ? 'with-context' : ''}`}>
               <nav className="navigation-rail" aria-label="Project setup">
-                <span className="nav-caption">PROJECT SETUP</span>
+                <span className="nav-caption">Project setup</span>
                 {(Object.keys(labels) as Section[]).map((s) => (
                   <button
                     key={s}
